@@ -1,0 +1,32 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "description": "Twilight is configured via the sidebar panel — this entry only anchors devices for optional button/switch entities and requires no setup."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "[%key:common::config_flow::abort::single_instance_allowed%]"
+    }
+  },
+  "services": {
+    "trigger_input": {
+      "name": "Trigger Input",
+      "description": "Triggers a button-type input manually (click or toggle) for a given area.",
+      "fields": {
+        "area_id": {
+          "name": "Area ID",
+          "description": "The area ID containing the input."
+        },
+        "input_id": {
+          "name": "Input ID",
+          "description": "The ID of the button input to trigger."
+        },
+        "active": {
+          "name": "Active State",
+          "description": "For toggle buttons, sets whether the input state should be active (true) or inactive (false)."
+        }
+      }
+    }
+  }
+}
