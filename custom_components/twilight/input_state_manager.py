@@ -71,7 +71,10 @@ class InputStateManager:
                     )
                 if inp.type == InputType.BINARY:
                     mode, count = resolve_aggregation(
-                        self._c.engine.hass, inp, self._c.engine.config, InputType.BINARY
+                        self._c.engine.hass,
+                        inp,
+                        self._c.engine.config,
+                        InputType.BINARY,
                     )
                     active = aggregate_active(flags, mode, count)
                 else:
@@ -84,6 +87,7 @@ class InputStateManager:
             inputs_disabled_by=inputs_disabled_by,
             inputs_active=inputs_active,
         )
+        self._c.rule_manager.reevaluate()
 
     def compute_disablers(self, active_activity: str | None) -> dict[str, list[str]]:
         """Compute activity-based disablers for all inputs, without writing state."""
@@ -124,3 +128,4 @@ class InputStateManager:
                 inputs_active=inputs_active,
                 motion_active=motion_active,
             )
+            self._c.rule_manager.reevaluate()

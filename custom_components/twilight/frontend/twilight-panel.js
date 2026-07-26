@@ -1,20 +1,20 @@
-var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.define;customElements.define=function(t,e,i){if(customElements.get(t)){console.warn(`[Twilight] Custom element ${t} is already defined.`);return}Za.call(customElements,t,e,i)};/**
+var TwilightPanel=(function(Oe){"use strict";var ns;const ls=customElements.define;customElements.define=function(t,e,i){if(customElements.get(t)){console.warn(`[Twilight] Custom element ${t} is already defined.`);return}ls.call(customElements,t,e,i)};/**
  * @license
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
- */const H=t=>(e,i)=>{i!==void 0?i.addInitializer(()=>{customElements.define(t,e)}):customElements.define(t,e)};/**
+ */const z=t=>(e,i)=>{i!==void 0?i.addInitializer(()=>{customElements.define(t,e)}):customElements.define(t,e)};/**
  * @license
  * Copyright 2019 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
- */const Pe=globalThis,ii=Pe.ShadowRoot&&(Pe.ShadyCSS===void 0||Pe.ShadyCSS.nativeShadow)&&"adoptedStyleSheets"in Document.prototype&&"replace"in CSSStyleSheet.prototype,ai=Symbol(),Bi=new WeakMap;let Fi=class{constructor(e,i,a){if(this._$cssResult$=!0,a!==ai)throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");this.cssText=e,this.t=i}get styleSheet(){let e=this.o;const i=this.t;if(ii&&e===void 0){const a=i!==void 0&&i.length===1;a&&(e=Bi.get(i)),e===void 0&&((this.o=e=new CSSStyleSheet).replaceSync(this.cssText),a&&Bi.set(i,e))}return e}toString(){return this.cssText}};const Ja=t=>new Fi(typeof t=="string"?t:t+"",void 0,ai),z=(t,...e)=>{const i=t.length===1?t[0]:e.reduce((a,s,o)=>a+(n=>{if(n._$cssResult$===!0)return n.cssText;if(typeof n=="number")return n;throw Error("Value passed to 'css' function must be a 'css' function result: "+n+". Use 'unsafeCSS' to pass non-literal values, but take care to ensure page security.")})(s)+t[o+1],t[0]);return new Fi(i,t,ai)},Qa=(t,e)=>{if(ii)t.adoptedStyleSheets=e.map(i=>i instanceof CSSStyleSheet?i:i.styleSheet);else for(const i of e){const a=document.createElement("style"),s=Pe.litNonce;s!==void 0&&a.setAttribute("nonce",s),a.textContent=i.cssText,t.appendChild(a)}},Wi=ii?t=>t:t=>t instanceof CSSStyleSheet?(e=>{let i="";for(const a of e.cssRules)i+=a.cssText;return Ja(i)})(t):t;/**
+ */const Be=globalThis,di=Be.ShadowRoot&&(Be.ShadyCSS===void 0||Be.ShadyCSS.nativeShadow)&&"adoptedStyleSheets"in Document.prototype&&"replace"in CSSStyleSheet.prototype,ci=Symbol(),Zi=new WeakMap;let Ji=class{constructor(e,i,s){if(this._$cssResult$=!0,s!==ci)throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");this.cssText=e,this.t=i}get styleSheet(){let e=this.o;const i=this.t;if(di&&e===void 0){const s=i!==void 0&&i.length===1;s&&(e=Zi.get(i)),e===void 0&&((this.o=e=new CSSStyleSheet).replaceSync(this.cssText),s&&Zi.set(i,e))}return e}toString(){return this.cssText}};const ds=t=>new Ji(typeof t=="string"?t:t+"",void 0,ci),O=(t,...e)=>{const i=t.length===1?t[0]:e.reduce((s,a,o)=>s+(r=>{if(r._$cssResult$===!0)return r.cssText;if(typeof r=="number")return r;throw Error("Value passed to 'css' function must be a 'css' function result: "+r+". Use 'unsafeCSS' to pass non-literal values, but take care to ensure page security.")})(a)+t[o+1],t[0]);return new Ji(i,t,ci)},cs=(t,e)=>{if(di)t.adoptedStyleSheets=e.map(i=>i instanceof CSSStyleSheet?i:i.styleSheet);else for(const i of e){const s=document.createElement("style"),a=Be.litNonce;a!==void 0&&s.setAttribute("nonce",a),s.textContent=i.cssText,t.appendChild(s)}},Qi=di?t=>t:t=>t instanceof CSSStyleSheet?(e=>{let i="";for(const s of e.cssRules)i+=s.cssText;return ds(i)})(t):t;/**
  * @license
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
- */const{is:ts,defineProperty:es,getOwnPropertyDescriptor:is,getOwnPropertyNames:as,getOwnPropertySymbols:ss,getPrototypeOf:os}=Object,Xt=globalThis,qi=Xt.trustedTypes,ns=qi?qi.emptyScript:"",si=Xt.reactiveElementPolyfillSupport,ke=(t,e)=>t,Ne={toAttribute(t,e){switch(e){case Boolean:t=t?ns:null;break;case Object:case Array:t=t==null?t:JSON.stringify(t)}return t},fromAttribute(t,e){let i=t;switch(e){case Boolean:i=t!==null;break;case Number:i=t===null?null:Number(t);break;case Object:case Array:try{i=JSON.parse(t)}catch{i=null}}return i}},oi=(t,e)=>!ts(t,e),Yi={attribute:!0,type:String,converter:Ne,reflect:!1,useDefault:!1,hasChanged:oi};Symbol.metadata??(Symbol.metadata=Symbol("metadata")),Xt.litPropertyMetadata??(Xt.litPropertyMetadata=new WeakMap);let ce=class extends HTMLElement{static addInitializer(e){this._$Ei(),(this.l??(this.l=[])).push(e)}static get observedAttributes(){return this.finalize(),this._$Eh&&[...this._$Eh.keys()]}static createProperty(e,i=Yi){if(i.state&&(i.attribute=!1),this._$Ei(),this.prototype.hasOwnProperty(e)&&((i=Object.create(i)).wrapped=!0),this.elementProperties.set(e,i),!i.noAccessor){const a=Symbol(),s=this.getPropertyDescriptor(e,a,i);s!==void 0&&es(this.prototype,e,s)}}static getPropertyDescriptor(e,i,a){const{get:s,set:o}=is(this.prototype,e)??{get(){return this[i]},set(n){this[i]=n}};return{get:s,set(n){const l=s==null?void 0:s.call(this);o==null||o.call(this,n),this.requestUpdate(e,l,a)},configurable:!0,enumerable:!0}}static getPropertyOptions(e){return this.elementProperties.get(e)??Yi}static _$Ei(){if(this.hasOwnProperty(ke("elementProperties")))return;const e=os(this);e.finalize(),e.l!==void 0&&(this.l=[...e.l]),this.elementProperties=new Map(e.elementProperties)}static finalize(){if(this.hasOwnProperty(ke("finalized")))return;if(this.finalized=!0,this._$Ei(),this.hasOwnProperty(ke("properties"))){const i=this.properties,a=[...as(i),...ss(i)];for(const s of a)this.createProperty(s,i[s])}const e=this[Symbol.metadata];if(e!==null){const i=litPropertyMetadata.get(e);if(i!==void 0)for(const[a,s]of i)this.elementProperties.set(a,s)}this._$Eh=new Map;for(const[i,a]of this.elementProperties){const s=this._$Eu(i,a);s!==void 0&&this._$Eh.set(s,i)}this.elementStyles=this.finalizeStyles(this.styles)}static finalizeStyles(e){const i=[];if(Array.isArray(e)){const a=new Set(e.flat(1/0).reverse());for(const s of a)i.unshift(Wi(s))}else e!==void 0&&i.push(Wi(e));return i}static _$Eu(e,i){const a=i.attribute;return a===!1?void 0:typeof a=="string"?a:typeof e=="string"?e.toLowerCase():void 0}constructor(){super(),this._$Ep=void 0,this.isUpdatePending=!1,this.hasUpdated=!1,this._$Em=null,this._$Ev()}_$Ev(){var e;this._$ES=new Promise(i=>this.enableUpdating=i),this._$AL=new Map,this._$E_(),this.requestUpdate(),(e=this.constructor.l)==null||e.forEach(i=>i(this))}addController(e){var i;(this._$EO??(this._$EO=new Set)).add(e),this.renderRoot!==void 0&&this.isConnected&&((i=e.hostConnected)==null||i.call(e))}removeController(e){var i;(i=this._$EO)==null||i.delete(e)}_$E_(){const e=new Map,i=this.constructor.elementProperties;for(const a of i.keys())this.hasOwnProperty(a)&&(e.set(a,this[a]),delete this[a]);e.size>0&&(this._$Ep=e)}createRenderRoot(){const e=this.shadowRoot??this.attachShadow(this.constructor.shadowRootOptions);return Qa(e,this.constructor.elementStyles),e}connectedCallback(){var e;this.renderRoot??(this.renderRoot=this.createRenderRoot()),this.enableUpdating(!0),(e=this._$EO)==null||e.forEach(i=>{var a;return(a=i.hostConnected)==null?void 0:a.call(i)})}enableUpdating(e){}disconnectedCallback(){var e;(e=this._$EO)==null||e.forEach(i=>{var a;return(a=i.hostDisconnected)==null?void 0:a.call(i)})}attributeChangedCallback(e,i,a){this._$AK(e,a)}_$ET(e,i){var o;const a=this.constructor.elementProperties.get(e),s=this.constructor._$Eu(e,a);if(s!==void 0&&a.reflect===!0){const n=(((o=a.converter)==null?void 0:o.toAttribute)!==void 0?a.converter:Ne).toAttribute(i,a.type);this._$Em=e,n==null?this.removeAttribute(s):this.setAttribute(s,n),this._$Em=null}}_$AK(e,i){var o,n;const a=this.constructor,s=a._$Eh.get(e);if(s!==void 0&&this._$Em!==s){const l=a.getPropertyOptions(s),c=typeof l.converter=="function"?{fromAttribute:l.converter}:((o=l.converter)==null?void 0:o.fromAttribute)!==void 0?l.converter:Ne;this._$Em=s;const u=c.fromAttribute(i,l.type);this[s]=u??((n=this._$Ej)==null?void 0:n.get(s))??u,this._$Em=null}}requestUpdate(e,i,a,s=!1,o){var n;if(e!==void 0){const l=this.constructor;if(s===!1&&(o=this[e]),a??(a=l.getPropertyOptions(e)),!((a.hasChanged??oi)(o,i)||a.useDefault&&a.reflect&&o===((n=this._$Ej)==null?void 0:n.get(e))&&!this.hasAttribute(l._$Eu(e,a))))return;this.C(e,i,a)}this.isUpdatePending===!1&&(this._$ES=this._$EP())}C(e,i,{useDefault:a,reflect:s,wrapped:o},n){a&&!(this._$Ej??(this._$Ej=new Map)).has(e)&&(this._$Ej.set(e,n??i??this[e]),o!==!0||n!==void 0)||(this._$AL.has(e)||(this.hasUpdated||a||(i=void 0),this._$AL.set(e,i)),s===!0&&this._$Em!==e&&(this._$Eq??(this._$Eq=new Set)).add(e))}async _$EP(){this.isUpdatePending=!0;try{await this._$ES}catch(i){Promise.reject(i)}const e=this.scheduleUpdate();return e!=null&&await e,!this.isUpdatePending}scheduleUpdate(){return this.performUpdate()}performUpdate(){var a;if(!this.isUpdatePending)return;if(!this.hasUpdated){if(this.renderRoot??(this.renderRoot=this.createRenderRoot()),this._$Ep){for(const[o,n]of this._$Ep)this[o]=n;this._$Ep=void 0}const s=this.constructor.elementProperties;if(s.size>0)for(const[o,n]of s){const{wrapped:l}=n,c=this[o];l!==!0||this._$AL.has(o)||c===void 0||this.C(o,void 0,n,c)}}let e=!1;const i=this._$AL;try{e=this.shouldUpdate(i),e?(this.willUpdate(i),(a=this._$EO)==null||a.forEach(s=>{var o;return(o=s.hostUpdate)==null?void 0:o.call(s)}),this.update(i)):this._$EM()}catch(s){throw e=!1,this._$EM(),s}e&&this._$AE(i)}willUpdate(e){}_$AE(e){var i;(i=this._$EO)==null||i.forEach(a=>{var s;return(s=a.hostUpdated)==null?void 0:s.call(a)}),this.hasUpdated||(this.hasUpdated=!0,this.firstUpdated(e)),this.updated(e)}_$EM(){this._$AL=new Map,this.isUpdatePending=!1}get updateComplete(){return this.getUpdateComplete()}getUpdateComplete(){return this._$ES}shouldUpdate(e){return!0}update(e){this._$Eq&&(this._$Eq=this._$Eq.forEach(i=>this._$ET(i,this[i]))),this._$EM()}updated(e){}firstUpdated(e){}};ce.elementStyles=[],ce.shadowRootOptions={mode:"open"},ce[ke("elementProperties")]=new Map,ce[ke("finalized")]=new Map,si==null||si({ReactiveElement:ce}),(Xt.reactiveElementVersions??(Xt.reactiveElementVersions=[])).push("2.1.2");/**
+ */const{is:ps,defineProperty:hs,getOwnPropertyDescriptor:us,getOwnPropertyNames:gs,getOwnPropertySymbols:fs,getPrototypeOf:vs}=Object,te=globalThis,ta=te.trustedTypes,bs=ta?ta.emptyScript:"",pi=te.reactiveElementPolyfillSupport,Ie=(t,e)=>t,Fe={toAttribute(t,e){switch(e){case Boolean:t=t?bs:null;break;case Object:case Array:t=t==null?t:JSON.stringify(t)}return t},fromAttribute(t,e){let i=t;switch(e){case Boolean:i=t!==null;break;case Number:i=t===null?null:Number(t);break;case Object:case Array:try{i=JSON.parse(t)}catch{i=null}}return i}},hi=(t,e)=>!ps(t,e),ea={attribute:!0,type:String,converter:Fe,reflect:!1,useDefault:!1,hasChanged:hi};Symbol.metadata??(Symbol.metadata=Symbol("metadata")),te.litPropertyMetadata??(te.litPropertyMetadata=new WeakMap);let xe=class extends HTMLElement{static addInitializer(e){this._$Ei(),(this.l??(this.l=[])).push(e)}static get observedAttributes(){return this.finalize(),this._$Eh&&[...this._$Eh.keys()]}static createProperty(e,i=ea){if(i.state&&(i.attribute=!1),this._$Ei(),this.prototype.hasOwnProperty(e)&&((i=Object.create(i)).wrapped=!0),this.elementProperties.set(e,i),!i.noAccessor){const s=Symbol(),a=this.getPropertyDescriptor(e,s,i);a!==void 0&&hs(this.prototype,e,a)}}static getPropertyDescriptor(e,i,s){const{get:a,set:o}=us(this.prototype,e)??{get(){return this[i]},set(r){this[i]=r}};return{get:a,set(r){const l=a==null?void 0:a.call(this);o==null||o.call(this,r),this.requestUpdate(e,l,s)},configurable:!0,enumerable:!0}}static getPropertyOptions(e){return this.elementProperties.get(e)??ea}static _$Ei(){if(this.hasOwnProperty(Ie("elementProperties")))return;const e=vs(this);e.finalize(),e.l!==void 0&&(this.l=[...e.l]),this.elementProperties=new Map(e.elementProperties)}static finalize(){if(this.hasOwnProperty(Ie("finalized")))return;if(this.finalized=!0,this._$Ei(),this.hasOwnProperty(Ie("properties"))){const i=this.properties,s=[...gs(i),...fs(i)];for(const a of s)this.createProperty(a,i[a])}const e=this[Symbol.metadata];if(e!==null){const i=litPropertyMetadata.get(e);if(i!==void 0)for(const[s,a]of i)this.elementProperties.set(s,a)}this._$Eh=new Map;for(const[i,s]of this.elementProperties){const a=this._$Eu(i,s);a!==void 0&&this._$Eh.set(a,i)}this.elementStyles=this.finalizeStyles(this.styles)}static finalizeStyles(e){const i=[];if(Array.isArray(e)){const s=new Set(e.flat(1/0).reverse());for(const a of s)i.unshift(Qi(a))}else e!==void 0&&i.push(Qi(e));return i}static _$Eu(e,i){const s=i.attribute;return s===!1?void 0:typeof s=="string"?s:typeof e=="string"?e.toLowerCase():void 0}constructor(){super(),this._$Ep=void 0,this.isUpdatePending=!1,this.hasUpdated=!1,this._$Em=null,this._$Ev()}_$Ev(){var e;this._$ES=new Promise(i=>this.enableUpdating=i),this._$AL=new Map,this._$E_(),this.requestUpdate(),(e=this.constructor.l)==null||e.forEach(i=>i(this))}addController(e){var i;(this._$EO??(this._$EO=new Set)).add(e),this.renderRoot!==void 0&&this.isConnected&&((i=e.hostConnected)==null||i.call(e))}removeController(e){var i;(i=this._$EO)==null||i.delete(e)}_$E_(){const e=new Map,i=this.constructor.elementProperties;for(const s of i.keys())this.hasOwnProperty(s)&&(e.set(s,this[s]),delete this[s]);e.size>0&&(this._$Ep=e)}createRenderRoot(){const e=this.shadowRoot??this.attachShadow(this.constructor.shadowRootOptions);return cs(e,this.constructor.elementStyles),e}connectedCallback(){var e;this.renderRoot??(this.renderRoot=this.createRenderRoot()),this.enableUpdating(!0),(e=this._$EO)==null||e.forEach(i=>{var s;return(s=i.hostConnected)==null?void 0:s.call(i)})}enableUpdating(e){}disconnectedCallback(){var e;(e=this._$EO)==null||e.forEach(i=>{var s;return(s=i.hostDisconnected)==null?void 0:s.call(i)})}attributeChangedCallback(e,i,s){this._$AK(e,s)}_$ET(e,i){var o;const s=this.constructor.elementProperties.get(e),a=this.constructor._$Eu(e,s);if(a!==void 0&&s.reflect===!0){const r=(((o=s.converter)==null?void 0:o.toAttribute)!==void 0?s.converter:Fe).toAttribute(i,s.type);this._$Em=e,r==null?this.removeAttribute(a):this.setAttribute(a,r),this._$Em=null}}_$AK(e,i){var o,r;const s=this.constructor,a=s._$Eh.get(e);if(a!==void 0&&this._$Em!==a){const l=s.getPropertyOptions(a),c=typeof l.converter=="function"?{fromAttribute:l.converter}:((o=l.converter)==null?void 0:o.fromAttribute)!==void 0?l.converter:Fe;this._$Em=a;const g=c.fromAttribute(i,l.type);this[a]=g??((r=this._$Ej)==null?void 0:r.get(a))??g,this._$Em=null}}requestUpdate(e,i,s,a=!1,o){var r;if(e!==void 0){const l=this.constructor;if(a===!1&&(o=this[e]),s??(s=l.getPropertyOptions(e)),!((s.hasChanged??hi)(o,i)||s.useDefault&&s.reflect&&o===((r=this._$Ej)==null?void 0:r.get(e))&&!this.hasAttribute(l._$Eu(e,s))))return;this.C(e,i,s)}this.isUpdatePending===!1&&(this._$ES=this._$EP())}C(e,i,{useDefault:s,reflect:a,wrapped:o},r){s&&!(this._$Ej??(this._$Ej=new Map)).has(e)&&(this._$Ej.set(e,r??i??this[e]),o!==!0||r!==void 0)||(this._$AL.has(e)||(this.hasUpdated||s||(i=void 0),this._$AL.set(e,i)),a===!0&&this._$Em!==e&&(this._$Eq??(this._$Eq=new Set)).add(e))}async _$EP(){this.isUpdatePending=!0;try{await this._$ES}catch(i){Promise.reject(i)}const e=this.scheduleUpdate();return e!=null&&await e,!this.isUpdatePending}scheduleUpdate(){return this.performUpdate()}performUpdate(){var s;if(!this.isUpdatePending)return;if(!this.hasUpdated){if(this.renderRoot??(this.renderRoot=this.createRenderRoot()),this._$Ep){for(const[o,r]of this._$Ep)this[o]=r;this._$Ep=void 0}const a=this.constructor.elementProperties;if(a.size>0)for(const[o,r]of a){const{wrapped:l}=r,c=this[o];l!==!0||this._$AL.has(o)||c===void 0||this.C(o,void 0,r,c)}}let e=!1;const i=this._$AL;try{e=this.shouldUpdate(i),e?(this.willUpdate(i),(s=this._$EO)==null||s.forEach(a=>{var o;return(o=a.hostUpdate)==null?void 0:o.call(a)}),this.update(i)):this._$EM()}catch(a){throw e=!1,this._$EM(),a}e&&this._$AE(i)}willUpdate(e){}_$AE(e){var i;(i=this._$EO)==null||i.forEach(s=>{var a;return(a=s.hostUpdated)==null?void 0:a.call(s)}),this.hasUpdated||(this.hasUpdated=!0,this.firstUpdated(e)),this.updated(e)}_$EM(){this._$AL=new Map,this.isUpdatePending=!1}get updateComplete(){return this.getUpdateComplete()}getUpdateComplete(){return this._$ES}shouldUpdate(e){return!0}update(e){this._$Eq&&(this._$Eq=this._$Eq.forEach(i=>this._$ET(i,this[i]))),this._$EM()}updated(e){}firstUpdated(e){}};xe.elementStyles=[],xe.shadowRootOptions={mode:"open"},xe[Ie("elementProperties")]=new Map,xe[Ie("finalized")]=new Map,pi==null||pi({ReactiveElement:xe}),(te.reactiveElementVersions??(te.reactiveElementVersions=[])).push("2.1.2");/**
  * @license
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
- */const rs={attribute:!0,type:String,converter:Ne,reflect:!1,hasChanged:oi},ls=(t=rs,e,i)=>{const{kind:a,metadata:s}=i;let o=globalThis.litPropertyMetadata.get(s);if(o===void 0&&globalThis.litPropertyMetadata.set(s,o=new Map),a==="setter"&&((t=Object.create(t)).wrapped=!0),o.set(i.name,t),a==="accessor"){const{name:n}=i;return{set(l){const c=e.get.call(this);e.set.call(this,l),this.requestUpdate(n,c,t,!0,l)},init(l){return l!==void 0&&this.C(n,void 0,t,l),l}}}if(a==="setter"){const{name:n}=i;return function(l){const c=this[n];e.call(this,l),this.requestUpdate(n,c,t,!0,l)}}throw Error("Unsupported decorator location: "+a)};function h(t){return(e,i)=>typeof i=="object"?ls(t,e,i):((a,s,o)=>{const n=s.hasOwnProperty(o);return s.constructor.createProperty(o,a),n?Object.getOwnPropertyDescriptor(s,o):void 0})(t,e,i)}/**
+ */const ms={attribute:!0,type:String,converter:Fe,reflect:!1,hasChanged:hi},xs=(t=ms,e,i)=>{const{kind:s,metadata:a}=i;let o=globalThis.litPropertyMetadata.get(a);if(o===void 0&&globalThis.litPropertyMetadata.set(a,o=new Map),s==="setter"&&((t=Object.create(t)).wrapped=!0),o.set(i.name,t),s==="accessor"){const{name:r}=i;return{set(l){const c=e.get.call(this);e.set.call(this,l),this.requestUpdate(r,c,t,!0,l)},init(l){return l!==void 0&&this.C(r,void 0,t,l),l}}}if(s==="setter"){const{name:r}=i;return function(l){const c=this[r];e.call(this,l),this.requestUpdate(r,c,t,!0,l)}}throw Error("Unsupported decorator location: "+s)};function h(t){return(e,i)=>typeof i=="object"?xs(t,e,i):((s,a,o)=>{const r=a.hasOwnProperty(o);return a.constructor.createProperty(o,s),r?Object.getOwnPropertyDescriptor(a,o):void 0})(t,e,i)}/**
  * @license
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
@@ -22,13 +22,13 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
  * @license
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
- */const Ce=globalThis,Vi=t=>t,Le=Ce.trustedTypes,Gi=Le?Le.createPolicy("lit-html",{createHTML:t=>t}):void 0,Xi="$lit$",Kt=`lit$${Math.random().toFixed(9).slice(2)}$`,Ki="?"+Kt,ds=`<${Ki}>`,ee=document,Se=()=>ee.createComment(""),De=t=>t===null||typeof t!="object"&&typeof t!="function",ni=Array.isArray,cs=t=>ni(t)||typeof(t==null?void 0:t[Symbol.iterator])=="function",ri=`[ 	
-\f\r]`,Ae=/<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g,Zi=/-->/g,Ji=/>/g,ie=RegExp(`>|${ri}(?:([^\\s"'>=/]+)(${ri}*=${ri}*(?:[^ 	
-\f\r"'\`<>=]|("|')|))|$)`,"g"),Qi=/'/g,ta=/"/g,ea=/^(?:script|style|textarea|title)$/i,ia=t=>(e,...i)=>({_$litType$:t,strings:e,values:i}),r=ia(1),_t=ia(2),pe=Symbol.for("lit-noChange"),it=Symbol.for("lit-nothing"),aa=new WeakMap,ae=ee.createTreeWalker(ee,129);function sa(t,e){if(!ni(t)||!t.hasOwnProperty("raw"))throw Error("invalid template strings array");return Gi!==void 0?Gi.createHTML(e):e}const ps=(t,e)=>{const i=t.length-1,a=[];let s,o=e===2?"<svg>":e===3?"<math>":"",n=Ae;for(let l=0;l<i;l++){const c=t[l];let u,g,p=-1,d=0;for(;d<c.length&&(n.lastIndex=d,g=n.exec(c),g!==null);)d=n.lastIndex,n===Ae?g[1]==="!--"?n=Zi:g[1]!==void 0?n=Ji:g[2]!==void 0?(ea.test(g[2])&&(s=RegExp("</"+g[2],"g")),n=ie):g[3]!==void 0&&(n=ie):n===ie?g[0]===">"?(n=s??Ae,p=-1):g[1]===void 0?p=-2:(p=n.lastIndex-g[2].length,u=g[1],n=g[3]===void 0?ie:g[3]==='"'?ta:Qi):n===ta||n===Qi?n=ie:n===Zi||n===Ji?n=Ae:(n=ie,s=void 0);const f=n===ie&&t[l+1].startsWith("/>")?" ":"";o+=n===Ae?c+ds:p>=0?(a.push(u),c.slice(0,p)+Xi+c.slice(p)+Kt+f):c+Kt+(p===-2?l:f)}return[sa(t,o+(t[i]||"<?>")+(e===2?"</svg>":e===3?"</math>":"")),a]};class Te{constructor({strings:e,_$litType$:i},a){let s;this.parts=[];let o=0,n=0;const l=e.length-1,c=this.parts,[u,g]=ps(e,i);if(this.el=Te.createElement(u,a),ae.currentNode=this.el.content,i===2||i===3){const p=this.el.content.firstChild;p.replaceWith(...p.childNodes)}for(;(s=ae.nextNode())!==null&&c.length<l;){if(s.nodeType===1){if(s.hasAttributes())for(const p of s.getAttributeNames())if(p.endsWith(Xi)){const d=g[n++],f=s.getAttribute(p).split(Kt),x=/([.?@])?(.*)/.exec(d);c.push({type:1,index:o,name:x[2],strings:f,ctor:x[1]==="."?us:x[1]==="?"?gs:x[1]==="@"?fs:Re}),s.removeAttribute(p)}else p.startsWith(Kt)&&(c.push({type:6,index:o}),s.removeAttribute(p));if(ea.test(s.tagName)){const p=s.textContent.split(Kt),d=p.length-1;if(d>0){s.textContent=Le?Le.emptyScript:"";for(let f=0;f<d;f++)s.append(p[f],Se()),ae.nextNode(),c.push({type:2,index:++o});s.append(p[d],Se())}}}else if(s.nodeType===8)if(s.data===Ki)c.push({type:2,index:o});else{let p=-1;for(;(p=s.data.indexOf(Kt,p+1))!==-1;)c.push({type:7,index:o}),p+=Kt.length-1}o++}}static createElement(e,i){const a=ee.createElement("template");return a.innerHTML=e,a}}function he(t,e,i=t,a){var n,l;if(e===pe)return e;let s=a!==void 0?(n=i._$Co)==null?void 0:n[a]:i._$Cl;const o=De(e)?void 0:e._$litDirective$;return(s==null?void 0:s.constructor)!==o&&((l=s==null?void 0:s._$AO)==null||l.call(s,!1),o===void 0?s=void 0:(s=new o(t),s._$AT(t,i,a)),a!==void 0?(i._$Co??(i._$Co=[]))[a]=s:i._$Cl=s),s!==void 0&&(e=he(t,s._$AS(t,e.values),s,a)),e}class hs{constructor(e,i){this._$AV=[],this._$AN=void 0,this._$AD=e,this._$AM=i}get parentNode(){return this._$AM.parentNode}get _$AU(){return this._$AM._$AU}u(e){const{el:{content:i},parts:a}=this._$AD,s=((e==null?void 0:e.creationScope)??ee).importNode(i,!0);ae.currentNode=s;let o=ae.nextNode(),n=0,l=0,c=a[0];for(;c!==void 0;){if(n===c.index){let u;c.type===2?u=new Ee(o,o.nextSibling,this,e):c.type===1?u=new c.ctor(o,c.name,c.strings,this,e):c.type===6&&(u=new vs(o,this,e)),this._$AV.push(u),c=a[++l]}n!==(c==null?void 0:c.index)&&(o=ae.nextNode(),n++)}return ae.currentNode=ee,s}p(e){let i=0;for(const a of this._$AV)a!==void 0&&(a.strings!==void 0?(a._$AI(e,a,i),i+=a.strings.length-2):a._$AI(e[i])),i++}}class Ee{get _$AU(){var e;return((e=this._$AM)==null?void 0:e._$AU)??this._$Cv}constructor(e,i,a,s){this.type=2,this._$AH=it,this._$AN=void 0,this._$AA=e,this._$AB=i,this._$AM=a,this.options=s,this._$Cv=(s==null?void 0:s.isConnected)??!0}get parentNode(){let e=this._$AA.parentNode;const i=this._$AM;return i!==void 0&&(e==null?void 0:e.nodeType)===11&&(e=i.parentNode),e}get startNode(){return this._$AA}get endNode(){return this._$AB}_$AI(e,i=this){e=he(this,e,i),De(e)?e===it||e==null||e===""?(this._$AH!==it&&this._$AR(),this._$AH=it):e!==this._$AH&&e!==pe&&this._(e):e._$litType$!==void 0?this.$(e):e.nodeType!==void 0?this.T(e):cs(e)?this.k(e):this._(e)}O(e){return this._$AA.parentNode.insertBefore(e,this._$AB)}T(e){this._$AH!==e&&(this._$AR(),this._$AH=this.O(e))}_(e){this._$AH!==it&&De(this._$AH)?this._$AA.nextSibling.data=e:this.T(ee.createTextNode(e)),this._$AH=e}$(e){var o;const{values:i,_$litType$:a}=e,s=typeof a=="number"?this._$AC(e):(a.el===void 0&&(a.el=Te.createElement(sa(a.h,a.h[0]),this.options)),a);if(((o=this._$AH)==null?void 0:o._$AD)===s)this._$AH.p(i);else{const n=new hs(s,this),l=n.u(this.options);n.p(i),this.T(l),this._$AH=n}}_$AC(e){let i=aa.get(e.strings);return i===void 0&&aa.set(e.strings,i=new Te(e)),i}k(e){ni(this._$AH)||(this._$AH=[],this._$AR());const i=this._$AH;let a,s=0;for(const o of e)s===i.length?i.push(a=new Ee(this.O(Se()),this.O(Se()),this,this.options)):a=i[s],a._$AI(o),s++;s<i.length&&(this._$AR(a&&a._$AB.nextSibling,s),i.length=s)}_$AR(e=this._$AA.nextSibling,i){var a;for((a=this._$AP)==null?void 0:a.call(this,!1,!0,i);e!==this._$AB;){const s=Vi(e).nextSibling;Vi(e).remove(),e=s}}setConnected(e){var i;this._$AM===void 0&&(this._$Cv=e,(i=this._$AP)==null||i.call(this,e))}}class Re{get tagName(){return this.element.tagName}get _$AU(){return this._$AM._$AU}constructor(e,i,a,s,o){this.type=1,this._$AH=it,this._$AN=void 0,this.element=e,this.name=i,this._$AM=s,this.options=o,a.length>2||a[0]!==""||a[1]!==""?(this._$AH=Array(a.length-1).fill(new String),this.strings=a):this._$AH=it}_$AI(e,i=this,a,s){const o=this.strings;let n=!1;if(o===void 0)e=he(this,e,i,0),n=!De(e)||e!==this._$AH&&e!==pe,n&&(this._$AH=e);else{const l=e;let c,u;for(e=o[0],c=0;c<o.length-1;c++)u=he(this,l[a+c],i,c),u===pe&&(u=this._$AH[c]),n||(n=!De(u)||u!==this._$AH[c]),u===it?e=it:e!==it&&(e+=(u??"")+o[c+1]),this._$AH[c]=u}n&&!s&&this.j(e)}j(e){e===it?this.element.removeAttribute(this.name):this.element.setAttribute(this.name,e??"")}}class us extends Re{constructor(){super(...arguments),this.type=3}j(e){this.element[this.name]=e===it?void 0:e}}class gs extends Re{constructor(){super(...arguments),this.type=4}j(e){this.element.toggleAttribute(this.name,!!e&&e!==it)}}class fs extends Re{constructor(e,i,a,s,o){super(e,i,a,s,o),this.type=5}_$AI(e,i=this){if((e=he(this,e,i,0)??it)===pe)return;const a=this._$AH,s=e===it&&a!==it||e.capture!==a.capture||e.once!==a.once||e.passive!==a.passive,o=e!==it&&(a===it||s);s&&this.element.removeEventListener(this.name,this,a),o&&this.element.addEventListener(this.name,this,e),this._$AH=e}handleEvent(e){var i;typeof this._$AH=="function"?this._$AH.call(((i=this.options)==null?void 0:i.host)??this.element,e):this._$AH.handleEvent(e)}}class vs{constructor(e,i,a){this.element=e,this.type=6,this._$AN=void 0,this._$AM=i,this.options=a}get _$AU(){return this._$AM._$AU}_$AI(e){he(this,e)}}const li=Ce.litHtmlPolyfillSupport;li==null||li(Te,Ee),(Ce.litHtmlVersions??(Ce.litHtmlVersions=[])).push("3.3.2");const bs=(t,e,i)=>{const a=(i==null?void 0:i.renderBefore)??e;let s=a._$litPart$;if(s===void 0){const o=(i==null?void 0:i.renderBefore)??null;a._$litPart$=s=new Ee(e.insertBefore(Se(),o),o,void 0,i??{})}return s._$AI(t),s};/**
+ */const ze=globalThis,ia=t=>t,We=ze.trustedTypes,aa=We?We.createPolicy("lit-html",{createHTML:t=>t}):void 0,sa="$lit$",ee=`lit$${Math.random().toFixed(9).slice(2)}$`,oa="?"+ee,_s=`<${oa}>`,de=document,Me=()=>de.createComment(""),Pe=t=>t===null||typeof t!="object"&&typeof t!="function",ui=Array.isArray,ys=t=>ui(t)||typeof(t==null?void 0:t[Symbol.iterator])=="function",gi=`[ 	
+\f\r]`,Ne=/<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g,ra=/-->/g,na=/>/g,ce=RegExp(`>|${gi}(?:([^\\s"'>=/]+)(${gi}*=${gi}*(?:[^ 	
+\f\r"'\`<>=]|("|')|))|$)`,"g"),la=/'/g,da=/"/g,ca=/^(?:script|style|textarea|title)$/i,pa=t=>(e,...i)=>({_$litType$:t,strings:e,values:i}),n=pa(1),$t=pa(2),_e=Symbol.for("lit-noChange"),J=Symbol.for("lit-nothing"),ha=new WeakMap,pe=de.createTreeWalker(de,129);function ua(t,e){if(!ui(t)||!t.hasOwnProperty("raw"))throw Error("invalid template strings array");return aa!==void 0?aa.createHTML(e):e}const ws=(t,e)=>{const i=t.length-1,s=[];let a,o=e===2?"<svg>":e===3?"<math>":"",r=Ne;for(let l=0;l<i;l++){const c=t[l];let g,u,p=-1,d=0;for(;d<c.length&&(r.lastIndex=d,u=r.exec(c),u!==null);)d=r.lastIndex,r===Ne?u[1]==="!--"?r=ra:u[1]!==void 0?r=na:u[2]!==void 0?(ca.test(u[2])&&(a=RegExp("</"+u[2],"g")),r=ce):u[3]!==void 0&&(r=ce):r===ce?u[0]===">"?(r=a??Ne,p=-1):u[1]===void 0?p=-2:(p=r.lastIndex-u[2].length,g=u[1],r=u[3]===void 0?ce:u[3]==='"'?da:la):r===da||r===la?r=ce:r===ra||r===na?r=Ne:(r=ce,a=void 0);const f=r===ce&&t[l+1].startsWith("/>")?" ":"";o+=r===Ne?c+_s:p>=0?(s.push(g),c.slice(0,p)+sa+c.slice(p)+ee+f):c+ee+(p===-2?l:f)}return[ua(t,o+(t[i]||"<?>")+(e===2?"</svg>":e===3?"</math>":"")),s]};class Re{constructor({strings:e,_$litType$:i},s){let a;this.parts=[];let o=0,r=0;const l=e.length-1,c=this.parts,[g,u]=ws(e,i);if(this.el=Re.createElement(g,s),pe.currentNode=this.el.content,i===2||i===3){const p=this.el.content.firstChild;p.replaceWith(...p.childNodes)}for(;(a=pe.nextNode())!==null&&c.length<l;){if(a.nodeType===1){if(a.hasAttributes())for(const p of a.getAttributeNames())if(p.endsWith(sa)){const d=u[r++],f=a.getAttribute(p).split(ee),v=/([.?@])?(.*)/.exec(d);c.push({type:1,index:o,name:v[2],strings:f,ctor:v[1]==="."?ks:v[1]==="?"?Cs:v[1]==="@"?Ss:qe}),a.removeAttribute(p)}else p.startsWith(ee)&&(c.push({type:6,index:o}),a.removeAttribute(p));if(ca.test(a.tagName)){const p=a.textContent.split(ee),d=p.length-1;if(d>0){a.textContent=We?We.emptyScript:"";for(let f=0;f<d;f++)a.append(p[f],Me()),pe.nextNode(),c.push({type:2,index:++o});a.append(p[d],Me())}}}else if(a.nodeType===8)if(a.data===oa)c.push({type:2,index:o});else{let p=-1;for(;(p=a.data.indexOf(ee,p+1))!==-1;)c.push({type:7,index:o}),p+=ee.length-1}o++}}static createElement(e,i){const s=de.createElement("template");return s.innerHTML=e,s}}function ye(t,e,i=t,s){var r,l;if(e===_e)return e;let a=s!==void 0?(r=i._$Co)==null?void 0:r[s]:i._$Cl;const o=Pe(e)?void 0:e._$litDirective$;return(a==null?void 0:a.constructor)!==o&&((l=a==null?void 0:a._$AO)==null||l.call(a,!1),o===void 0?a=void 0:(a=new o(t),a._$AT(t,i,s)),s!==void 0?(i._$Co??(i._$Co=[]))[s]=a:i._$Cl=a),a!==void 0&&(e=ye(t,a._$AS(t,e.values),a,s)),e}class $s{constructor(e,i){this._$AV=[],this._$AN=void 0,this._$AD=e,this._$AM=i}get parentNode(){return this._$AM.parentNode}get _$AU(){return this._$AM._$AU}u(e){const{el:{content:i},parts:s}=this._$AD,a=((e==null?void 0:e.creationScope)??de).importNode(i,!0);pe.currentNode=a;let o=pe.nextNode(),r=0,l=0,c=s[0];for(;c!==void 0;){if(r===c.index){let g;c.type===2?g=new Le(o,o.nextSibling,this,e):c.type===1?g=new c.ctor(o,c.name,c.strings,this,e):c.type===6&&(g=new Ds(o,this,e)),this._$AV.push(g),c=s[++l]}r!==(c==null?void 0:c.index)&&(o=pe.nextNode(),r++)}return pe.currentNode=de,a}p(e){let i=0;for(const s of this._$AV)s!==void 0&&(s.strings!==void 0?(s._$AI(e,s,i),i+=s.strings.length-2):s._$AI(e[i])),i++}}class Le{get _$AU(){var e;return((e=this._$AM)==null?void 0:e._$AU)??this._$Cv}constructor(e,i,s,a){this.type=2,this._$AH=J,this._$AN=void 0,this._$AA=e,this._$AB=i,this._$AM=s,this.options=a,this._$Cv=(a==null?void 0:a.isConnected)??!0}get parentNode(){let e=this._$AA.parentNode;const i=this._$AM;return i!==void 0&&(e==null?void 0:e.nodeType)===11&&(e=i.parentNode),e}get startNode(){return this._$AA}get endNode(){return this._$AB}_$AI(e,i=this){e=ye(this,e,i),Pe(e)?e===J||e==null||e===""?(this._$AH!==J&&this._$AR(),this._$AH=J):e!==this._$AH&&e!==_e&&this._(e):e._$litType$!==void 0?this.$(e):e.nodeType!==void 0?this.T(e):ys(e)?this.k(e):this._(e)}O(e){return this._$AA.parentNode.insertBefore(e,this._$AB)}T(e){this._$AH!==e&&(this._$AR(),this._$AH=this.O(e))}_(e){this._$AH!==J&&Pe(this._$AH)?this._$AA.nextSibling.data=e:this.T(de.createTextNode(e)),this._$AH=e}$(e){var o;const{values:i,_$litType$:s}=e,a=typeof s=="number"?this._$AC(e):(s.el===void 0&&(s.el=Re.createElement(ua(s.h,s.h[0]),this.options)),s);if(((o=this._$AH)==null?void 0:o._$AD)===a)this._$AH.p(i);else{const r=new $s(a,this),l=r.u(this.options);r.p(i),this.T(l),this._$AH=r}}_$AC(e){let i=ha.get(e.strings);return i===void 0&&ha.set(e.strings,i=new Re(e)),i}k(e){ui(this._$AH)||(this._$AH=[],this._$AR());const i=this._$AH;let s,a=0;for(const o of e)a===i.length?i.push(s=new Le(this.O(Me()),this.O(Me()),this,this.options)):s=i[a],s._$AI(o),a++;a<i.length&&(this._$AR(s&&s._$AB.nextSibling,a),i.length=a)}_$AR(e=this._$AA.nextSibling,i){var s;for((s=this._$AP)==null?void 0:s.call(this,!1,!0,i);e!==this._$AB;){const a=ia(e).nextSibling;ia(e).remove(),e=a}}setConnected(e){var i;this._$AM===void 0&&(this._$Cv=e,(i=this._$AP)==null||i.call(this,e))}}class qe{get tagName(){return this.element.tagName}get _$AU(){return this._$AM._$AU}constructor(e,i,s,a,o){this.type=1,this._$AH=J,this._$AN=void 0,this.element=e,this.name=i,this._$AM=a,this.options=o,s.length>2||s[0]!==""||s[1]!==""?(this._$AH=Array(s.length-1).fill(new String),this.strings=s):this._$AH=J}_$AI(e,i=this,s,a){const o=this.strings;let r=!1;if(o===void 0)e=ye(this,e,i,0),r=!Pe(e)||e!==this._$AH&&e!==_e,r&&(this._$AH=e);else{const l=e;let c,g;for(e=o[0],c=0;c<o.length-1;c++)g=ye(this,l[s+c],i,c),g===_e&&(g=this._$AH[c]),r||(r=!Pe(g)||g!==this._$AH[c]),g===J?e=J:e!==J&&(e+=(g??"")+o[c+1]),this._$AH[c]=g}r&&!a&&this.j(e)}j(e){e===J?this.element.removeAttribute(this.name):this.element.setAttribute(this.name,e??"")}}class ks extends qe{constructor(){super(...arguments),this.type=3}j(e){this.element[this.name]=e===J?void 0:e}}class Cs extends qe{constructor(){super(...arguments),this.type=4}j(e){this.element.toggleAttribute(this.name,!!e&&e!==J)}}class Ss extends qe{constructor(e,i,s,a,o){super(e,i,s,a,o),this.type=5}_$AI(e,i=this){if((e=ye(this,e,i,0)??J)===_e)return;const s=this._$AH,a=e===J&&s!==J||e.capture!==s.capture||e.once!==s.once||e.passive!==s.passive,o=e!==J&&(s===J||a);a&&this.element.removeEventListener(this.name,this,s),o&&this.element.addEventListener(this.name,this,e),this._$AH=e}handleEvent(e){var i;typeof this._$AH=="function"?this._$AH.call(((i=this.options)==null?void 0:i.host)??this.element,e):this._$AH.handleEvent(e)}}class Ds{constructor(e,i,s){this.element=e,this.type=6,this._$AN=void 0,this._$AM=i,this.options=s}get _$AU(){return this._$AM._$AU}_$AI(e){ye(this,e)}}const fi=ze.litHtmlPolyfillSupport;fi==null||fi(Re,Le),(ze.litHtmlVersions??(ze.litHtmlVersions=[])).push("3.3.2");const As=(t,e,i)=>{const s=(i==null?void 0:i.renderBefore)??e;let a=s._$litPart$;if(a===void 0){const o=(i==null?void 0:i.renderBefore)??null;s._$litPart$=a=new Le(e.insertBefore(Me(),o),o,void 0,i??{})}return a._$AI(t),a};/**
  * @license
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
- */const se=globalThis;class L extends ce{constructor(){super(...arguments),this.renderOptions={host:this},this._$Do=void 0}createRenderRoot(){var i;const e=super.createRenderRoot();return(i=this.renderOptions).renderBefore??(i.renderBefore=e.firstChild),e}update(e){const i=this.render();this.hasUpdated||(this.renderOptions.isConnected=this.isConnected),super.update(e),this._$Do=bs(i,this.renderRoot,this.renderOptions)}connectedCallback(){var e;super.connectedCallback(),(e=this._$Do)==null||e.setConnected(!0)}disconnectedCallback(){var e;super.disconnectedCallback(),(e=this._$Do)==null||e.setConnected(!1)}render(){return pe}}L._$litElement$=!0,L.finalized=!0,(Ka=se.litElementHydrateSupport)==null||Ka.call(se,{LitElement:L});const di=se.litElementPolyfillSupport;di==null||di({LitElement:L}),(se.litElementVersions??(se.litElementVersions=[])).push("4.2.2");var ms=Object.defineProperty,xs=Object.getOwnPropertyDescriptor,ci=(t,e,i,a)=>{for(var s=a>1?void 0:a?xs(e,i):e,o=t.length-1,n;o>=0;o--)(n=t[o])&&(s=(a?n(e,i,s):n(s))||s);return a&&s&&ms(e,i,s),s};let Oe=class extends L{constructor(){super(...arguments),this.activeTab="analytics",this.tabs=[]}connectedCallback(){super.connectedCallback(),this.setAttribute("role","tablist")}render(){return this.tabs.map(t=>r`
+ */const he=globalThis;class L extends xe{constructor(){super(...arguments),this.renderOptions={host:this},this._$Do=void 0}createRenderRoot(){var i;const e=super.createRenderRoot();return(i=this.renderOptions).renderBefore??(i.renderBefore=e.firstChild),e}update(e){const i=this.render();this.hasUpdated||(this.renderOptions.isConnected=this.isConnected),super.update(e),this._$Do=As(i,this.renderRoot,this.renderOptions)}connectedCallback(){var e;super.connectedCallback(),(e=this._$Do)==null||e.setConnected(!0)}disconnectedCallback(){var e;super.disconnectedCallback(),(e=this._$Do)==null||e.setConnected(!1)}render(){return _e}}L._$litElement$=!0,L.finalized=!0,(ns=he.litElementHydrateSupport)==null||ns.call(he,{LitElement:L});const vi=he.litElementPolyfillSupport;vi==null||vi({LitElement:L}),(he.litElementVersions??(he.litElementVersions=[])).push("4.2.2");var Ts=Object.defineProperty,Es=Object.getOwnPropertyDescriptor,bi=(t,e,i,s)=>{for(var a=s>1?void 0:s?Es(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&Ts(e,i,a),a};let je=class extends L{constructor(){super(...arguments),this.activeTab="analytics",this.tabs=[]}connectedCallback(){super.connectedCallback(),this.setAttribute("role","tablist")}render(){return this.tabs.map(t=>n`
         <button
           class="tab-btn ${t.id===this.activeTab?"active":""}"
           role="tab"
@@ -38,7 +38,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
           <span class="tab-icon">${t.icon}</span>
           <span class="tab-label">${t.label}</span>
         </button>
-      `)}_handleTabClick(t){this.dispatchEvent(new CustomEvent("tab-changed",{detail:t,bubbles:!0,composed:!0}))}};Oe.styles=z`
+      `)}_handleTabClick(t){this.dispatchEvent(new CustomEvent("tab-changed",{detail:t,bubbles:!0,composed:!0}))}};je.styles=O`
     :host {
       display: flex;
       gap: 0;
@@ -73,7 +73,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
     .tab-icon {
       font-size: 18px;
     }
-  `,ci([h({type:String})],Oe.prototype,"activeTab",2),ci([h({type:Array})],Oe.prototype,"tabs",2),Oe=ci([H("twilight-tab-bar")],Oe);var _s=Object.defineProperty,ue=(t,e,i,a)=>{for(var s=void 0,o=t.length-1,n;o>=0;o--)(n=t[o])&&(s=n(e,i,s)||s);return s&&_s(e,i,s),s};class oe extends L{constructor(){super(...arguments),this.narrow=!1,this.tabs=[],this.panel=null,this._activeTab="areas",this._hass=null,this._globalConfigOverride=null}createRenderRoot(){return this}get hass(){return this._hass}set hass(e){this._hass=e}render(){var e;return r`
+  `,bi([h({type:String})],je.prototype,"activeTab",2),bi([h({type:Array})],je.prototype,"tabs",2),je=bi([z("twilight-tab-bar")],je);var Os=Object.defineProperty,we=(t,e,i,s)=>{for(var a=void 0,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=r(e,i,a)||a);return a&&Os(e,i,a),a};class ue extends L{constructor(){super(...arguments),this.narrow=!1,this.tabs=[],this.panel=null,this._activeTab="areas",this._hass=null,this._globalConfigOverride=null}createRenderRoot(){return this}get hass(){return this._hass}set hass(e){this._hass=e}render(){var e;return n`
       <style>
         twilight-panel, twilight-dev-panel {
           display: flex;
@@ -176,11 +176,11 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
 
       <div class="tp-header">
         <div class="tp-header-inner">
-          ${this.narrow?r`<div class="tp-menu-btn-wrap"><ha-menu-button .hass=${this._hass} .narrow=${this.narrow}></ha-menu-button></div>`:r`
+          ${this.narrow?n`<div class="tp-menu-btn-wrap"><ha-menu-button .hass=${this._hass} .narrow=${this.narrow}></ha-menu-button></div>`:n`
           <div class="tp-title">
             <img class="tp-title-icon" src="/twilight/logo.png" alt="Twilight">
             <span>Twilight</span>
-            ${((e=this.panel)==null?void 0:e.url_path)==="twilight_dev"?r`<span class="tp-badge">dev</span>`:r`<span class="tp-badge">experimental</span>`}
+            ${((e=this.panel)==null?void 0:e.url_path)==="twilight_dev"?n`<span class="tp-badge">dev</span>`:n`<span class="tp-badge">experimental</span>`}
           </div>`}
           <div class="tp-tabs">
             <twilight-tab-bar
@@ -194,50 +194,50 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
       <div class="tp-content">
         ${this._renderViews()}
       </div>
-    `}_renderViews(){const e=this._activeTab;return r`
-      ${e==="areas"&&this._isTabAvailable("areas")?r`
+    `}_renderViews(){const e=this._activeTab;return n`
+      ${e==="areas"&&this._isTabAvailable("areas")?n`
         <twilight-areas-view
           class="view-container active"
           .hass=${this._hass}
           .globalConfigOverride=${this._globalConfigOverride}
         ></twilight-areas-view>
       `:""}
-      ${e==="analytics"&&this._isTabAvailable("analytics")?r`
+      ${e==="analytics"&&this._isTabAvailable("analytics")?n`
         <twilight-analytics-view
           class="view-container active"
           .hass=${this._hass}
         ></twilight-analytics-view>
       `:""}
-      ${e==="timeline"&&this._isTabAvailable("timeline")?r`
+      ${e==="timeline"&&this._isTabAvailable("timeline")?n`
         <twilight-timeline-view
           class="view-container active"
           .hass=${this._hass}
         ></twilight-timeline-view>
       `:""}
-      ${e==="settings"&&this._isTabAvailable("settings")?r`
+      ${e==="settings"&&this._isTabAvailable("settings")?n`
         <twilight-settings-view
           class="view-container active"
           .hass=${this._hass}
           @global-changed=${this._onGlobalChanged}
         ></twilight-settings-view>
       `:""}
-      ${e==="lab"&&this._isTabAvailable("lab")?r`
+      ${e==="lab"&&this._isTabAvailable("lab")?n`
         <twilight-lab-view
           class="view-container active"
           .hass=${this._hass}
         ></twilight-lab-view>
       `:""}
-      ${e==="lab-two"&&this._isTabAvailable("lab-two")?r`
+      ${e==="lab-two"&&this._isTabAvailable("lab-two")?n`
         <twilight-lab-two-view
           class="view-container active"
           .hass=${this._hass}
         ></twilight-lab-two-view>
       `:""}
-    `}_isTabAvailable(e){return this.tabs.some(i=>i.id===e)}_onGlobalChanged(e){this._globalConfigOverride=e.detail}}ue([h({type:Boolean})],oe.prototype,"narrow"),ue([h({type:Array})],oe.prototype,"tabs"),ue([h({type:Object})],oe.prototype,"panel"),ue([b()],oe.prototype,"_activeTab"),ue([b()],oe.prototype,"_hass"),ue([b()],oe.prototype,"_globalConfigOverride");const T="primary",ys=3,pi=10,oa=10,na={night:"#141926",astro:"#1e2e45",nautical:"#2c4268",civil:"#3d5c8a",gold:"#bfb39b",day:"#8ab0cd"},ws=["astro_dawn","nautical_dawn","civil_dawn","gold_dawn","day","gold_dusk","civil_dusk","nautical_dusk","astro_dusk","night"],$s={astro_dawn:"Astronomical dawn",nautical_dawn:"Nautical dawn",civil_dawn:"Civil dawn",gold_dawn:"Golden dawn",day:"Day",gold_dusk:"Golden dusk",civil_dusk:"Civil dusk",nautical_dusk:"Nautical dusk",astro_dusk:"Astronomical dusk",night:"Night"},Ze=class Ze extends CustomEvent{constructor(e){super(Ze.eventName,{detail:e,bubbles:!0,composed:!0})}};Ze.eventName="sensors-changed";let hi=Ze;const Je=class Je extends CustomEvent{constructor(e){super(Je.eventName,{detail:{inputs:e},bubbles:!0,composed:!0})}};Je.eventName="inputs-changed";let ui=Je;const Qe=class Qe extends CustomEvent{constructor(e){super(Qe.eventName,{detail:e,bubbles:!0,composed:!0})}};Qe.eventName="activities-changed";let gi=Qe;const ti=class ti extends CustomEvent{constructor(e,i){super(ti.eventName,{detail:{slots:e,transitionOnSeconds:i},bubbles:!0,composed:!0})}};ti.eventName="slots-changed";let fi=ti;function ks(t,e){return e.simCritical?{label:"Critical Alarm",color:"#d32f2f",class:"fast-blink-glow",sub:"Simulation: Smoke / Panic Alarm"}:e.simError?{label:"System Error",color:"var(--error-color, #f44336)",class:"blink-glow",sub:"Simulation: Device Offline"}:e.simSensorOffline?{label:"Sensor Offline",color:"#ff5722",class:"fast-pulse-glow",sub:"Simulation: Ambient Sensor Failure"}:e.simWarning?{label:"System Warning",color:"var(--warning-color, #ff9800)",class:"pulse-glow",sub:"Simulation: Low Illuminance"}:(t==null?void 0:t.active_activity)==="sleep"?{label:"Sleeping",color:"#3f51b5",class:"static-glow",sub:"Sleep Mode Active"}:{label:"Running / Auto",color:"var(--success-color, #4caf50)",class:"static-glow",sub:"Automatic Mode"}}function ra(t){return t.callWS({type:"twilight/areas/list"})}function Cs(t){return t.callWS({type:"twilight/area_registry/list"})}function la(t,e){return t.callWS({type:"twilight/areas/new_draft",area_id:e})}function Ss(t,e){return t.callWS({type:"twilight/area/save",...e})}function Ds(t,e){return t.callWS({type:"twilight/area/delete",area_id:e})}function As(t,e){const i={type:"twilight/area/extracted"};return e&&(i.area_id=e),t.callWS(i)}function Ts(t,e){return t.callWS({type:"twilight/lab/area_entities",area_id:e})}function da(t){return t.callWS({type:"twilight/global/get"})}function Es(t,e){return t.callWS({type:"twilight/global/save",config:e})}function Os(t){return t.callWS({type:"twilight/global/export"})}function ca(t,e){return t.callWS({type:"twilight/global/import",payload:e})}function Is(t){return t.callWS({type:"twilight/global/defaults"})}function vi(t,e){return t.callWS({type:"twilight/placeholder_defaults",...e?{area_id:e}:{}})}function je(t,e){return t.callWS({type:"twilight/sun/day",...e})}function pa(t,e){return t.callWS({type:"twilight/sun/year",...e})}function ha(t,e){return t.callWS({type:"twilight/area/slot_times",...e})}function zs(t,e){return t.callWS({type:"twilight/slot_times/preview",...e})}function Ms(t,e){return t.callWS({type:"twilight/timeline/slot_times",...e})}function Ps(t,e){return t.callWS({type:"twilight/analytics/get",...e})}function Ns(t,e){return t.callWS({type:"twilight/trigger_input",...e})}class ua{constructor(e,i={}){this.original=null,this.draft=null,this.saving=!1,this.loading=!1,this.saveError=null,this.isDirty=!1,this._host=e,this._options=i,this._host.addController(this)}hostConnected(){}hostDisconnected(){}init(e){this.original=structuredClone(e),this.draft=structuredClone(e),this.isDirty=!1,this._host.requestUpdate()}update(e){this.draft&&(typeof e=="function"?e(this.draft):this.draft={...this.draft,...e},this.isDirty=!0,this._host.requestUpdate())}async save(){if(this.draft){this.saving=!0,this.saveError=null,this._host.requestUpdate();try{if(this._options.onSave){const e=await this._options.onSave(this.draft);e!==void 0&&(this.draft=e)}this.original=structuredClone(this.draft),this.isDirty=!1}catch(e){console.error("Error saving draft",e),this.saveError=e}finally{this.saving=!1,this._host.requestUpdate()}}}cancel(){this.original&&(this.draft=structuredClone(this.original),this.isDirty=!1,this._host.requestUpdate())}reset(){this.original=null,this.draft=null,this.saving=!1,this.loading=!1,this.saveError=null,this.isDirty=!1,this._host.requestUpdate()}}function ne(t){const e=(Math.round(t)%1440+1440)%1440;return`${String(Math.floor(e/60)).padStart(2,"0")}:${String(e%60).padStart(2,"0")}`}function Ls(t){return t.startType==="fixed"?t.fixedStartTime||"12:00":t.startEvent||"civil_dawn"}function bi(t){const e=t.to-t.from;return e>=1440?1440:e<=0?e+1440:e}function ge(t,e){const i=a=>(a%1440+1440)%1440;return i(e-i(t.from))<bi(t)}function mi(t,e){var a;const i=(a=t==null?void 0:t.states[e])==null?void 0:a.attributes;return(i==null?void 0:i.friendly_name)??(i==null?void 0:i.name)??e}function He(t,e){if(!t||t.length===0)return[];const i=[],a=t.length;for(let s=0;s<a;s++){const o=t[s],n=a===1?o.start+1440:s<a-1?t[s+1].start:t[0].start+1440,l=e==null?void 0:e.find(d=>d.id===o.id),c=(l==null?void 0:l.start_type)==="fixed",u=(l==null?void 0:l.zone)||o.id;let g=u;["civil_dawn","civil_dusk"].includes(g)?g="civil":["nautical_dawn","nautical_dusk"].includes(g)?g="nautical":["astro_dawn","astro_dusk"].includes(g)?g="astro":["gold_dawn","gold_dusk"].includes(g)&&(g="gold");const p=na[g]||na.day;i.push({id:o.id,label:(l==null?void 0:l.name)||$s[o.id]||o.id,color:p,from:o.start,to:n,scene:(l==null?void 0:l.scene_entity_id)||null,isCustom:!ws.includes(o.id),startType:c?"fixed":"astral",startEvent:c?void 0:u,startOffset:(l==null?void 0:l.offset_minutes)||0,fixedStartTime:c&&(l==null?void 0:l.fixed_time)||void 0})}return i}function Rs(t){if(t.length===0)return"var(--divider-color)";const e=s=>(s%1440+1440)%1440,i=[...t].sort((s,o)=>e(s.from)-e(o.from)),a=[];e(i[0].from)>0&&a.push(`${i[i.length-1].color} 0%`);for(const s of i){const o=(e(s.from)/1440*100).toFixed(1),n=(e(s.to)/1440*100).toFixed(1);a.push(`${s.color} ${o}%`),a.push(`${s.color} ${e(s.from)>e(s.to)?"100":n}%`)}return`linear-gradient(to right, ${a.join(", ")})`}async function xi(){if(!customElements.get("ha-entity-picker"))try{if(window.loadCardHelpers){const t=await window.loadCardHelpers();if(t){const e=await t.createCardElement({type:"entities",entities:[]});e&&e.getConfigElement&&await e.getConfigElement()}}if(!customElements.get("ha-entity-picker")){const t=customElements.get("hui-glance-card");t&&t.getConfigElement&&await t.getConfigElement()}}catch(t){console.warn("[Twilight] Failed to preload HA entity picker:",t)}}function _i(t,e,i){const a=window.devicePixelRatio||1,s=Math.round(e*a),o=Math.round(i*a);(t.width!==s||t.height!==o)&&(t.width=s,t.height=o);const n=t.getContext("2d");return n.clearRect(0,0,s,o),n.save(),n.scale(a,a),n}class Ue{constructor(e){this._ticker=null,this.liveMins=0,this.host=e,e.addController(this),this._updateTime()}hostConnected(){this._ticker=setInterval(()=>{this._updateTime(),this.host.requestUpdate()},15e3)}hostDisconnected(){this._ticker&&(clearInterval(this._ticker),this._ticker=null)}_updateTime(){const e=new Date;this.liveMins=e.getHours()*60+e.getMinutes()}}var js=Object.defineProperty,Hs=Object.getOwnPropertyDescriptor,pt=(t,e,i,a)=>{for(var s=a>1?void 0:a?Hs(e,i):e,o=t.length-1,n;o>=0;o--)(n=t[o])&&(s=(a?n(e,i,s):n(s))||s);return a&&s&&js(e,i,s),s};let st=class extends L{constructor(){super(...arguments),this._clock=new Ue(this),this.hass=null,this.slots=[],this.inputs=[],this.noHeader=!1,this.runState=null,this.areaEnabled=!0,this.channels={},this.channelSlotsMap={},this.simCritical=!1,this.simError=!1,this.simSensorOffline=!1,this.simWarning=!1,this.entities=[]}_activityCountdown(t){if(!t.activity_expires_at)return null;const e=new Date(t.activity_expires_at).getTime()-Date.now();if(e<=0)return null;const i=Math.ceil(e/1e3),a=Math.floor(i/60),s=i%60;return a>0?`${a}m ${s}s`:`${s}s`}_runStateEngineInfo(t){const e=t.scene_activated_at!==null,i=t.active_activity;if(i){const a=i.charAt(0).toUpperCase()+i.slice(1),s=t.activity_trigger,o=s!=null&&s.input_id?this.inputs.find(c=>c.id===s.input_id):void 0,n=o?o.name||o.label||o.id:s==null?void 0:s.input_id,l=s!=null&&s.input_id?`via ${n}${s.entity_id?` (${s.entity_id})`:""}`:"";return{label:a,color:"#9c27b0",class:"pulse-glow",sub:l}}return{label:e?"Scene Active":"Idle",color:e?"#4caf50":"#2196f3",class:"entity-indicator",sub:e?"Scene switched by engine":"Waiting for input"}}render(){if(!this.sensorConfig)return r``;const t=this._clock.liveMins,e=this.runState,i=Object.keys(this.channels||{}).sort((n,l)=>n===T?-1:l===T?1:0),a=i.length>0?i:[T],s={simCritical:this.simCritical,simError:this.simError,simSensorOffline:this.simSensorOffline,simWarning:this.simWarning},o=this.areaEnabled?e?this._runStateEngineInfo(e):ks(this.runState,s):{label:"Disabled",color:"#888888",class:"entity-indicator",sub:"Engine inactive"};return r`
+    `}_isTabAvailable(e){return this.tabs.some(i=>i.id===e)}_onGlobalChanged(e){this._globalConfigOverride=e.detail}}we([h({type:Boolean})],ue.prototype,"narrow"),we([h({type:Array})],ue.prototype,"tabs"),we([h({type:Object})],ue.prototype,"panel"),we([b()],ue.prototype,"_activeTab"),we([b()],ue.prototype,"_hass"),we([b()],ue.prototype,"_globalConfigOverride");const I="primary",Is=3,mi=10,ga=10,fa={night:"#141926",astro:"#1e2e45",nautical:"#2c4268",civil:"#3d5c8a",gold:"#bfb39b",day:"#8ab0cd"},zs=["astro_dawn","nautical_dawn","civil_dawn","gold_dawn","day","gold_dusk","civil_dusk","nautical_dusk","astro_dusk","night"],Ms={astro_dawn:"Astronomical dawn",nautical_dawn:"Nautical dawn",civil_dawn:"Civil dawn",gold_dawn:"Golden dawn",day:"Day",gold_dusk:"Golden dusk",civil_dusk:"Civil dusk",nautical_dusk:"Nautical dusk",astro_dusk:"Astronomical dusk",night:"Night"},ai=class ai extends CustomEvent{constructor(e){super(ai.eventName,{detail:e,bubbles:!0,composed:!0})}};ai.eventName="sensors-changed";let xi=ai;const si=class si extends CustomEvent{constructor(e){super(si.eventName,{detail:{inputs:e},bubbles:!0,composed:!0})}};si.eventName="inputs-changed";let _i=si;const oi=class oi extends CustomEvent{constructor(e){super(oi.eventName,{detail:e,bubbles:!0,composed:!0})}};oi.eventName="activities-changed";let yi=oi;const ri=class ri extends CustomEvent{constructor(e){super(ri.eventName,{detail:e,bubbles:!0,composed:!0})}};ri.eventName="rules-changed";let wi=ri;const ni=class ni extends CustomEvent{constructor(e,i){super(ni.eventName,{detail:{slots:e,transitionOnSeconds:i},bubbles:!0,composed:!0})}};ni.eventName="slots-changed";let $i=ni;function Ps(t,e){return e.simCritical?{label:"Critical Alarm",color:"#d32f2f",class:"fast-blink-glow",sub:"Simulation: Smoke / Panic Alarm"}:e.simError?{label:"System Error",color:"var(--error-color, #f44336)",class:"blink-glow",sub:"Simulation: Device Offline"}:e.simSensorOffline?{label:"Sensor Offline",color:"#ff5722",class:"fast-pulse-glow",sub:"Simulation: Ambient Sensor Failure"}:e.simWarning?{label:"System Warning",color:"var(--warning-color, #ff9800)",class:"pulse-glow",sub:"Simulation: Low Illuminance"}:(t==null?void 0:t.active_activity)==="sleep"?{label:"Sleeping",color:"#3f51b5",class:"static-glow",sub:"Sleep Mode Active"}:{label:"Running / Auto",color:"var(--success-color, #4caf50)",class:"static-glow",sub:"Automatic Mode"}}function ki(t){return t.callWS({type:"twilight/areas/list"})}function Ns(t){return t.callWS({type:"twilight/area_registry/list"})}function va(t,e){return t.callWS({type:"twilight/areas/new_draft",area_id:e})}function Rs(t,e){return t.callWS({type:"twilight/area/save",...e})}function Ls(t,e){return t.callWS({type:"twilight/area/delete",area_id:e})}function js(t,e){const i={type:"twilight/area/extracted"};return e&&(i.area_id=e),t.callWS(i)}function Hs(t,e){return t.callWS({type:"twilight/lab/area_entities",area_id:e})}function ba(t){return t.callWS({type:"twilight/global/get"})}function Us(t,e){return t.callWS({type:"twilight/global/save",config:e})}function Bs(t){return t.callWS({type:"twilight/global/export"})}function ma(t,e){return t.callWS({type:"twilight/global/import",payload:e})}function Fs(t){return t.callWS({type:"twilight/global/defaults"})}function Ci(t,e){return t.callWS({type:"twilight/placeholder_defaults",...e?{area_id:e}:{}})}function Ve(t,e){return t.callWS({type:"twilight/sun/day",...e})}function xa(t,e){return t.callWS({type:"twilight/sun/year",...e})}function _a(t,e){return t.callWS({type:"twilight/area/slot_times",...e})}function Ws(t,e){return t.callWS({type:"twilight/slot_times/preview",...e})}function qs(t,e){return t.callWS({type:"twilight/timeline/slot_times",...e})}function Vs(t,e){return t.callWS({type:"twilight/analytics/get",...e})}function Ys(t,e){return t.callWS({type:"twilight/trigger_input",...e})}function ya(t,e){return t.callWS({type:"twilight/heatmap/profile/save",...e})}function Gs(t,e){return t.callWS({type:"twilight/heatmap/profile/delete",...e})}class wa{constructor(e,i={}){this.original=null,this.draft=null,this.saving=!1,this.loading=!1,this.saveError=null,this.isDirty=!1,this._host=e,this._options=i,this._host.addController(this)}hostConnected(){}hostDisconnected(){}init(e){this.original=structuredClone(e),this.draft=structuredClone(e),this.isDirty=!1,this._host.requestUpdate()}update(e){this.draft&&(typeof e=="function"?e(this.draft):this.draft={...this.draft,...e},this.isDirty=!0,this._host.requestUpdate())}async save(){if(!(!this.draft||this.saving)){this.saving=!0,this.saveError=null,this._host.requestUpdate();try{if(this._options.onSave){const e=await this._options.onSave(this.draft);e!==void 0&&(this.draft=e)}this.original=structuredClone(this.draft),this.isDirty=!1}catch(e){console.error("Error saving draft",e),this.saveError=e}finally{this.saving=!1,this._host.requestUpdate()}}}cancel(){this.original&&(this.draft=structuredClone(this.original),this.isDirty=!1,this._host.requestUpdate())}reset(){this.original=null,this.draft=null,this.saving=!1,this.loading=!1,this.saveError=null,this.isDirty=!1,this._host.requestUpdate()}}function ge(t){const e=(Math.round(t)%1440+1440)%1440;return`${String(Math.floor(e/60)).padStart(2,"0")}:${String(e%60).padStart(2,"0")}`}function Xs(t){return t.startType==="fixed"?t.fixedStartTime||"12:00":t.startEvent||"civil_dawn"}function Si(t){const e=t.to-t.from;return e>=1440?1440:e<=0?e+1440:e}function $e(t,e){const i=s=>(s%1440+1440)%1440;return i(e-i(t.from))<Si(t)}function Di(t,e){var s;const i=(s=t==null?void 0:t.states[e])==null?void 0:s.attributes;return(i==null?void 0:i.friendly_name)??(i==null?void 0:i.name)??e}function Ye(t,e){if(!t||t.length===0)return[];const i=[],s=t.length;for(let a=0;a<s;a++){const o=t[a],r=s===1?o.start+1440:a<s-1?t[a+1].start:t[0].start+1440,l=e==null?void 0:e.find(d=>d.id===o.id),c=(l==null?void 0:l.start_type)==="fixed",g=(l==null?void 0:l.zone)||o.id;let u=g;["civil_dawn","civil_dusk"].includes(u)?u="civil":["nautical_dawn","nautical_dusk"].includes(u)?u="nautical":["astro_dawn","astro_dusk"].includes(u)?u="astro":["gold_dawn","gold_dusk"].includes(u)&&(u="gold");const p=fa[u]||fa.day;i.push({id:o.id,label:(l==null?void 0:l.name)||Ms[o.id]||o.id,color:p,from:o.start,to:r,scene:(l==null?void 0:l.scene_entity_id)||null,isCustom:!zs.includes(o.id),startType:c?"fixed":"astral",startEvent:c?void 0:g,startOffset:(l==null?void 0:l.offset_minutes)||0,fixedStartTime:c&&(l==null?void 0:l.fixed_time)||void 0})}return i}function Ks(t){if(t.length===0)return"var(--divider-color)";const e=a=>(a%1440+1440)%1440,i=[...t].sort((a,o)=>e(a.from)-e(o.from)),s=[];e(i[0].from)>0&&s.push(`${i[i.length-1].color} 0%`);for(const a of i){const o=(e(a.from)/1440*100).toFixed(1),r=(e(a.to)/1440*100).toFixed(1);s.push(`${a.color} ${o}%`),s.push(`${a.color} ${e(a.from)>e(a.to)?"100":r}%`)}return`linear-gradient(to right, ${s.join(", ")})`}async function Ai(){if(!customElements.get("ha-entity-picker"))try{if(window.loadCardHelpers){const t=await window.loadCardHelpers();if(t){const e=await t.createCardElement({type:"entities",entities:[]});e&&e.getConfigElement&&await e.getConfigElement()}}if(!customElements.get("ha-entity-picker")){const t=customElements.get("hui-glance-card");t&&t.getConfigElement&&await t.getConfigElement()}}catch(t){console.warn("[Twilight] Failed to preload HA entity picker:",t)}}function Ti(t,e,i){const s=window.devicePixelRatio||1,a=Math.round(e*s),o=Math.round(i*s);(t.width!==a||t.height!==o)&&(t.width=a,t.height=o);const r=t.getContext("2d");return r.clearRect(0,0,a,o),r.save(),r.scale(s,s),r}class Ge{constructor(e){this._ticker=null,this.liveMins=0,this.host=e,e.addController(this),this._updateTime()}hostConnected(){this._ticker=setInterval(()=>{this._updateTime(),this.host.requestUpdate()},15e3)}hostDisconnected(){this._ticker&&(clearInterval(this._ticker),this._ticker=null)}_updateTime(){const e=new Date;this.liveMins=e.getHours()*60+e.getMinutes()}}var Zs=Object.defineProperty,Js=Object.getOwnPropertyDescriptor,dt=(t,e,i,s)=>{for(var a=s>1?void 0:s?Js(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&Zs(e,i,a),a};let et=class extends L{constructor(){super(...arguments),this._clock=new Ge(this),this.hass=null,this.slots=[],this.inputs=[],this.noHeader=!1,this.runState=null,this.areaEnabled=!0,this.channels={},this.channelSlotsMap={},this.simCritical=!1,this.simError=!1,this.simSensorOffline=!1,this.simWarning=!1,this.entities=[]}_activityCountdown(t){if(!t.activity_expires_at)return null;const e=new Date(t.activity_expires_at).getTime()-Date.now();if(e<=0)return null;const i=Math.ceil(e/1e3),s=Math.floor(i/60),a=i%60;return s>0?`${s}m ${a}s`:`${a}s`}_runStateEngineInfo(t){const e=t.scene_activated_at!==null,i=t.active_activity;if(i){const s=i.charAt(0).toUpperCase()+i.slice(1),a=t.activity_trigger,o=a!=null&&a.input_id?this.inputs.find(c=>c.id===a.input_id):void 0,r=o?o.name||o.label||o.id:a==null?void 0:a.input_id,l=a!=null&&a.input_id?`via ${r}${a.entity_id?` (${a.entity_id})`:""}`:"";return{label:s,color:"#9c27b0",class:"pulse-glow",sub:l}}return{label:e?"Scene Active":"Idle",color:e?"#4caf50":"#2196f3",class:"entity-indicator",sub:e?"Scene switched by engine":"Waiting for input"}}render(){if(!this.sensorConfig)return n``;const t=this._clock.liveMins,e=this.runState,i=Object.keys(this.channels||{}).sort((r,l)=>r===I?-1:l===I?1:0),s=i.length>0?i:[I],a={simCritical:this.simCritical,simError:this.simError,simSensorOffline:this.simSensorOffline,simWarning:this.simWarning},o=this.areaEnabled?e?this._runStateEngineInfo(e):Ps(this.runState,a):{label:"Disabled",color:"#888888",class:"entity-indicator",sub:"Engine inactive"};return n`
       <div class="status-card">
-        ${this.noHeader?"":r`
+        ${this.noHeader?"":n`
           <div class="status-header">
-            <span class="devices-card-icon">📊</span>
+            <span class="card-dot" style="--dot-color: #06b6d4;"></span>
             <span class="status-title">Engine Live Monitor</span>
             <span style="font-size:11px; color:var(--secondary-text-color)">Live updating</span>
           </div>
@@ -247,33 +247,33 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
           <div class="status-widget" style="--widget-accent: var(--accent-color, #e91e8c)">
             <div class="status-widget-label">Active Timeslots</div>
             <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px; flex: 1; justify-content: center;">
-              ${a.map(n=>{var v,m,C,O;const l=(v=this.channels)==null?void 0:v[n],c=l?l.enabled!==!1:!0,u=(l==null?void 0:l.name)||(n===T?"Twilight":n);if(!c)return r`
+              ${s.map(r=>{var x,_,C,A;const l=(x=this.channels)==null?void 0:x[r],c=l?l.enabled!==!1:!0,g=(l==null?void 0:l.name)||(r===I?"Twilight":r);if(!c)return n`
                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; opacity: 0.5;">
                       <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
                         <div class="slot-color-dot" style="background: #888; flex-shrink: 0;"></div>
-                        <span style="font-weight: 600; color: var(--secondary-text-color); font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px;">${u}:</span>
+                        <span style="font-weight: 600; color: var(--secondary-text-color); font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px;">${g}:</span>
                         <span style="color: var(--secondary-text-color); text-decoration: line-through;">Disabled</span>
                       </div>
                       <span style="font-size: 11px; color: var(--secondary-text-color);">—</span>
                     </div>
-                  `;const g=((m=this.channelSlotsMap)==null?void 0:m[n])||(n===T?this.slots:[])||[],p=((C=e==null?void 0:e.active_slots)==null?void 0:C[n])||null,d=p?g.find(A=>A.id===p):g.find(A=>ge(A,t));if(!d)return r`
+                  `;const u=((_=this.channelSlotsMap)==null?void 0:_[r])||(r===I?this.slots:[])||[],p=((C=e==null?void 0:e.active_slots)==null?void 0:C[r])||null,d=p?u.find($=>$.id===p):u.find($=>$e($,t));if(!d)return n`
                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; opacity: 0.7;">
                       <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
                         <div class="slot-color-dot" style="background: #888; flex-shrink: 0;"></div>
-                        <span style="font-weight: 600; color: var(--secondary-text-color); font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px;">${u}:</span>
+                        <span style="font-weight: 600; color: var(--secondary-text-color); font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px;">${g}:</span>
                         <span style="color: var(--secondary-text-color); font-style: italic;">No active slot</span>
                       </div>
                       <span style="font-size: 11px; color: var(--secondary-text-color);">—</span>
                     </div>
-                  `;const f=d.color||"var(--secondary-text-color)",x=d.label,w=`${ne(d.from)} - ${ne(d.to)}`,k=((O=e==null?void 0:e.active_scene_names)==null?void 0:O[n])||(d.scene?mi(this.hass,d.scene):"No Scene");return r`
+                  `;const f=d.color||"var(--secondary-text-color)",v=d.label,y=`${ge(d.from)} - ${ge(d.to)}`,k=((A=e==null?void 0:e.active_scene_names)==null?void 0:A[r])||(d.scene?Di(this.hass,d.scene):"No Scene");return n`
                   <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px;">
                     <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
                       <div class="slot-color-dot" style="background:${f}; box-shadow: 0 0 6px ${f}; flex-shrink: 0;"></div>
-                      <span style="font-weight: 600; color: var(--secondary-text-color); font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px;">${u}:</span>
-                      <span style="color: var(--primary-text-color); font-weight: 500; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${x}</span>
+                      <span style="font-weight: 600; color: var(--secondary-text-color); font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px;">${g}:</span>
+                      <span style="color: var(--primary-text-color); font-weight: 500; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${v}</span>
                       <span style="color: var(--secondary-text-color); font-size: 11px; font-style: italic; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">(${k})</span>
                     </div>
-                    <span style="font-family: monospace; font-size: 11px; color: var(--secondary-text-color); flex-shrink: 0;">${w}</span>
+                    <span style="font-family: monospace; font-size: 11px; color: var(--secondary-text-color); flex-shrink: 0;">${y}</span>
                   </div>
                 `})}
             </div>
@@ -288,7 +288,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
             </div>
             <div class="status-widget-sub">
               <div style="text-overflow:ellipsis; overflow:hidden; white-space:nowrap">${o.sub}</div>
-              ${e&&this._activityCountdown(e)?r`
+              ${e&&this._activityCountdown(e)?n`
                 <div style="font-family: monospace; font-size: 11px; color: var(--secondary-text-color);">
                   ends in ${this._activityCountdown(e)}
                 </div>
@@ -297,7 +297,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
           </div>
         </div>
       </div>
-    `}};st.styles=z`
+    `}};et.styles=O`
     :host {
       display: flex;
       flex-direction: column;
@@ -390,9 +390,14 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
       min-width: 0;
     }
 
-    .devices-card-icon {
-      font-size: 18px;
-      opacity: 0.7;
+    .card-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--dot-color, #06b6d4);
+      box-shadow: 0 0 6px var(--dot-color, #06b6d4);
+      flex-shrink: 0;
+      display: inline-block;
     }
 
     .entity-indicator {
@@ -537,7 +542,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
         visibility: hidden;
       }
     }
-  `,pt([h({attribute:!1})],st.prototype,"hass",2),pt([h({type:Array})],st.prototype,"slots",2),pt([h({attribute:!1})],st.prototype,"sensorConfig",2),pt([h({type:Array})],st.prototype,"inputs",2),pt([h({type:Boolean})],st.prototype,"noHeader",2),pt([h({attribute:!1})],st.prototype,"runState",2),pt([h({type:Boolean})],st.prototype,"areaEnabled",2),pt([h({attribute:!1})],st.prototype,"channels",2),pt([h({attribute:!1})],st.prototype,"channelSlotsMap",2),pt([h({type:Boolean})],st.prototype,"simCritical",2),pt([h({type:Boolean})],st.prototype,"simError",2),pt([h({type:Boolean})],st.prototype,"simSensorOffline",2),pt([h({type:Boolean})],st.prototype,"simWarning",2),pt([h({type:Array})],st.prototype,"entities",2),st=pt([H("twilight-status-card")],st);class fe{constructor(e){this.host=e,this.confirmOpen=!1,this.confirmTitle="",this.confirmMessage="",this._confirmResolve=null,this.alertOpen=!1,this.alertTitle="",this.alertMessage="",this._alertResolve=null,this.promptOpen=!1,this.promptTitle="",this.promptMessage="",this.promptPlaceholder="",this.promptValue="",this._promptResolve=null,this._onConfirm=()=>{this.confirmOpen=!1,this._confirmResolve&&(this._confirmResolve(!0),this._confirmResolve=null),this.host.requestUpdate()},this._onCancelConfirm=()=>{this.confirmOpen=!1,this._confirmResolve&&(this._confirmResolve(!1),this._confirmResolve=null),this.host.requestUpdate()},this._onCloseAlert=()=>{this.alertOpen=!1,this._alertResolve&&(this._alertResolve(),this._alertResolve=null),this.host.requestUpdate()},this._onSubmitPrompt=i=>{this.promptOpen=!1,this._promptResolve&&(this._promptResolve(i.detail.value),this._promptResolve=null),this.host.requestUpdate()},this._onCancelPrompt=()=>{this.promptOpen=!1,this._promptResolve&&(this._promptResolve(null),this._promptResolve=null),this.host.requestUpdate()},this.host.addController(this)}hostConnected(){}hostDisconnected(){}showConfirm(e,i){return new Promise(a=>{this.confirmTitle=e,this.confirmMessage=i,this.confirmOpen=!0,this._confirmResolve=a,this.host.requestUpdate()})}showAlert(e,i){return new Promise(a=>{this.alertTitle=e,this.alertMessage=i,this.alertOpen=!0,this._alertResolve=a,this.host.requestUpdate()})}showPrompt(e,i="",a="",s=""){return new Promise(o=>{this.promptTitle=e,this.promptMessage=s,this.promptPlaceholder=a,this.promptValue=i,this.promptOpen=!0,this._promptResolve=o,this.host.requestUpdate()})}}const Ie=z`
+  `,dt([h({attribute:!1})],et.prototype,"hass",2),dt([h({type:Array})],et.prototype,"slots",2),dt([h({attribute:!1})],et.prototype,"sensorConfig",2),dt([h({type:Array})],et.prototype,"inputs",2),dt([h({type:Boolean})],et.prototype,"noHeader",2),dt([h({attribute:!1})],et.prototype,"runState",2),dt([h({type:Boolean})],et.prototype,"areaEnabled",2),dt([h({attribute:!1})],et.prototype,"channels",2),dt([h({attribute:!1})],et.prototype,"channelSlotsMap",2),dt([h({type:Boolean})],et.prototype,"simCritical",2),dt([h({type:Boolean})],et.prototype,"simError",2),dt([h({type:Boolean})],et.prototype,"simSensorOffline",2),dt([h({type:Boolean})],et.prototype,"simWarning",2),dt([h({type:Array})],et.prototype,"entities",2),et=dt([z("twilight-status-card")],et);class fe{constructor(e){this.host=e,this.confirmOpen=!1,this.confirmTitle="",this.confirmMessage="",this._confirmResolve=null,this.alertOpen=!1,this.alertTitle="",this.alertMessage="",this._alertResolve=null,this.promptOpen=!1,this.promptTitle="",this.promptMessage="",this.promptPlaceholder="",this.promptValue="",this._promptResolve=null,this._onConfirm=()=>{this.confirmOpen=!1,this._confirmResolve&&(this._confirmResolve(!0),this._confirmResolve=null),this.host.requestUpdate()},this._onCancelConfirm=()=>{this.confirmOpen=!1,this._confirmResolve&&(this._confirmResolve(!1),this._confirmResolve=null),this.host.requestUpdate()},this._onCloseAlert=()=>{this.alertOpen=!1,this._alertResolve&&(this._alertResolve(),this._alertResolve=null),this.host.requestUpdate()},this._onSubmitPrompt=i=>{this.promptOpen=!1,this._promptResolve&&(this._promptResolve(i.detail.value),this._promptResolve=null),this.host.requestUpdate()},this._onCancelPrompt=()=>{this.promptOpen=!1,this._promptResolve&&(this._promptResolve(null),this._promptResolve=null),this.host.requestUpdate()},this.host.addController(this)}hostConnected(){}hostDisconnected(){this._confirmResolve&&(this._confirmResolve(!1),this._confirmResolve=null),this._alertResolve&&(this._alertResolve(),this._alertResolve=null),this._promptResolve&&(this._promptResolve(null),this._promptResolve=null),this.confirmOpen=!1,this.alertOpen=!1,this.promptOpen=!1}showConfirm(e,i){return this._confirmResolve&&(this._confirmResolve(!1),this._confirmResolve=null),new Promise(s=>{this.confirmTitle=e,this.confirmMessage=i,this.confirmOpen=!0,this._confirmResolve=s,this.host.requestUpdate()})}showAlert(e,i){return this._alertResolve&&(this._alertResolve(),this._alertResolve=null),new Promise(s=>{this.alertTitle=e,this.alertMessage=i,this.alertOpen=!0,this._alertResolve=s,this.host.requestUpdate()})}showPrompt(e,i="",s="",a=""){return this._promptResolve&&(this._promptResolve(null),this._promptResolve=null),new Promise(o=>{this.promptTitle=e,this.promptMessage=a,this.promptPlaceholder=s,this.promptValue=i,this.promptOpen=!0,this._promptResolve=o,this.host.requestUpdate()})}}const ie=O`
   .activity-badge {
     font-size: 11px;
     font-weight: 600;
@@ -574,7 +579,18 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
     border: 1px solid rgba(244, 67, 54, 0.45);
     color: #ff5252;
   }
-`,yi=z`
+  .activity-badge.rule {
+    background: rgba(255, 193, 7, 0.18);
+    border: 1px solid rgba(255, 193, 7, 0.5);
+    color: #ffe082;
+    border-radius: 4px;
+  }
+  .activity-badge.simulation {
+    background: rgba(38, 166, 154, 0.18);
+    border: 1px solid rgba(38, 166, 154, 0.45);
+    color: #26c6a4;
+  }
+`,Ei=O`
   :host {
     display: flex;
     flex-direction: column;
@@ -585,7 +601,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
     box-sizing: border-box;
     font-family: var(--font-family, inherit);
   }
-`,wi=z`
+`,Oi=O`
   .view-header-container {
     background: var(--primary-background-color);
     min-height: 64px;
@@ -597,7 +613,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
     flex-shrink: 0;
     border-bottom: 1px solid var(--divider-color, rgba(255, 255, 255, 0.08));
   }
-`,ga=z`
+`,$a=O`
   .detail-footer {
     position: sticky;
     bottom: 0;
@@ -646,7 +662,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
     opacity: 0.4;
     cursor: not-allowed;
   }
-`,jt=z`
+`,Dt=O`
   .overlay {
     position: fixed;
     inset: 0;
@@ -663,7 +679,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
     border-radius: 16px;
     border: 1px solid var(--divider-color, color-mix(in srgb, var(--primary-text-color) 10%, transparent));
     width: 95vw;
-    max-width: 780px;
+    max-width: 1150px;
     max-height: calc(100vh - 96px);
     display: flex;
     flex-direction: column;
@@ -675,7 +691,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
      never below min-width, never wider than the viewport allows. */
   .edit-panel.list-panel {
     width: fit-content;
-    min-width: min(560px, 95vw);
+    min-width: min(750px, 95vw);
     max-width: 95vw;
   }
   .panel-header, .modal-header {
@@ -691,6 +707,60 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
   .panel-header-icon {
     font-size: 20px;
     opacity: 0.7;
+  }
+  .card-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--dot-color, var(--accent-color, #3b82f6));
+    box-shadow: 0 0 6px var(--dot-color, var(--accent-color, #3b82f6));
+    flex-shrink: 0;
+    display: inline-block;
+  }
+
+  /* Unified Configuration Table Styles */
+  .config-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .config-table th {
+    text-align: left;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--secondary-text-color);
+    padding: 6px 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .config-table td {
+    padding: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    vertical-align: middle;
+    font-size: 13px;
+  }
+  .config-table tr:hover {
+    background: rgba(255, 255, 255, 0.015);
+  }
+  .config-table tr.dragging {
+    opacity: 0.4;
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .config-table .drag-handle {
+    cursor: grab;
+    user-select: none;
+    color: var(--secondary-text-color);
+    opacity: 0.4;
+    font-size: 15px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    transition: opacity 0.15s, color 0.15s;
+  }
+  .config-table .drag-handle:hover {
+    opacity: 1;
+    color: var(--primary-text-color);
   }
   .panel-header-title, .modal-title {
     flex: 1;
@@ -769,7 +839,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
     opacity: 0.4;
     cursor: not-allowed;
   }
-`;var Us=Object.defineProperty,Bs=Object.getOwnPropertyDescriptor,ht=(t,e,i,a)=>{for(var s=a>1?void 0:a?Bs(e,i):e,o=t.length-1,n;o>=0;o--)(n=t[o])&&(s=(a?n(e,i,s):n(s))||s);return a&&s&&Us(e,i,s),s};class Be extends L{connectedCallback(){super.connectedCallback(),this.parentNode!==document.body&&document.body.appendChild(this)}disconnectedCallback(){super.disconnectedCallback(),queueMicrotask(()=>{this.isConnected||this.remove()})}}let ve=class extends Be{constructor(){super(...arguments),this.open=!1,this.dialogTitle="Alert",this.message=""}render(){return this.open?r`
+`;var Qs=Object.defineProperty,to=Object.getOwnPropertyDescriptor,ct=(t,e,i,s)=>{for(var a=s>1?void 0:s?to(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&Qs(e,i,a),a};class ae extends L{connectedCallback(){super.connectedCallback(),this.parentNode!==document.body&&document.body.appendChild(this)}disconnectedCallback(){super.disconnectedCallback(),queueMicrotask(()=>{this.isConnected||this.remove()})}}let ke=class extends ae{constructor(){super(...arguments),this.open=!1,this.dialogTitle="Alert",this.message=""}render(){return this.open?n`
       <div class="overlay" @click=${this._onClose}>
         <div
           class="modal-card"
@@ -789,14 +859,14 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
           </div>
         </div>
       </div>
-    `:r``}_onClose(){this.dispatchEvent(new CustomEvent("close",{bubbles:!0,composed:!0}))}};ve.styles=[jt,z`
+    `:n``}_onClose(){this.dispatchEvent(new CustomEvent("close",{bubbles:!0,composed:!0}))}};ke.styles=[Dt,O`
       /* Above the sub-edit overlays (z-index 1100) — validation alerts fire
          from inside the sub-modals and must stay visible on top. */
       .overlay { z-index: 1200; }
       .modal-card {
         max-width: 450px;
       }
-    `],ht([h({type:Boolean})],ve.prototype,"open",2),ht([h({type:String})],ve.prototype,"dialogTitle",2),ht([h({type:String})],ve.prototype,"message",2),ve=ht([H("twilight-alert-dialog")],ve);let be=class extends Be{constructor(){super(...arguments),this.open=!1,this.dialogTitle="Confirm",this.message=""}render(){return this.open?r`
+    `],ct([h({type:Boolean})],ke.prototype,"open",2),ct([h({type:String})],ke.prototype,"dialogTitle",2),ct([h({type:String})],ke.prototype,"message",2),ke=ct([z("twilight-alert-dialog")],ke);let Ce=class extends ae{constructor(){super(...arguments),this.open=!1,this.dialogTitle="Confirm",this.message=""}render(){return this.open?n`
       <div class="overlay" @click=${this._onCancel}>
         <div
           class="modal-card"
@@ -817,12 +887,12 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
           </div>
         </div>
       </div>
-    `:r``}_onConfirm(){this.dispatchEvent(new CustomEvent("confirm",{bubbles:!0,composed:!0}))}_onCancel(){this.dispatchEvent(new CustomEvent("cancel",{bubbles:!0,composed:!0}))}};be.styles=[jt,z`
+    `:n``}_onConfirm(){this.dispatchEvent(new CustomEvent("confirm",{bubbles:!0,composed:!0}))}_onCancel(){this.dispatchEvent(new CustomEvent("cancel",{bubbles:!0,composed:!0}))}};Ce.styles=[Dt,O`
       .overlay { z-index: 1200; }
       .modal-card {
         max-width: 450px;
       }
-    `],ht([h({type:Boolean})],be.prototype,"open",2),ht([h({type:String})],be.prototype,"dialogTitle",2),ht([h({type:String})],be.prototype,"message",2),be=ht([H("twilight-confirm-dialog")],be);let Wt=class extends Be{constructor(){super(...arguments),this.open=!1,this.dialogTitle="Prompt",this.message="",this.placeholder="",this.value="",this._currentValue=""}willUpdate(t){t.has("open")&&this.open&&(this._currentValue=this.value||"")}render(){return this.open?r`
+    `],ct([h({type:Boolean})],Ce.prototype,"open",2),ct([h({type:String})],Ce.prototype,"dialogTitle",2),ct([h({type:String})],Ce.prototype,"message",2),Ce=ct([z("twilight-confirm-dialog")],Ce);let Yt=class extends ae{constructor(){super(...arguments),this.open=!1,this.dialogTitle="Prompt",this.message="",this.placeholder="",this.value="",this._currentValue=""}willUpdate(t){t.has("open")&&this.open&&(this._currentValue=this.value||"")}render(){return this.open?n`
       <div class="overlay" @click=${this._onCancel}>
         <div
           class="modal-card"
@@ -835,7 +905,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
             <h3 class="modal-title" id="prompt-dialog-title">${this.dialogTitle}</h3>
           </div>
           <div class="modal-body" style="gap: 12px;">
-            ${this.message?r`<p style="margin: 0; font-size: 13px; color: var(--secondary-text-color);">${this.message}</p>`:""}
+            ${this.message?n`<p style="margin: 0; font-size: 13px; color: var(--secondary-text-color);">${this.message}</p>`:""}
             <input
               type="text"
               class="prompt-input"
@@ -852,7 +922,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
           </div>
         </div>
       </div>
-    `:r``}_onInput(t){this._currentValue=t.target.value}_onKeyDown(t){t.key==="Enter"?this._onConfirm():t.key==="Escape"&&this._onCancel()}_onConfirm(){this.dispatchEvent(new CustomEvent("submit",{detail:{value:this._currentValue},bubbles:!0,composed:!0}))}_onCancel(){this.dispatchEvent(new CustomEvent("cancel",{bubbles:!0,composed:!0}))}};Wt.styles=[jt,z`
+    `:n``}_onInput(t){this._currentValue=t.target.value}_onKeyDown(t){t.key==="Enter"?this._onConfirm():t.key==="Escape"&&this._onCancel()}_onConfirm(){this.dispatchEvent(new CustomEvent("submit",{detail:{value:this._currentValue},bubbles:!0,composed:!0}))}_onCancel(){this.dispatchEvent(new CustomEvent("cancel",{bubbles:!0,composed:!0}))}};Yt.styles=[Dt,O`
       .overlay { z-index: 1200; }
       .modal-card {
         max-width: 450px;
@@ -871,28 +941,28 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
       .prompt-input:focus {
         border-color: var(--tp-accent, var(--accent-color, #e91e8c));
       }
-    `],ht([h({type:Boolean})],Wt.prototype,"open",2),ht([h({type:String})],Wt.prototype,"dialogTitle",2),ht([h({type:String})],Wt.prototype,"message",2),ht([h({type:String})],Wt.prototype,"placeholder",2),ht([h({type:String})],Wt.prototype,"value",2),ht([b()],Wt.prototype,"_currentValue",2),Wt=ht([H("twilight-prompt-dialog")],Wt);const yt="#141926",Ot="#1e2e45",It="#2c4268",zt="#3d5c8a",ze="#bfb39b",qt="#8ab0cd",fa="rgba(255,255,255,0.15)",$i=t=>t>=-.833?qt:t>=-6?zt:t>=-12?It:t>=-18?Ot:yt;function Fe(t){return`200 14px ${getComputedStyle(t).getPropertyValue("--font-family").trim()||"system-ui, sans-serif"}`}function ki(t){return getComputedStyle(t).getPropertyValue("--primary-text-color").trim()||"rgba(255,255,255,0.90)"}function va(t){return getComputedStyle(t).getPropertyValue("--divider-color").trim()||"rgba(255, 255, 255, 0.08)"}function ba(t,e){var i;for(let a=0;a<t.length-1;a++)if(t[a].time<=e&&t[a+1].time>e){const s=(e-t[a].time)/(t[a+1].time-t[a].time);return t[a].elevation+(t[a+1].elevation-t[a].elevation)*s}return((i=t[t.length-1])==null?void 0:i.elevation)??0}function ma(t,e,i){t.save(),t.beginPath(),t.arc(e,i,11,0,Math.PI*2),t.fillStyle="rgba(249,217,118,0.28)",t.shadowColor="#f9d976",t.shadowBlur=12,t.fill(),t.beginPath(),t.arc(e,i,7.5,0,Math.PI*2),t.strokeStyle="rgba(10, 15, 25, 0.65)",t.lineWidth=1.5,t.stroke(),t.beginPath(),t.arc(e,i,7,0,Math.PI*2),t.fillStyle="#f9d976",t.fill(),t.restore()}function xa(t,e,i){t.save(),t.shadowColor="#a4c5f0",t.shadowBlur=10,t.beginPath(),t.arc(e,i,7,0,Math.PI*2),t.fillStyle="#c8dff5",t.fill(),t.beginPath(),t.arc(e+3.15,i-.7,5.46,0,Math.PI*2),t.fillStyle=yt,t.fill(),t.restore()}function _a(t,e,i){t.save(),t.shadowColor="#c8c8f0",t.shadowBlur=10,t.beginPath(),t.arc(e,i,7,Math.PI/2,-Math.PI/2),t.lineTo(e,i-7),t.fillStyle="#f9d976",t.fill(),t.beginPath(),t.arc(e,i,7,-Math.PI/2,Math.PI/2),t.lineTo(e,i+7),t.fillStyle="#c8dff5",t.fill(),t.beginPath(),t.moveTo(e,i-7),t.lineTo(e,i+7),t.strokeStyle="rgba(0,0,0,0.3)",t.lineWidth=.5,t.stroke(),t.restore()}const R=t=>Math.round(t*1e3)/1e3;function Ci(t){const i=[],a=t.sunrise!==null?R(t.sunrise):null,s=t.sunset!==null?R(t.sunset):null,o=t.astro_dawn!==null&&(a===null||R(t.astro_dawn)<a)?R(t.astro_dawn):null,n=t.nautical_dawn!==null&&(a===null||R(t.nautical_dawn)<a)?R(t.nautical_dawn):null,l=t.dawn!==null&&(a===null||R(t.dawn)<a)?R(t.dawn):null,c=t.dusk!==null&&t.dusk<=1440&&(s===null||R(t.dusk)>s)?R(t.dusk):null,u=t.nautical_dusk!==null&&t.nautical_dusk<=1440&&(s===null||R(t.nautical_dusk)>s)?R(t.nautical_dusk):null,g=t.astro_dusk!==null&&t.astro_dusk<=1440&&(s===null||R(t.astro_dusk)>s)?R(t.astro_dusk):null,p=t.slot_gold_dawn!==null&&t.slot_gold_dawn!==void 0;return o!==null&&i.push({t:o,c:Ot}),n!==null&&i.push({t:n,c:It}),l!==null&&i.push({t:l,c:zt}),a!==null&&i.push({t:a,c:p?ze:qt}),p&&t.slot_day!==null&&t.slot_day!==void 0&&i.push({t:R(t.slot_day),c:qt}),p&&t.slot_gold_dusk!==null&&t.slot_gold_dusk!==void 0&&t.slot_gold_dusk<=1440&&i.push({t:R(t.slot_gold_dusk),c:ze}),s!==null&&s<=1440&&i.push({t:s,c:zt}),c!==null&&i.push({t:c,c:It}),u!==null&&i.push({t:u,c:Ot}),g!==null&&i.push({t:g,c:yt}),i}function Si(t){const i=[],a=t.slot_sunrise!==null?R(t.slot_sunrise):null,s=t.slot_astro_dawn!==null&&(a===null||R(t.slot_astro_dawn)<a)?R(t.slot_astro_dawn):null,o=t.slot_nautical_dawn!==null&&(a===null||R(t.slot_nautical_dawn)<a)?R(t.slot_nautical_dawn):null,n=t.slot_civil_dawn!==null&&(a===null||R(t.slot_civil_dawn)<a)?R(t.slot_civil_dawn):null,l=t.slot_civil_dusk!==null&&t.slot_civil_dusk<=1440?R(t.slot_civil_dusk):null,c=t.slot_nautical_dusk!==null&&t.slot_nautical_dusk<=1440?R(t.slot_nautical_dusk):null,u=t.slot_astro_dusk!==null&&t.slot_astro_dusk<=1440?R(t.slot_astro_dusk):null,g=t.slot_night!==null&&t.slot_night<=1440?R(t.slot_night):null,p=t.slot_gold_dawn!==null&&t.slot_gold_dawn!==void 0;return s!==null&&i.push({t:s,c:Ot}),o!==null&&i.push({t:o,c:It}),n!==null&&i.push({t:n,c:zt}),a!==null&&i.push({t:a,c:p?ze:qt}),p&&t.slot_day!==null&&t.slot_day!==void 0&&i.push({t:R(t.slot_day),c:qt}),p&&t.slot_gold_dusk!==null&&t.slot_gold_dusk!==void 0&&t.slot_gold_dusk<=1440&&i.push({t:R(t.slot_gold_dusk),c:ze}),l!==null&&i.push({t:l,c:zt}),c!==null&&i.push({t:c,c:It}),u!==null&&i.push({t:u,c:Ot}),g!==null&&i.push({t:g,c:yt}),i}function Di(t,e,i){if(!t)return $i(e.midnight_el);const a=1440;if(i){if(t.slot_civil_dusk!==null)return t.slot_night!==null&&t.slot_night<=a?yt:t.slot_astro_dusk!==null&&t.slot_astro_dusk<=a?Ot:t.slot_nautical_dusk!==null&&t.slot_nautical_dusk<=a?It:t.slot_civil_dusk!==null&&t.slot_civil_dusk<=a?zt:qt}else if(t.sunset!==null)return t.astro_dusk!==null&&t.astro_dusk<=a?yt:t.nautical_dusk!==null&&t.nautical_dusk<=a?Ot:t.dusk!==null&&t.dusk<=a?It:t.sunset!==null&&t.sunset<=a?zt:qt;return $i(t.midnight_el)}function Ai(t,e,i,a){const o=(n,l,c,u)=>{if(n===null||n<=1440||u===null)return;const g=R(n-1440);c!==null&&g>=c||t.push({t:g,c:l})};a?(o(e.slot_civil_dusk,zt,i.slot_sunrise,i.slot_sunrise),o(e.slot_nautical_dusk,It,i.slot_civil_dawn,i.slot_civil_dawn),o(e.slot_astro_dusk,Ot,i.slot_nautical_dawn,i.slot_nautical_dawn),o(e.slot_night,yt,i.slot_astro_dawn,i.slot_astro_dawn)):(o(e.sunset,zt,i.sunrise,i.sunrise),o(e.dusk,It,i.dawn,i.dawn),o(e.nautical_dusk,Ot,i.nautical_dawn,i.nautical_dawn),o(e.astro_dusk,yt,i.astro_dawn,i.astro_dawn))}function Fs(t,e,i,a,s,o,n,l,c){let u=n,g=e;for(const p of o){const d=l(Math.max(0,Math.min(c,p.t)));d>g&&(t.fillStyle=u,t.fillRect(g,i,d-g,a)),u=p.c,g=d}t.fillStyle=u,t.fillRect(g,i,s-g,a)}function Ws(t,e,i,a,s,o,n){let l=s,c=0;for(const u of a)u.t>c&&u.t<=n&&(t.fillStyle=l,t.fillRect(e,o(u.t),i,o(c)-o(u.t))),l=u.c,c=Math.max(c,u.t);c<n&&(t.fillStyle=l,t.fillRect(e,o(n),i,o(c)-o(n)))}var qs=Object.defineProperty,Ys=Object.getOwnPropertyDescriptor,X=(t,e,i,a)=>{for(var s=a>1?void 0:a?Ys(e,i):e,o=t.length-1,n;o>=0;o--)(n=t[o])&&(s=(a?n(e,i,s):n(s))||s);return a&&s&&qs(e,i,s),s};const ya=[210,145,35,280,190,330,15],wa=50,$a=20,Vs=0,Gs=30,Ti=72,ka=12,Xs=2,We=20;let Y=class extends L{constructor(){super(...arguments),this.hass=null,this.date=new Date().toISOString().slice(0,10),this.clamped=!1,this.noHeader=!1,this.noAxisLabels=!1,this.noYAxis=!1,this.showSlots=!1,this.noSolarNoonMidnight=!1,this.hoverTime=null,this.liveTime=null,this.embedded=!1,this.sparkline=!1,this.channels={},this.selectedChannelId="primary",this.channelSlotsMap={},this.days=[],this.sunData=null,this.slots=[],this._days=[],this._sunData=null,this._loading=!1,this._w=0,this._scrubbing=!1,this._geom=null,this._interval=null,this._ro=null}connectedCallback(){super.connectedCallback(),this._interval=window.setInterval(()=>{this._scrubbing||this._draw()},1e3)}disconnectedCallback(){var t;this._interval&&clearInterval(this._interval),(t=this._ro)==null||t.disconnect(),super.disconnectedCallback()}updated(t){var i;if(!this._ro){const a=(i=this.shadowRoot)==null?void 0:i.querySelector(".canvas-wrap");a&&(this._ro=new ResizeObserver(s=>{const o=s[0].contentRect.width;o>0&&o!==this._w&&(this._w=o,this._draw())}),this._ro.observe(a))}t.has("days")&&this.days.length&&(this._days=this.days),t.has("sunData")&&this.sunData&&(this._sunData=this.sunData),(t.has("hass")||t.has("date"))&&this.hass&&!this.days.length&&this._load(),(t.has("_sunData")||t.has("_days")||t.has("clamped")||t.has("showSlots")||t.has("noSolarNoonMidnight")||t.has("noYAxis")||t.has("hoverTime")||t.has("liveTime")||t.has("channels")||t.has("selectedChannelId"))&&requestAnimationFrame(()=>this._draw())}async _load(){if(this.hass){this._loading=!0;try{const t=await je(this.hass,{date:this.date});this._sunData=t;const e=[];t.prev_day_data&&e.push(t.prev_day_data),t.day_data&&e.push(t.day_data),this._days=e}finally{this._loading=!1}}}_getLiveTime(){const t=new Date;return t.getHours()*60+t.getMinutes()+t.getSeconds()/60}_interpolateEl(t){var e;return ba(((e=this._sunData)==null?void 0:e.points)??[],t)}_draw(){var St;const t=(St=this.shadowRoot)==null?void 0:St.querySelector("canvas"),e=this._sunData??this.sunData;if(!t||!e||!this._w)return;const{points:i}=e;if(!i.length)return;const a=this._w,s=t.getBoundingClientRect().height;if(!s)return;const o=_i(t,a,s),n=this.noAxisLabels?10:this.noYAxis?We+Ti:wa,l=this.noAxisLabels?10:this.noYAxis?We:$a,c=this.noAxisLabels?10:Vs,u=this.noAxisLabels?10:Gs,g=a-n-l,p=s-c-u,d=Object.keys(this.channels||{}).filter(S=>S!=="primary"),x=1+d.length,w=p/x,k=p,v=c,m=c+k,C=n,O=n+g,A=v+p/2,U=1440;this._geom={plotT:v,stripeH:w,numStripes:x};const ot=e.lat??50,_=Math.abs(ot),I=_<=23.44?90:113.44-_,V=Math.max(I,...i.map(S=>Math.abs(S.elevation)))+10,j=S=>C+S/U*g,F=S=>A-S/V*(k/2);o.save(),o.shadowColor="rgba(0, 0, 0, 0.2)",o.shadowBlur=36,o.shadowOffsetX=0,o.shadowOffsetY=0,o.beginPath(),o.roundRect(C,v,g,p,8),o.fillStyle=yt,o.fill(),o.restore(),o.save(),o.beginPath(),o.roundRect(C,v,g,p,8),o.clip();const dt=w;o.save(),o.beginPath(),o.rect(C,v,g,dt),o.clip();const $=this._days.length?this._days:this.days,E=$.findIndex(S=>S.date===this.date),y=E>=0?$[E]:null,q=E>0?$[E-1]:null;if(y){const S=this.clamped,Rt=[...S?Si(y):Ci(y)];q&&Ai(Rt,q,y,S),Rt.sort((ei,en)=>ei.t-en.t);const Ui=Di(q,y,S);Fs(o,C,v,dt,O,Rt,Ui,j,U)}else o.fillStyle=yt,o.fillRect(C,v,g,dt);o.restore(),this._drawCustomStripes(o,d,y,q,e,C,v,O,g,w,j),o.save(),o.beginPath(),o.rect(C,v,g,p),o.clip(),o.save(),o.beginPath(),o.moveTo(C,A);for(const S of i)o.lineTo(j(S.time),F(S.elevation));o.lineTo(O,A),o.closePath();const tt=o.createLinearGradient(0,v,0,A);tt.addColorStop(0,"rgba(249,217,118,0.11)"),tt.addColorStop(1,"rgba(249,217,118,0.01)"),o.fillStyle=tt,o.fill(),o.restore(),o.save(),o.strokeStyle="rgba(255,255,255,0.35)",o.lineWidth=1.5,o.setLineDash([4,4]),o.beginPath(),o.moveTo(C,A),o.lineTo(O,A),o.stroke(),o.restore();const Z=o.createLinearGradient(0,v,0,m);Z.addColorStop(0,"#f9d976"),Z.addColorStop(.47,"#e8a020"),Z.addColorStop(.53,"#34507a"),Z.addColorStop(1,"#1b233a"),o.save(),o.beginPath();let M=!0;for(const S of i){const P=j(S.time),Rt=F(S.elevation);M?(o.moveTo(P,Rt),M=!1):o.lineTo(P,Rt)}o.strokeStyle=Z,o.lineWidth=2,o.stroke(),o.restore(),o.save(),o.strokeStyle=Z,o.lineWidth=2,o.shadowColor="rgba(249, 217, 118, 0.55)",o.shadowBlur=8,o.beginPath();let B=!1;for(const S of i){const P=j(S.time),Rt=F(S.elevation);S.elevation>=0?B?o.lineTo(P,Rt):(o.moveTo(P,Rt),B=!0):B=!1}if(o.stroke(),o.restore(),!this.noYAxis)for(const S of[-18,-12,-6,0,30,60]){const P=F(S);P<v-2||P>m+2||[-18,-12,-6,0].includes(S)&&(o.save(),o.strokeStyle=fa,o.lineWidth=.5,o.setLineDash([3,4]),o.beginPath(),o.moveTo(C,P),o.lineTo(O,P),o.stroke(),o.restore())}o.restore();const ct=this.liveTime??this._getLiveTime(),D=this._interpolateEl(ct),N=j(ct),nt=F(D),xt=v+w,K=(S,P,Rt=[],Ui=xt)=>{if(S===null)return;const ei=j((S%U+U)%U);o.save(),o.strokeStyle=P,o.lineWidth=1.5,o.setLineDash(Rt),o.beginPath(),o.moveTo(ei,v),o.lineTo(ei,Ui),o.stroke(),o.restore()};this.noSolarNoonMidnight||(K((y==null?void 0:y.solar_noon)??null,"rgba(255,214,0,0.7)",[],v+p),K((y==null?void 0:y.solar_midnight)??null,"rgba(60,100,200,0.7)",[],v+p)),this.showSlots&&y&&(K(y.slot_sunset,"rgba(255,255,255,0.75)"),K(y.slot_nautical_dusk,"rgba(255,255,255,0.60)"),K(y.slot_astro_dusk,"rgba(255,255,255,0.45)"),K(y.slot_night,"rgba(255,255,255,0.30)"),K(y.slot_astro_dawn,"rgba(255,255,255,0.30)"),K(y.slot_nautical_dawn,"rgba(255,255,255,0.45)"),K(y.slot_civil_dawn,"rgba(255,255,255,0.60)"),K(y.slot_sunrise,"rgba(255,255,255,0.75)"),K(y.slot_day,"rgba(255,255,255,0.65)"),K(y.slot_gold_dusk,"rgba(255,255,255,0.65)"));for(const S of[0,360,720,1080,1440]){const P=j(S);o.save(),o.strokeStyle=fa,o.lineWidth=.5,o.beginPath(),o.moveTo(P,v),o.lineTo(P,v+p),o.stroke(),o.restore()}if(o.save(),o.strokeStyle="rgba(255,255,255,0.25)",o.lineWidth=1,o.setLineDash([3,3]),o.beginPath(),o.moveTo(N,v),o.lineTo(N,v+p),o.stroke(),o.restore(),this.hoverTime!==null){const S=j(this.hoverTime);o.save(),o.strokeStyle="rgba(255,255,255,0.35)",o.lineWidth=1,o.setLineDash([3,3]),o.beginPath(),o.moveTo(S,v),o.lineTo(S,v+p),o.stroke(),o.restore()}if(o.restore(),o.save(),o.beginPath(),o.roundRect(C,v,g,p,8),o.strokeStyle=va(this),o.lineWidth=1,o.stroke(),o.restore(),D>=0?ma(o,N,nt):D>=-6?_a(o,N,nt):xa(o,N,nt),!this.noAxisLabels){o.fillStyle=ki(this),o.font=Fe(this),o.textAlign="center";for(const S of[0,360,720,1080,1440]){const P=j(S);S!==0&&S!==1440&&o.fillText(`${String(S/60|0).padStart(2,"0")}:00`,P,v+p+20)}}if(!this.noAxisLabels&&!this.noYAxis){o.font=Fe(this),o.textAlign="end";for(const S of[-18,-12,-6,0,30,60]){const P=F(S);P<v-2||P>m+2||[0,30,60,-18].includes(S)&&(o.fillStyle=ki(this),o.fillText(`${S}°`,C-6,P+4))}}this.noYAxis&&!this.noAxisLabels&&this._drawChannelAxisLabels(o,["primary",...d],C,v,w),o.restore()}_elevationToLightRatio(t){return Math.max(0,Math.min(1,(t- -18)/48))}_drawCustomStripes(t,e,i,a,s,o,n,l,c,u,g){const p=i||a||s.day_data;if(e.length===0||!p)return;const d=f=>(f%1440+1440)%1440;e.forEach((f,x)=>{var _,I,V;const w=n+(x+1)*u,k=w+u,v=((_=this.channelSlotsMap)==null?void 0:_[f])??[],m=((V=(I=this.channels)==null?void 0:I[f])==null?void 0:V.enabled)!==!1,C=ya[x%ya.length],O=m?35:0,A=m?12:6,U=m?42:14;t.fillStyle=yt,t.fillRect(o,w,c,u);const ot=c/1440;v.forEach(j=>{const F=bi(j);if(F<=0)return;const dt=d(j.from),$=o+dt*ot,E=d(j.from+F/2),y=this._interpolateEl(E),q=this._elevationToLightRatio(y),tt=A+q*(U-A);t.fillStyle=`hsl(${C}, ${O}%, ${tt}%)`;const Z=F*ot,M=$+Z-l;M<=0?t.fillRect($,w,Z,u):(t.fillRect($,w,l-$,u),t.fillRect(o,w,M,u))}),t.strokeStyle="rgba(255, 255, 255, 0.35)",t.lineWidth=1.5;for(const j of v){const F=g(d(j.from));t.beginPath(),t.moveTo(F,w),t.lineTo(F,k),t.stroke()}t.strokeStyle="rgba(255, 255, 255, 0.08)",t.lineWidth=.5,t.beginPath(),t.moveTo(o,w),t.lineTo(l,w),t.stroke()})}_drawChannelAxisLabels(t,e,i,a,s){const l=Ti-ka-Xs,c=i-ka;t.save(),t.font="600 11px system-ui, sans-serif",t.textAlign="end",t.textBaseline="middle",e.forEach((u,g)=>{var m,C,O,A;const p=((C=(m=this.channels)==null?void 0:m[u])==null?void 0:C.enabled)!==!1,d=(((A=(O=this.channels)==null?void 0:O[u])==null?void 0:A.name)||u).toUpperCase(),f=a+g*s,x=Math.max(1,Math.floor((s-8)/13)),w=this._wrapText(t,d,l,x);t.fillStyle=p?ki(this):"rgba(255,255,255,0.35)";const k=w.length*13;let v=f+(s-k)/2+13/2;for(const U of w)t.fillText(U,c,v),v+=13}),t.restore()}_wrapText(t,e,i,a){const s=p=>t.measureText(p).width<=i,o=e.split(/\s+/).filter(Boolean),n=[];let l="";const c=p=>{for(const d of p)l&&!s(l+d)&&(n.push(l),l=""),l+=d};for(const p of o){const d=l?`${l} ${p}`:p;if(s(d)){l=d;continue}l&&(n.push(l),l=""),s(p)?l=p:c(p)}if(l&&n.push(l),n.length<=a)return n;const u=n.slice(0,a);let g=u[a-1];for(;g.length>0&&!s(`${g}…`);)g=g.slice(0,-1);return u[a-1]=`${g}…`,u}get _padLeft(){return this.noAxisLabels?10:this.noYAxis?We+Ti:wa}get _padRight(){return this.noAxisLabels?10:this.noYAxis?We:$a}_channelAtY(t,e){const i=this._geom;if(!i||i.numStripes<=1)return this.selectedChannelId;const a=t-e,s=Math.max(0,Math.min(i.numStripes-1,Math.floor((a-i.plotT)/i.stripeH)));return s===0?"primary":Object.keys(this.channels||{}).filter(n=>n!=="primary")[s-1]??"primary"}_timeAtX(t,e){const i=this._w-this._padLeft-this._padRight,a=t-e;return Math.round(Math.max(0,Math.min(1,(a-this._padLeft)/i))*1440)}_getSlotAtTimeIn(t,e){const i=s=>(s%1440+1440)%1440,a=i(e);for(const s of t){const o=bi(s);if(!(o<=0)&&i(a-i(s.from))<o)return s}return null}_slotsForChannel(t){var i;const e=(i=this.channelSlotsMap)==null?void 0:i[t];return e&&e.length?e:this.slots}_onCanvasClick(t){if(!this._w)return;const e=t.currentTarget.getBoundingClientRect(),i=this._timeAtX(t.clientX,e.left),a=this._channelAtY(t.clientY,e.top),s=this._getSlotAtTimeIn(this._slotsForChannel(a),i);s&&this.dispatchEvent(new CustomEvent("slot-selected",{detail:{slotId:s.id,channelId:a},bubbles:!0,composed:!0}))}_onMouseMove(t){if(!this._w)return;const e=t.currentTarget.getBoundingClientRect();this.hoverTime=this._timeAtX(t.clientX,e.left);const i=this._channelAtY(t.clientY,e.top);this._scrubbing=!0,this.dispatchEvent(new CustomEvent("time-hover-changed",{detail:{hoverTime:this.hoverTime,channelId:i,scrubbing:!0},bubbles:!0,composed:!0})),this._draw()}_onMouseLeave(){this.hoverTime=null,this._scrubbing=!1,this.dispatchEvent(new CustomEvent("time-hover-changed",{detail:{hoverTime:null,scrubbing:!1},bubbles:!0,composed:!0})),this._draw()}_onTouchMove(t){if(!this._w)return;const e=t.touches[0],i=t.currentTarget.getBoundingClientRect();this.hoverTime=this._timeAtX(e.clientX,i.left);const a=this._channelAtY(e.clientY,i.top);this._scrubbing=!0,this.dispatchEvent(new CustomEvent("time-hover-changed",{detail:{hoverTime:this.hoverTime,channelId:a,scrubbing:!0},bubbles:!0,composed:!0})),this._draw()}_onTouchEnd(){this.hoverTime=null,this._scrubbing=!1,this.dispatchEvent(new CustomEvent("time-hover-changed",{detail:{hoverTime:null,scrubbing:!1},bubbles:!0,composed:!0})),this._draw()}_getSparklineGradient(){const t=this._days.length?this._days:this.days,e=t.findIndex(p=>p.date===this.date),i=e>=0?t[e]:null,a=e>0?t[e-1]:null;if(!i)return"var(--divider-color)";const s=this.clamped,n=[...s?Si(i):Ci(i)];a&&Ai(n,a,i,s),n.sort((p,d)=>p.t-d.t);const l=Di(a,i,s),c=[],u=1440;let g=l;c.push(`${g} 0%`);for(const p of n){const f=(Math.max(0,Math.min(u,p.t))/u*100).toFixed(1);c.push(`${g} ${f}%`),g=p.c,c.push(`${g} ${f}%`)}return c.push(`${g} 100%`),`linear-gradient(to right, ${c.join(", ")})`}render(){if(this.sparkline){const t=this._getSparklineGradient(),i=(this.liveTime??this._getLiveTime())/1440*100;return r`
+    `],ct([h({type:Boolean})],Yt.prototype,"open",2),ct([h({type:String})],Yt.prototype,"dialogTitle",2),ct([h({type:String})],Yt.prototype,"message",2),ct([h({type:String})],Yt.prototype,"placeholder",2),ct([h({type:String})],Yt.prototype,"value",2),ct([b()],Yt.prototype,"_currentValue",2),Yt=ct([z("twilight-prompt-dialog")],Yt);const kt="#141926",Mt="#1e2e45",Pt="#2c4268",Nt="#3d5c8a",He="#bfb39b",Gt="#8ab0cd",ka="rgba(255,255,255,0.15)",Ii=t=>t>=-.833?Gt:t>=-6?Nt:t>=-12?Pt:t>=-18?Mt:kt;function Xe(t){return`200 14px ${getComputedStyle(t).getPropertyValue("--font-family").trim()||"system-ui, sans-serif"}`}function zi(t){return getComputedStyle(t).getPropertyValue("--primary-text-color").trim()||"rgba(255,255,255,0.90)"}function Ca(t){return getComputedStyle(t).getPropertyValue("--divider-color").trim()||"rgba(255, 255, 255, 0.08)"}function Sa(t,e){var i;for(let s=0;s<t.length-1;s++)if(t[s].time<=e&&t[s+1].time>e){const a=(e-t[s].time)/(t[s+1].time-t[s].time);return t[s].elevation+(t[s+1].elevation-t[s].elevation)*a}return((i=t[t.length-1])==null?void 0:i.elevation)??0}function Da(t,e,i){t.save(),t.beginPath(),t.arc(e,i,11,0,Math.PI*2),t.fillStyle="rgba(249,217,118,0.28)",t.shadowColor="#f9d976",t.shadowBlur=12,t.fill(),t.beginPath(),t.arc(e,i,7.5,0,Math.PI*2),t.strokeStyle="rgba(10, 15, 25, 0.65)",t.lineWidth=1.5,t.stroke(),t.beginPath(),t.arc(e,i,7,0,Math.PI*2),t.fillStyle="#f9d976",t.fill(),t.restore()}function Aa(t,e,i){t.save(),t.shadowColor="#a4c5f0",t.shadowBlur=10,t.beginPath(),t.arc(e,i,7,0,Math.PI*2),t.fillStyle="#c8dff5",t.fill(),t.beginPath(),t.arc(e+3.15,i-.7,5.46,0,Math.PI*2),t.fillStyle=kt,t.fill(),t.restore()}function Ta(t,e,i){t.save(),t.shadowColor="#c8c8f0",t.shadowBlur=10,t.beginPath(),t.arc(e,i,7,Math.PI/2,-Math.PI/2),t.lineTo(e,i-7),t.fillStyle="#f9d976",t.fill(),t.beginPath(),t.arc(e,i,7,-Math.PI/2,Math.PI/2),t.lineTo(e,i+7),t.fillStyle="#c8dff5",t.fill(),t.beginPath(),t.moveTo(e,i-7),t.lineTo(e,i+7),t.strokeStyle="rgba(0,0,0,0.3)",t.lineWidth=.5,t.stroke(),t.restore()}const N=t=>Math.round(t*1e3)/1e3;function Mi(t){const i=[],s=t.sunrise!==null?N(t.sunrise):null,a=t.sunset!==null?N(t.sunset):null,o=t.astro_dawn!==null&&(s===null||N(t.astro_dawn)<s)?N(t.astro_dawn):null,r=t.nautical_dawn!==null&&(s===null||N(t.nautical_dawn)<s)?N(t.nautical_dawn):null,l=t.dawn!==null&&(s===null||N(t.dawn)<s)?N(t.dawn):null,c=t.dusk!==null&&t.dusk<=1440&&(a===null||N(t.dusk)>a)?N(t.dusk):null,g=t.nautical_dusk!==null&&t.nautical_dusk<=1440&&(a===null||N(t.nautical_dusk)>a)?N(t.nautical_dusk):null,u=t.astro_dusk!==null&&t.astro_dusk<=1440&&(a===null||N(t.astro_dusk)>a)?N(t.astro_dusk):null,p=t.slot_gold_dawn!==null&&t.slot_gold_dawn!==void 0;return o!==null&&i.push({t:o,c:Mt}),r!==null&&i.push({t:r,c:Pt}),l!==null&&i.push({t:l,c:Nt}),s!==null&&i.push({t:s,c:p?He:Gt}),p&&t.slot_day!==null&&t.slot_day!==void 0&&i.push({t:N(t.slot_day),c:Gt}),p&&t.slot_gold_dusk!==null&&t.slot_gold_dusk!==void 0&&t.slot_gold_dusk<=1440&&i.push({t:N(t.slot_gold_dusk),c:He}),a!==null&&a<=1440&&i.push({t:a,c:Nt}),c!==null&&i.push({t:c,c:Pt}),g!==null&&i.push({t:g,c:Mt}),u!==null&&i.push({t:u,c:kt}),i}function Pi(t){const i=[],s=t.slot_sunrise!==null?N(t.slot_sunrise):null,a=t.slot_astro_dawn!==null&&(s===null||N(t.slot_astro_dawn)<s)?N(t.slot_astro_dawn):null,o=t.slot_nautical_dawn!==null&&(s===null||N(t.slot_nautical_dawn)<s)?N(t.slot_nautical_dawn):null,r=t.slot_civil_dawn!==null&&(s===null||N(t.slot_civil_dawn)<s)?N(t.slot_civil_dawn):null,l=t.slot_civil_dusk!==null&&t.slot_civil_dusk<=1440?N(t.slot_civil_dusk):null,c=t.slot_nautical_dusk!==null&&t.slot_nautical_dusk<=1440?N(t.slot_nautical_dusk):null,g=t.slot_astro_dusk!==null&&t.slot_astro_dusk<=1440?N(t.slot_astro_dusk):null,u=t.slot_night!==null&&t.slot_night<=1440?N(t.slot_night):null,p=t.slot_gold_dawn!==null&&t.slot_gold_dawn!==void 0;return a!==null&&i.push({t:a,c:Mt}),o!==null&&i.push({t:o,c:Pt}),r!==null&&i.push({t:r,c:Nt}),s!==null&&i.push({t:s,c:p?He:Gt}),p&&t.slot_day!==null&&t.slot_day!==void 0&&i.push({t:N(t.slot_day),c:Gt}),p&&t.slot_gold_dusk!==null&&t.slot_gold_dusk!==void 0&&t.slot_gold_dusk<=1440&&i.push({t:N(t.slot_gold_dusk),c:He}),l!==null&&i.push({t:l,c:Nt}),c!==null&&i.push({t:c,c:Pt}),g!==null&&i.push({t:g,c:Mt}),u!==null&&i.push({t:u,c:kt}),i}function Ni(t,e,i){if(!t)return Ii(e.midnight_el);const s=1440;if(i){if(t.slot_civil_dusk!==null)return t.slot_night!==null&&t.slot_night<=s?kt:t.slot_astro_dusk!==null&&t.slot_astro_dusk<=s?Mt:t.slot_nautical_dusk!==null&&t.slot_nautical_dusk<=s?Pt:t.slot_civil_dusk!==null&&t.slot_civil_dusk<=s?Nt:Gt}else if(t.sunset!==null)return t.astro_dusk!==null&&t.astro_dusk<=s?kt:t.nautical_dusk!==null&&t.nautical_dusk<=s?Mt:t.dusk!==null&&t.dusk<=s?Pt:t.sunset!==null&&t.sunset<=s?Nt:Gt;return Ii(t.midnight_el)}function Ri(t,e,i,s){const o=(r,l,c,g)=>{if(r===null||r<=1440||g===null)return;const u=N(r-1440);c!==null&&u>=c||t.push({t:u,c:l})};s?(o(e.slot_civil_dusk,Nt,i.slot_sunrise,i.slot_sunrise),o(e.slot_nautical_dusk,Pt,i.slot_civil_dawn,i.slot_civil_dawn),o(e.slot_astro_dusk,Mt,i.slot_nautical_dawn,i.slot_nautical_dawn),o(e.slot_night,kt,i.slot_astro_dawn,i.slot_astro_dawn)):(o(e.sunset,Nt,i.sunrise,i.sunrise),o(e.dusk,Pt,i.dawn,i.dawn),o(e.nautical_dusk,Mt,i.nautical_dawn,i.nautical_dawn),o(e.astro_dusk,kt,i.astro_dawn,i.astro_dawn))}function eo(t,e,i,s,a,o,r,l,c){let g=r,u=e;for(const p of o){const d=l(Math.max(0,Math.min(c,p.t)));d>u&&(t.fillStyle=g,t.fillRect(u,i,d-u,s)),g=p.c,u=d}t.fillStyle=g,t.fillRect(u,i,a-u,s)}function io(t,e,i,s,a,o,r){let l=a,c=0;for(const g of s)g.t>c&&g.t<=r&&(t.fillStyle=l,t.fillRect(e,o(g.t),i,o(c)-o(g.t))),l=g.c,c=Math.max(c,g.t);c<r&&(t.fillStyle=l,t.fillRect(e,o(r),i,o(c)-o(r)))}var ao=Object.defineProperty,so=Object.getOwnPropertyDescriptor,Y=(t,e,i,s)=>{for(var a=s>1?void 0:s?so(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&ao(e,i,a),a};const Ea=[210,145,35,280,190,330,15],Oa=50,Ia=20,oo=0,ro=30,Li=72,za=12,no=2,Ke=20;let W=class extends L{constructor(){super(...arguments),this.hass=null,this.date=new Date().toISOString().slice(0,10),this.clamped=!1,this.noHeader=!1,this.noAxisLabels=!1,this.noYAxis=!1,this.showSlots=!1,this.noSolarNoonMidnight=!1,this.hoverTime=null,this.liveTime=null,this.embedded=!1,this.sparkline=!1,this.channels={},this.selectedChannelId="primary",this.channelSlotsMap={},this.days=[],this.sunData=null,this.slots=[],this._days=[],this._sunData=null,this._loading=!1,this._w=0,this._scrubbing=!1,this._geom=null,this._ro=null}connectedCallback(){super.connectedCallback()}disconnectedCallback(){var t;(t=this._ro)==null||t.disconnect(),super.disconnectedCallback()}updated(t){var i;if(!this._ro){const s=(i=this.shadowRoot)==null?void 0:i.querySelector(".canvas-wrap");s&&(this._ro=new ResizeObserver(a=>{const o=a[0].contentRect.width;o>0&&o!==this._w&&(this._w=o,this._draw())}),this._ro.observe(s))}t.has("days")&&this.days.length&&(this._days=this.days),t.has("sunData")&&this.sunData&&(this._sunData=this.sunData),(t.has("hass")||t.has("date"))&&this.hass&&!this.days.length&&this._load(),(t.has("_sunData")||t.has("_days")||t.has("clamped")||t.has("showSlots")||t.has("noSolarNoonMidnight")||t.has("noYAxis")||t.has("hoverTime")||t.has("liveTime")||t.has("channels")||t.has("selectedChannelId"))&&requestAnimationFrame(()=>this._draw())}async _load(){if(this.hass){this._loading=!0;try{const t=await Ve(this.hass,{date:this.date});this._sunData=t;const e=[];t.prev_day_data&&e.push(t.prev_day_data),t.day_data&&e.push(t.day_data),this._days=e}finally{this._loading=!1}}}_getLiveTime(){const t=new Date;return t.getHours()*60+t.getMinutes()+t.getSeconds()/60}_interpolateEl(t){var e;return Sa(((e=this._sunData)==null?void 0:e.points)??[],t)}_draw(){var Qt;const t=(Qt=this.shadowRoot)==null?void 0:Qt.querySelector("canvas"),e=this._sunData??this.sunData;if(!t||!e||!this._w)return;const{points:i}=e;if(!i.length)return;const s=this._w,a=t.getBoundingClientRect().height;if(!a)return;const o=Ti(t,s,a),r=this.noAxisLabels?10:this.noYAxis?Ke+Li:Oa,l=this.noAxisLabels?10:this.noYAxis?Ke:Ia,c=this.noAxisLabels?10:oo,g=this.noAxisLabels?10:ro,u=s-r-l,p=a-c-g,d=Object.keys(this.channels||{}).filter(T=>T!=="primary"),v=1+d.length,y=p/v,k=p,x=c,_=c+k,C=r,A=r+u,$=x+p/2,w=1440;this._geom={plotT:x,stripeH:y,numStripes:v};const S=e.lat??50,m=Math.abs(S),E=m<=23.44?90:113.44-m,j=Math.max(E,...i.map(T=>Math.abs(T.elevation)))+10,M=T=>C+T/w*u,U=T=>$-T/j*(k/2);o.save(),o.shadowColor="rgba(0, 0, 0, 0.2)",o.shadowBlur=36,o.shadowOffsetX=0,o.shadowOffsetY=0,o.beginPath(),o.roundRect(C,x,u,p,8),o.fillStyle=kt,o.fill(),o.restore(),o.save(),o.beginPath(),o.roundRect(C,x,u,p,8),o.clip();const it=y;o.save(),o.beginPath(),o.rect(C,x,u,it),o.clip();const P=this._days.length?this._days:this.days,tt=P.findIndex(T=>T.date===this.date),D=tt>=0?P[tt]:null,ht=tt>0?P[tt-1]:null;if(D){const T=this.clamped,Ft=[...T?Pi(D):Mi(D)];ht&&Ri(Ft,ht,D,T),Ft.sort((li,xr)=>li.t-xr.t);const Ki=Ni(ht,D,T);eo(o,C,x,it,A,Ft,Ki,M,w)}else o.fillStyle=kt,o.fillRect(C,x,u,it);o.restore(),this._drawCustomStripes(o,d,D,ht,e,C,x,A,u,y,M),o.save(),o.beginPath(),o.rect(C,x,u,p),o.clip(),o.save(),o.beginPath(),o.moveTo(C,$);for(const T of i)o.lineTo(M(T.time),U(T.elevation));o.lineTo(A,$),o.closePath();const ut=o.createLinearGradient(0,x,0,$);ut.addColorStop(0,"rgba(249,217,118,0.11)"),ut.addColorStop(1,"rgba(249,217,118,0.01)"),o.fillStyle=ut,o.fill(),o.restore(),o.save(),o.strokeStyle="rgba(255,255,255,0.35)",o.lineWidth=1.5,o.setLineDash([4,4]),o.beginPath(),o.moveTo(C,$),o.lineTo(A,$),o.stroke(),o.restore();const at=o.createLinearGradient(0,x,0,_);at.addColorStop(0,"#f9d976"),at.addColorStop(.47,"#e8a020"),at.addColorStop(.53,"#34507a"),at.addColorStop(1,"#1b233a"),o.save(),o.beginPath();let B=!0;for(const T of i){const R=M(T.time),Ft=U(T.elevation);B?(o.moveTo(R,Ft),B=!1):o.lineTo(R,Ft)}o.strokeStyle=at,o.lineWidth=2,o.stroke(),o.restore(),o.save(),o.strokeStyle=at,o.lineWidth=2,o.shadowColor="rgba(249, 217, 118, 0.55)",o.shadowBlur=8,o.beginPath();let st=!1;for(const T of i){const R=M(T.time),Ft=U(T.elevation);T.elevation>=0?st?o.lineTo(R,Ft):(o.moveTo(R,Ft),st=!0):st=!1}if(o.stroke(),o.restore(),!this.noYAxis)for(const T of[-18,-12,-6,0,30,60]){const R=U(T);R<x-2||R>_+2||[-18,-12,-6,0].includes(T)&&(o.save(),o.strokeStyle=ka,o.lineWidth=.5,o.setLineDash([3,4]),o.beginPath(),o.moveTo(C,R),o.lineTo(A,R),o.stroke(),o.restore())}o.restore();const Ut=this.liveTime??this._getLiveTime(),F=this._interpolateEl(Ut),q=M(Ut),gt=U(F),Bt=x+y,X=(T,R,Ft=[],Ki=Bt)=>{if(T===null)return;const li=M((T%w+w)%w);o.save(),o.strokeStyle=R,o.lineWidth=1.5,o.setLineDash(Ft),o.beginPath(),o.moveTo(li,x),o.lineTo(li,Ki),o.stroke(),o.restore()};this.noSolarNoonMidnight||(X((D==null?void 0:D.solar_noon)??null,"rgba(255,214,0,0.7)",[],x+p),X((D==null?void 0:D.solar_midnight)??null,"rgba(60,100,200,0.7)",[],x+p)),this.showSlots&&D&&(X(D.slot_sunset,"rgba(255,255,255,0.75)"),X(D.slot_nautical_dusk,"rgba(255,255,255,0.60)"),X(D.slot_astro_dusk,"rgba(255,255,255,0.45)"),X(D.slot_night,"rgba(255,255,255,0.30)"),X(D.slot_astro_dawn,"rgba(255,255,255,0.30)"),X(D.slot_nautical_dawn,"rgba(255,255,255,0.45)"),X(D.slot_civil_dawn,"rgba(255,255,255,0.60)"),X(D.slot_sunrise,"rgba(255,255,255,0.75)"),X(D.slot_day,"rgba(255,255,255,0.65)"),X(D.slot_gold_dusk,"rgba(255,255,255,0.65)"));for(const T of[0,360,720,1080,1440]){const R=M(T);o.save(),o.strokeStyle=ka,o.lineWidth=.5,o.beginPath(),o.moveTo(R,x),o.lineTo(R,x+p),o.stroke(),o.restore()}if(o.save(),o.strokeStyle="rgba(255,255,255,0.25)",o.lineWidth=1,o.setLineDash([3,3]),o.beginPath(),o.moveTo(q,x),o.lineTo(q,x+p),o.stroke(),o.restore(),this.hoverTime!==null){const T=M(this.hoverTime);o.save(),o.strokeStyle="rgba(255,255,255,0.35)",o.lineWidth=1,o.setLineDash([3,3]),o.beginPath(),o.moveTo(T,x),o.lineTo(T,x+p),o.stroke(),o.restore()}if(o.restore(),o.save(),o.beginPath(),o.roundRect(C,x,u,p,8),o.strokeStyle=Ca(this),o.lineWidth=1,o.stroke(),o.restore(),F>=0?Da(o,q,gt):F>=-6?Ta(o,q,gt):Aa(o,q,gt),!this.noAxisLabels){o.fillStyle=zi(this),o.font=Xe(this),o.textAlign="center";for(const T of[0,360,720,1080,1440]){const R=M(T);T!==0&&T!==1440&&o.fillText(`${String(T/60|0).padStart(2,"0")}:00`,R,x+p+20)}}if(!this.noAxisLabels&&!this.noYAxis){o.font=Xe(this),o.textAlign="end";for(const T of[-18,-12,-6,0,30,60]){const R=U(T);R<x-2||R>_+2||[0,30,60,-18].includes(T)&&(o.fillStyle=zi(this),o.fillText(`${T}°`,C-6,R+4))}}this.noYAxis&&!this.noAxisLabels&&this._drawChannelAxisLabels(o,["primary",...d],C,x,y),o.restore()}_elevationToLightRatio(t){return Math.max(0,Math.min(1,(t- -18)/48))}_drawCustomStripes(t,e,i,s,a,o,r,l,c,g,u){const p=i||s||a.day_data;if(e.length===0||!p)return;const d=f=>(f%1440+1440)%1440;e.forEach((f,v)=>{var m,E,j;const y=r+(v+1)*g,k=y+g,x=((m=this.channelSlotsMap)==null?void 0:m[f])??[],_=((j=(E=this.channels)==null?void 0:E[f])==null?void 0:j.enabled)!==!1,C=Ea[v%Ea.length],A=_?35:0,$=_?12:6,w=_?42:14;t.fillStyle=kt,t.fillRect(o,y,c,g);const S=c/1440;x.forEach(M=>{const U=Si(M);if(U<=0)return;const it=d(M.from),P=o+it*S,tt=d(M.from+U/2),D=this._interpolateEl(tt),ht=this._elevationToLightRatio(D),ut=$+ht*(w-$);t.fillStyle=`hsl(${C}, ${A}%, ${ut}%)`;const at=U*S,B=P+at-l;B<=0?t.fillRect(P,y,at,g):(t.fillRect(P,y,l-P,g),t.fillRect(o,y,B,g))}),t.strokeStyle="rgba(255, 255, 255, 0.35)",t.lineWidth=1.5;for(const M of x){const U=u(d(M.from));t.beginPath(),t.moveTo(U,y),t.lineTo(U,k),t.stroke()}t.strokeStyle="rgba(255, 255, 255, 0.08)",t.lineWidth=.5,t.beginPath(),t.moveTo(o,y),t.lineTo(l,y),t.stroke()})}_drawChannelAxisLabels(t,e,i,s,a){const l=Li-za-no,c=i-za;t.save(),t.font="600 11px system-ui, sans-serif",t.textAlign="end",t.textBaseline="middle",e.forEach((g,u)=>{var _,C,A,$;const p=((C=(_=this.channels)==null?void 0:_[g])==null?void 0:C.enabled)!==!1,d=((($=(A=this.channels)==null?void 0:A[g])==null?void 0:$.name)||g).toUpperCase(),f=s+u*a,v=Math.max(1,Math.floor((a-8)/13)),y=this._wrapText(t,d,l,v);t.fillStyle=p?zi(this):"rgba(255,255,255,0.35)";const k=y.length*13;let x=f+(a-k)/2+13/2;for(const w of y)t.fillText(w,c,x),x+=13}),t.restore()}_wrapText(t,e,i,s){const a=p=>t.measureText(p).width<=i,o=e.split(/\s+/).filter(Boolean),r=[];let l="";const c=p=>{for(const d of p)l&&!a(l+d)&&(r.push(l),l=""),l+=d};for(const p of o){const d=l?`${l} ${p}`:p;if(a(d)){l=d;continue}l&&(r.push(l),l=""),a(p)?l=p:c(p)}if(l&&r.push(l),r.length<=s)return r;const g=r.slice(0,s);let u=g[s-1];for(;u.length>0&&!a(`${u}…`);)u=u.slice(0,-1);return g[s-1]=`${u}…`,g}get _padLeft(){return this.noAxisLabels?10:this.noYAxis?Ke+Li:Oa}get _padRight(){return this.noAxisLabels?10:this.noYAxis?Ke:Ia}_channelAtY(t,e){const i=this._geom;if(!i||i.numStripes<=1)return this.selectedChannelId;const s=t-e,a=Math.max(0,Math.min(i.numStripes-1,Math.floor((s-i.plotT)/i.stripeH)));return a===0?"primary":Object.keys(this.channels||{}).filter(r=>r!=="primary")[a-1]??"primary"}_timeAtX(t,e){const i=this._w-this._padLeft-this._padRight,s=t-e;return Math.round(Math.max(0,Math.min(1,(s-this._padLeft)/i))*1440)}_getSlotAtTimeIn(t,e){const i=a=>(a%1440+1440)%1440,s=i(e);for(const a of t){const o=Si(a);if(!(o<=0)&&i(s-i(a.from))<o)return a}return null}_slotsForChannel(t){var i;const e=(i=this.channelSlotsMap)==null?void 0:i[t];return e&&e.length?e:this.slots}_onCanvasClick(t){if(!this._w)return;const e=t.currentTarget.getBoundingClientRect(),i=this._timeAtX(t.clientX,e.left),s=this._channelAtY(t.clientY,e.top),a=this._getSlotAtTimeIn(this._slotsForChannel(s),i);a&&this.dispatchEvent(new CustomEvent("slot-selected",{detail:{slotId:a.id,channelId:s},bubbles:!0,composed:!0}))}_onMouseMove(t){if(!this._w)return;const e=t.currentTarget.getBoundingClientRect();this.hoverTime=this._timeAtX(t.clientX,e.left);const i=this._channelAtY(t.clientY,e.top);this._scrubbing=!0,this.dispatchEvent(new CustomEvent("time-hover-changed",{detail:{hoverTime:this.hoverTime,channelId:i,scrubbing:!0},bubbles:!0,composed:!0})),this._draw()}_onMouseLeave(){this.hoverTime=null,this._scrubbing=!1,this.dispatchEvent(new CustomEvent("time-hover-changed",{detail:{hoverTime:null,scrubbing:!1},bubbles:!0,composed:!0})),this._draw()}_onTouchMove(t){if(!this._w)return;const e=t.touches[0],i=t.currentTarget.getBoundingClientRect();this.hoverTime=this._timeAtX(e.clientX,i.left);const s=this._channelAtY(e.clientY,i.top);this._scrubbing=!0,this.dispatchEvent(new CustomEvent("time-hover-changed",{detail:{hoverTime:this.hoverTime,channelId:s,scrubbing:!0},bubbles:!0,composed:!0})),this._draw()}_onTouchEnd(){this.hoverTime=null,this._scrubbing=!1,this.dispatchEvent(new CustomEvent("time-hover-changed",{detail:{hoverTime:null,scrubbing:!1},bubbles:!0,composed:!0})),this._draw()}_getSparklineGradient(){const t=this._days.length?this._days:this.days,e=t.findIndex(p=>p.date===this.date),i=e>=0?t[e]:null,s=e>0?t[e-1]:null;if(!i)return"var(--divider-color)";const a=this.clamped,r=[...a?Pi(i):Mi(i)];s&&Ri(r,s,i,a),r.sort((p,d)=>p.t-d.t);const l=Ni(s,i,a),c=[],g=1440;let u=l;c.push(`${u} 0%`);for(const p of r){const f=(Math.max(0,Math.min(g,p.t))/g*100).toFixed(1);c.push(`${u} ${f}%`),u=p.c,c.push(`${u} ${f}%`)}return c.push(`${u} 100%`),`linear-gradient(to right, ${c.join(", ")})`}render(){if(this.sparkline){const t=this._getSparklineGradient(),i=(this.liveTime??this._getLiveTime())/1440*100;return n`
         <div class="sparkline-container">
           <div class="sparkline-bar" style="--bar-gradient: ${t}">
             <div class="sparkline-pointer" style="left: calc(${i}% - 3px)"></div>
           </div>
         </div>
-        ${this.noAxisLabels?"":r`
+        ${this.noAxisLabels?"":n`
           <div class="sparkline-labels">
             <span>00:00</span>
             <span>12:00</span>
             <span>24:00</span>
           </div>
         `}
-      `}return r`
-      ${this.noHeader?"":r`
+      `}return n`
+      ${this.noHeader?"":n`
         <div class="card-header">
-          <span class="card-icon">🌍</span>
+          <span class="card-dot" style="--dot-color: #f59e0b;"></span>
           <span class="card-title">Sun path</span>
         </div>
       `}
       <div class="canvas-wrap">
-        ${this._loading&&!this._sunData&&!this.sunData?r`<div class="loading"><ha-circular-progress active size="small"></ha-circular-progress></div>`:r`<canvas
+        ${this._loading&&!this._sunData&&!this.sunData?n`<div class="loading"><ha-circular-progress active size="small"></ha-circular-progress></div>`:n`<canvas
               @click=${this._onCanvasClick}
               @mousemove=${this._onMouseMove}
               @mouseleave=${this._onMouseLeave}
@@ -901,7 +971,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
               @touchend=${this._onTouchEnd}
             ></canvas>`}
       </div>
-    `}};Y.styles=z`
+    `}};W.styles=O`
     :host {
       display: flex;
       flex-direction: column;
@@ -942,9 +1012,14 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
       gap: 10px;
       padding: 16px 20px 12px;
     }
-    .card-icon {
-      font-size: 18px;
-      opacity: 0.7;
+    .card-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--dot-color, #f59e0b);
+      box-shadow: 0 0 6px var(--dot-color, #f59e0b);
+      flex-shrink: 0;
+      display: inline-block;
       margin-left: 3px;
     }
     .card-title {
@@ -1012,24 +1087,24 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
       opacity: 0.5;
       margin-top: 4px;
     }
-  `,X([h({attribute:!1})],Y.prototype,"hass",2),X([h({type:String})],Y.prototype,"date",2),X([h({type:Boolean})],Y.prototype,"clamped",2),X([h({type:Boolean})],Y.prototype,"noHeader",2),X([h({type:Boolean})],Y.prototype,"noAxisLabels",2),X([h({type:Boolean,reflect:!0})],Y.prototype,"noYAxis",2),X([h({type:Boolean})],Y.prototype,"showSlots",2),X([h({type:Boolean})],Y.prototype,"noSolarNoonMidnight",2),X([h({type:Number})],Y.prototype,"hoverTime",2),X([h({type:Number})],Y.prototype,"liveTime",2),X([h({type:Boolean,reflect:!0})],Y.prototype,"embedded",2),X([h({type:Boolean,reflect:!0})],Y.prototype,"sparkline",2),X([h({type:Object})],Y.prototype,"channels",2),X([h({type:String})],Y.prototype,"selectedChannelId",2),X([h({attribute:!1})],Y.prototype,"channelSlotsMap",2),X([h({attribute:!1})],Y.prototype,"days",2),X([h({attribute:!1})],Y.prototype,"sunData",2),X([h({type:Array})],Y.prototype,"slots",2),X([b()],Y.prototype,"_days",2),X([b()],Y.prototype,"_sunData",2),X([b()],Y.prototype,"_loading",2),X([b()],Y.prototype,"_w",2),Y=X([H("twilight-sun-path-card")],Y);var Ks=Object.defineProperty,Zs=Object.getOwnPropertyDescriptor,Dt=(t,e,i,a)=>{for(var s=a>1?void 0:a?Zs(e,i):e,o=t.length-1,n;o>=0;o--)(n=t[o])&&(s=(a?n(e,i,s):n(s))||s);return a&&s&&Ks(e,i,s),s};let vt=class extends L{constructor(){super(...arguments),this.hass=null,this.slots=[],this.noHeader=!1,this.entities=[],this.loading=!1,this.channels={},this.selectedChannelId=T,this.templateMode=!1,this.date=new Date().toISOString().slice(0,10),this.channelSlotsMap={},this._menuOpen=!1,this._dialog=new fe(this),this._clock=new Ue(this),this._handleWindowClick=t=>{if(!this._menuOpen)return;t.composedPath().some(a=>a instanceof HTMLElement&&a.classList.contains("kebab-container"))||(this._menuOpen=!1)}}connectedCallback(){super.connectedCallback(),window.addEventListener("click",this._handleWindowClick)}disconnectedCallback(){window.removeEventListener("click",this._handleWindowClick),super.disconnectedCallback()}_toggleMenu(t){t.stopPropagation(),this._menuOpen=!this._menuOpen}_orderedChannelIds(){const t=Object.keys(this.channels);return this.templateMode?t.filter(e=>e!==T).sort():t.sort((e,i)=>e===T?-1:i===T?1:0)}_selectChannel(t){this._menuOpen=!1,this.dispatchEvent(new CustomEvent("channel-selected",{detail:{channelId:t},bubbles:!0,composed:!0}))}async _addChannel(){this._menuOpen=!1;const t=await this._dialog.showPrompt("New Channel","","Name of the new channel");t===null||t.trim()===""||this.dispatchEvent(new CustomEvent("channel-added",{detail:{name:t.trim()},bubbles:!0,composed:!0}))}async _renameChannel(){var i;this._menuOpen=!1;const t=((i=this.channels[this.selectedChannelId])==null?void 0:i.name)??"",e=await this._dialog.showPrompt("Rename Channel",t,"New channel name");e===null||e.trim()===""||this.dispatchEvent(new CustomEvent("channel-renamed",{detail:{channelId:this.selectedChannelId,name:e.trim()},bubbles:!0,composed:!0}))}async _deleteChannel(){var i;if(this._menuOpen=!1,this.selectedChannelId===T)return;const t=((i=this.channels[this.selectedChannelId])==null?void 0:i.name)??this.selectedChannelId;await this._dialog.showConfirm("Delete Channel",`Delete channel "${t}"? Its lights will be turned off.`)&&this.dispatchEvent(new CustomEvent("channel-deleted",{detail:{channelId:this.selectedChannelId},bubbles:!0,composed:!0}))}_toggleChannelEnabled(){if(this._menuOpen=!1,this.selectedChannelId===T)return;const t=this.channels[this.selectedChannelId];t&&this.dispatchEvent(new CustomEvent("channel-enabled-toggled",{detail:{channelId:this.selectedChannelId,enabled:!t.enabled},bubbles:!0,composed:!0}))}_fireEditRequested(){this.dispatchEvent(new CustomEvent("edit-requested",{bubbles:!0,composed:!0}))}render(){const t=this._clock.liveMins,e=this.templateMode?-1:this.slots.findIndex(a=>ge(a,t)),i=e!==-1?[...this.slots.slice(e),...this.slots.slice(0,e)]:this.slots;return r`
+  `,Y([h({attribute:!1})],W.prototype,"hass",2),Y([h({type:String})],W.prototype,"date",2),Y([h({type:Boolean})],W.prototype,"clamped",2),Y([h({type:Boolean})],W.prototype,"noHeader",2),Y([h({type:Boolean})],W.prototype,"noAxisLabels",2),Y([h({type:Boolean,reflect:!0})],W.prototype,"noYAxis",2),Y([h({type:Boolean})],W.prototype,"showSlots",2),Y([h({type:Boolean})],W.prototype,"noSolarNoonMidnight",2),Y([h({type:Number})],W.prototype,"hoverTime",2),Y([h({type:Number})],W.prototype,"liveTime",2),Y([h({type:Boolean,reflect:!0})],W.prototype,"embedded",2),Y([h({type:Boolean,reflect:!0})],W.prototype,"sparkline",2),Y([h({type:Object})],W.prototype,"channels",2),Y([h({type:String})],W.prototype,"selectedChannelId",2),Y([h({attribute:!1})],W.prototype,"channelSlotsMap",2),Y([h({attribute:!1})],W.prototype,"days",2),Y([h({attribute:!1})],W.prototype,"sunData",2),Y([h({type:Array})],W.prototype,"slots",2),Y([b()],W.prototype,"_days",2),Y([b()],W.prototype,"_sunData",2),Y([b()],W.prototype,"_loading",2),Y([b()],W.prototype,"_w",2),W=Y([z("twilight-sun-path-card")],W);var lo=Object.defineProperty,co=Object.getOwnPropertyDescriptor,At=(t,e,i,s)=>{for(var a=s>1?void 0:s?co(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&lo(e,i,a),a};let ft=class extends L{constructor(){super(...arguments),this.hass=null,this.slots=[],this.noHeader=!1,this.entities=[],this.loading=!1,this.channels={},this.selectedChannelId=I,this.templateMode=!1,this.date=new Date().toISOString().slice(0,10),this.channelSlotsMap={},this._menuOpen=!1,this._dialog=new fe(this),this._clock=new Ge(this),this._handleWindowClick=t=>{if(!this._menuOpen)return;t.composedPath().some(s=>s instanceof HTMLElement&&s.classList.contains("kebab-container"))||(this._menuOpen=!1)}}connectedCallback(){super.connectedCallback(),window.addEventListener("click",this._handleWindowClick)}disconnectedCallback(){window.removeEventListener("click",this._handleWindowClick),super.disconnectedCallback()}_toggleMenu(t){t.stopPropagation(),this._menuOpen=!this._menuOpen}_orderedChannelIds(){const t=Object.keys(this.channels);return this.templateMode?t.filter(e=>e!==I).sort():t.sort((e,i)=>e===I?-1:i===I?1:0)}_selectChannel(t){this._menuOpen=!1,this.dispatchEvent(new CustomEvent("channel-selected",{detail:{channelId:t},bubbles:!0,composed:!0}))}async _addChannel(){this._menuOpen=!1;const t=await this._dialog.showPrompt("New Channel","","Name of the new channel");t===null||t.trim()===""||this.dispatchEvent(new CustomEvent("channel-added",{detail:{name:t.trim()},bubbles:!0,composed:!0}))}async _renameChannel(){var i;this._menuOpen=!1;const t=((i=this.channels[this.selectedChannelId])==null?void 0:i.name)??"",e=await this._dialog.showPrompt("Rename Channel",t,"New channel name");e===null||e.trim()===""||this.dispatchEvent(new CustomEvent("channel-renamed",{detail:{channelId:this.selectedChannelId,name:e.trim()},bubbles:!0,composed:!0}))}async _deleteChannel(){var i;if(this._menuOpen=!1,this.selectedChannelId===I)return;const t=((i=this.channels[this.selectedChannelId])==null?void 0:i.name)??this.selectedChannelId;await this._dialog.showConfirm("Delete Channel",`Delete channel "${t}"? Its lights will be turned off.`)&&this.dispatchEvent(new CustomEvent("channel-deleted",{detail:{channelId:this.selectedChannelId},bubbles:!0,composed:!0}))}_toggleChannelEnabled(){if(this._menuOpen=!1,this.selectedChannelId===I)return;const t=this.channels[this.selectedChannelId];t&&this.dispatchEvent(new CustomEvent("channel-enabled-toggled",{detail:{channelId:this.selectedChannelId,enabled:!t.enabled},bubbles:!0,composed:!0}))}_fireEditRequested(){this.dispatchEvent(new CustomEvent("edit-requested",{bubbles:!0,composed:!0}))}render(){const t=this._clock.liveMins,e=this.templateMode?-1:this.slots.findIndex(s=>$e(s,t)),i=e!==-1?[...this.slots.slice(e),...this.slots.slice(0,e)]:this.slots;return n`
       <div class="slot-card">
-        ${this.noHeader?"":r`
+        ${this.noHeader?"":n`
           <div class="slot-card-header">
-            <span class="devices-card-icon">🌅</span>
+            <span class="card-dot" style="--dot-color: #f97316;"></span>
             <span class="slot-card-title">Timetable</span>
             <div class="kebab-container">
               <button class="edit-btn" @click=${this._toggleMenu}>⋮</button>
-              ${this._menuOpen?r`
+              ${this._menuOpen?n`
                 <div class="dropdown-menu">
-                  ${(()=>{var l;const a=this.selectedChannelId&&this.selectedChannelId!==T&&!!this.channels[this.selectedChannelId],s=this._orderedChannelIds(),n=(this.templateMode?s.length:s.filter(c=>c!==T).length)>=ys;return r`
+                  ${(()=>{var l;const s=this.selectedChannelId&&this.selectedChannelId!==I&&!!this.channels[this.selectedChannelId],a=this._orderedChannelIds(),r=(this.templateMode?a.length:a.filter(c=>c!==I).length)>=Is;return n`
                       <button class="dropdown-item" @click=${()=>{this._menuOpen=!1,this._fireEditRequested()}}>
                         📝 Edit Slots
                       </button>
-                      <button class="dropdown-item" ?disabled=${n} @click=${this._addChannel}>
-                        ➕ ${n?"Add channel (max reached)":"Add channel"}
+                      <button class="dropdown-item" ?disabled=${r} @click=${this._addChannel}>
+                        ➕ ${r?"Add channel (max reached)":"Add channel"}
                       </button>
-                      ${a?r`
+                      ${s?n`
                         <button class="dropdown-item" @click=${this._renameChannel}>
                           ✏️ Rename channel
                         </button>
@@ -1046,16 +1121,16 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
             </div>
           </div>
           <div class="channel-tabs">
-            ${this._orderedChannelIds().map(a=>{const s=this.channels[a],o=a===this.selectedChannelId,n=(s==null?void 0:s.enabled)===!1;return r`
+            ${this._orderedChannelIds().map(s=>{const a=this.channels[s],o=s===this.selectedChannelId,r=(a==null?void 0:a.enabled)===!1;return n`
                 <button
-                  class="channel-tab ${o?"active":""} ${n?"disabled":""}"
-                  @click=${()=>this._selectChannel(a)}
-                  title=${n?"Channel disabled":""}
-                >${(s==null?void 0:s.name)||a}</button>
+                  class="channel-tab ${o?"active":""} ${r?"disabled":""}"
+                  @click=${()=>this._selectChannel(s)}
+                  title=${r?"Channel disabled":""}
+                >${(a==null?void 0:a.name)||s}</button>
               `})}
           </div>
         `}
-        ${!this.templateMode&&!this.loading?r`
+        ${!this.templateMode&&!this.loading?n`
           <div style="padding-top: 12px;">
             <twilight-sun-path-card
               .hass=${this.hass}
@@ -1075,16 +1150,16 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
           </div>
         `:""}
         <div class="slot-summary">
-          ${this.loading?r`<div class="entity-list-empty">Loading…</div>`:i.length>0?i.map(a=>{const s=!this.templateMode&&ge(a,t),o=this.templateMode?a.startType==="fixed"?a.fixedStartTime||"12:00":`${a.startEvent||"astral"}${a.startOffset?a.startOffset>0?` +${a.startOffset}m`:` ${a.startOffset}m`:""}`:`${ne(a.from)} → ${ne(a.to)}`;return r`
-                    <div class="slot-summary-row ${s?"active":""}">
-                      <div class="slot-color-dot" style="background:${a.color}; box-shadow:${s?`0 0 6px ${a.color}`:"none"}"></div>
-                      <span class="slot-summary-label">${a.label}</span>
+          ${this.loading?n`<div class="entity-list-empty">Loading…</div>`:i.length>0?i.map(s=>{const a=!this.templateMode&&$e(s,t),o=this.templateMode?s.startType==="fixed"?s.fixedStartTime||"12:00":`${s.startEvent||"astral"}${s.startOffset?s.startOffset>0?` +${s.startOffset}m`:` ${s.startOffset}m`:""}`:`${ge(s.from)} → ${ge(s.to)}`;return n`
+                    <div class="slot-summary-row ${a?"active":""}">
+                      <div class="slot-color-dot" style="background:${s.color}; box-shadow:${a?`0 0 6px ${s.color}`:"none"}"></div>
+                      <span class="slot-summary-label">${s.label}</span>
                       <span class="slot-summary-scene">
-                        ${a.scene?mi(this.hass,a.scene):"—"}
+                        ${s.scene?Di(this.hass,s.scene):"—"}
                       </span>
                       <span class="slot-summary-time">${o}</span>
                     </div>
-                  `}):r`<div class="entity-list-empty">${this.templateMode?"No custom channels in template. Click ⋮ → Add channel":"No slots configured."}</div>`}
+                  `}):n`<div class="entity-list-empty">${this.templateMode?"No custom channels in template. Click ⋮ → Add channel":"No slots configured."}</div>`}
         </div>
       </div>
 
@@ -1104,7 +1179,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
         @submit=${this._dialog._onSubmitPrompt}
         @cancel=${this._dialog._onCancelPrompt}
       ></twilight-prompt-dialog>
-    `}};vt.styles=z`
+    `}};ft.styles=O`
     :host {
       display: flex;
       flex-direction: column;
@@ -1135,9 +1210,14 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
       padding: 16px 20px 0;
     }
 
-    .devices-card-icon {
-      font-size: 18px;
-      opacity: 0.7;
+    .card-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--dot-color, #f97316);
+      box-shadow: 0 0 6px var(--dot-color, #f97316);
+      flex-shrink: 0;
+      display: inline-block;
     }
 
     .slot-card-title {
@@ -1345,36 +1425,36 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
     .dropdown-item.danger:hover:not(:disabled) {
       background: rgba(219, 68, 55, 0.15);
     }
-  `,Dt([h({attribute:!1})],vt.prototype,"hass",2),Dt([h({type:Array})],vt.prototype,"slots",2),Dt([h({type:Boolean})],vt.prototype,"noHeader",2),Dt([h({type:Array})],vt.prototype,"entities",2),Dt([h({type:Boolean})],vt.prototype,"loading",2),Dt([h({attribute:!1})],vt.prototype,"channels",2),Dt([h({type:String})],vt.prototype,"selectedChannelId",2),Dt([h({type:Boolean})],vt.prototype,"templateMode",2),Dt([h({type:String})],vt.prototype,"date",2),Dt([h({attribute:!1})],vt.prototype,"channelSlotsMap",2),Dt([b()],vt.prototype,"_menuOpen",2),vt=Dt([H("twilight-timetable-card")],vt);function Ca(t,e){var i;try{const a=e||document.body,s=document.createElement("div");s.style.color="var(--primary-text-color)",a.appendChild(s);const o=window.getComputedStyle(s).color;if(a.removeChild(s),o)return Js(o)}catch{}return((i=t==null?void 0:t.themes)==null?void 0:i.darkMode)!==void 0?!!t.themes.darkMode:!!(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)}function Js(t){const e=t.toLowerCase().trim();if(e==="white"||e.startsWith("#fff")||e.includes("255,255,255")||e.includes("255, 255, 255"))return!0;if(e==="black"||e==="#000"||e==="#000000"||e.includes("0,0,0")||e.includes("0, 0, 0"))return!1;if(e.startsWith("#")){const a=e.substring(1);let s=0,o=0,n=0;return a.length===3||a.length===4?(s=parseInt(a[0]+a[0],16),o=parseInt(a[1]+a[1],16),n=parseInt(a[2]+a[2],16)):a.length>=6&&(s=parseInt(a.substring(0,2),16),o=parseInt(a.substring(2,4),16),n=parseInt(a.substring(4,6),16)),(.299*s+.587*o+.114*n)/255>.5}const i=e.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);if(i){const a=parseInt(i[1],10),s=parseInt(i[2],10),o=parseInt(i[3],10);return(.299*a+.587*s+.114*o)/255>.5}return!1}function Ei(t,e){if(!t)return r`<span>—</span>`;const i=s=>s?r`<div style="width:10px; height:10px; border-radius:3px; background:${s}; flex-shrink:0;"></div>`:"",a=(s,o,n)=>r`
+  `,At([h({attribute:!1})],ft.prototype,"hass",2),At([h({type:Array})],ft.prototype,"slots",2),At([h({type:Boolean})],ft.prototype,"noHeader",2),At([h({type:Array})],ft.prototype,"entities",2),At([h({type:Boolean})],ft.prototype,"loading",2),At([h({attribute:!1})],ft.prototype,"channels",2),At([h({type:String})],ft.prototype,"selectedChannelId",2),At([h({type:Boolean})],ft.prototype,"templateMode",2),At([h({type:String})],ft.prototype,"date",2),At([h({attribute:!1})],ft.prototype,"channelSlotsMap",2),At([b()],ft.prototype,"_menuOpen",2),ft=At([z("twilight-timetable-card")],ft);function Ma(t,e){var i;try{const s=e||document.body,a=window.getComputedStyle(s),o=a.getPropertyValue("--primary-text-color").trim()||a.color;if(o)return po(o)}catch{}return((i=t==null?void 0:t.themes)==null?void 0:i.darkMode)!==void 0?!!t.themes.darkMode:!!(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)}function po(t){const e=t.toLowerCase().trim();if(e==="white"||e.startsWith("#fff")||e.includes("255,255,255")||e.includes("255, 255, 255"))return!0;if(e==="black"||e==="#000"||e==="#000000"||e.includes("0,0,0")||e.includes("0, 0, 0"))return!1;if(e.startsWith("#")){const s=e.substring(1);let a=0,o=0,r=0;return s.length===3||s.length===4?(a=parseInt(s[0]+s[0],16),o=parseInt(s[1]+s[1],16),r=parseInt(s[2]+s[2],16)):s.length>=6&&(a=parseInt(s.substring(0,2),16),o=parseInt(s.substring(2,4),16),r=parseInt(s.substring(4,6),16)),(.299*a+.587*o+.114*r)/255>.5}const i=e.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);if(i){const s=parseInt(i[1],10),a=parseInt(i[2],10),o=parseInt(i[3],10);return(.299*s+.587*a+.114*o)/255>.5}return!1}function ji(t,e){if(!t)return n`<span>—</span>`;const i=a=>a?n`<div style="width:10px; height:10px; border-radius:3px; background:${a}; flex-shrink:0;"></div>`:"",s=(a,o,r)=>n`
     <div style="display:flex; justify-content:center; align-items:center; gap:6px;">
       ${i(o)}
-      <span class=${n?`mismatch-badge ${e}`:""}>${s}</span>
-    </div>`;return t.deviates?r`
+      <span class=${r?`mismatch-badge ${e}`:""}>${a}</span>
+    </div>`;return t.deviates?n`
     <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
-      ${a(t.actual,t.actual_swatch,!1)}
-      ${a(t.target,t.target_swatch,!0)}
-    </div>`:a(t.actual,t.actual_swatch,!1)}var Qs=Object.defineProperty,to=Object.getOwnPropertyDescriptor,me=(t,e,i,a)=>{for(var s=a>1?void 0:a?to(e,i):e,o=t.length-1,n;o>=0;o--)(n=t[o])&&(s=(a?n(e,i,s):n(s))||s);return a&&s&&Qs(e,i,s),s};let Zt=class extends L{constructor(){super(...arguments),this.open=!1,this.hass=null,this.entities=[],this.manualOnly=!1,this._pickerValue=""}updated(t){super.updated(t),t.has("open")&&this.open&&xi()}_closeDialog(){this.dispatchEvent(new CustomEvent("close",{bubbles:!0,composed:!0}))}_toggleManualOnly(){const t=!this.manualOnly;this.dispatchEvent(new CustomEvent("mode-changed",{detail:{manualOnly:t},bubbles:!0,composed:!0}))}_toggleEntity(t){const e=this.entities.map(i=>i.entity_id===t?{...i,isManual:!i.isManual}:i);this._fireChange(e)}_addEntity(t){var a,s,o;if(!t)return;const e=this.entities.find(n=>n.entity_id===t);let i=[...this.entities];if(e)e.isManual||(i=this.entities.map(n=>n.entity_id===t?{...n,isManual:!0}:n));else{const n=((o=(s=(a=this.hass)==null?void 0:a.states[t])==null?void 0:s.attributes)==null?void 0:o.friendly_name)??t,l=t.split(".")[0];i=[...this.entities,{entity_id:t,name:n,domain:l,in_area:!1,isManual:!0,isExtracted:!1,checked:!0}]}this._fireChange(i),this._pickerValue=""}_fireChange(t){this.dispatchEvent(new CustomEvent("lights-changed",{detail:{entities:t},bubbles:!0,composed:!0}))}render(){if(!this.open)return r``;const t=this.entities.filter(s=>s.isExtracted&&(s.domain==="light"||s.domain==="switch")),e=this.entities.filter(s=>s.in_area&&!s.isExtracted&&(s.domain==="light"||s.domain==="switch")),i=this.entities.filter(s=>!s.in_area&&s.isManual&&(s.domain==="light"||s.domain==="switch")),a=this.entities.some(s=>s.isManual);return r`
-      <div class="overlay" @click=${s=>{s.target===s.currentTarget&&this._closeDialog()}}>
+      ${s(t.actual,t.actual_swatch,!1)}
+      ${s(t.target,t.target_swatch,!0)}
+    </div>`:s(t.actual,t.actual_swatch,!1)}var ho=Object.defineProperty,uo=Object.getOwnPropertyDescriptor,Se=(t,e,i,s)=>{for(var a=s>1?void 0:s?uo(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&ho(e,i,a),a};let se=class extends ae{constructor(){super(...arguments),this.open=!1,this.hass=null,this.entities=[],this.manualOnly=!1,this._pickerValue=""}updated(t){super.updated(t),t.has("open")&&this.open&&Ai()}_closeDialog(){this.dispatchEvent(new CustomEvent("close",{bubbles:!0,composed:!0}))}_toggleManualOnly(){const t=!this.manualOnly;this.dispatchEvent(new CustomEvent("mode-changed",{detail:{manualOnly:t},bubbles:!0,composed:!0}))}_toggleEntity(t){const e=this.entities.map(i=>i.entity_id===t?{...i,isManual:!i.isManual}:i);this._fireChange(e)}_addEntity(t){var s,a,o;if(!t)return;const e=this.entities.find(r=>r.entity_id===t);let i=[...this.entities];if(e)e.isManual||(i=this.entities.map(r=>r.entity_id===t?{...r,isManual:!0}:r));else{const r=((o=(a=(s=this.hass)==null?void 0:s.states[t])==null?void 0:a.attributes)==null?void 0:o.friendly_name)??t,l=t.split(".")[0];i=[...this.entities,{entity_id:t,name:r,domain:l,in_area:!1,isManual:!0,isExtracted:!1,checked:!0}]}this._fireChange(i),this._pickerValue=""}_fireChange(t){this.dispatchEvent(new CustomEvent("lights-changed",{detail:{entities:t},bubbles:!0,composed:!0}))}render(){if(!this.open)return n``;const t=this.entities.filter(a=>a.isExtracted&&(a.domain==="light"||a.domain==="switch")),e=this.entities.filter(a=>a.in_area&&!a.isExtracted&&(a.domain==="light"||a.domain==="switch")),i=this.entities.filter(a=>!a.in_area&&a.isManual&&(a.domain==="light"||a.domain==="switch")),s=this.entities.some(a=>a.isManual);return n`
+      <div class="overlay" @click=${a=>{a.target===a.currentTarget&&this._closeDialog()}}>
         <div class="edit-panel" style="max-width: 1000px;">
           <div class="panel-header">
-            <span class="panel-header-icon">💡</span>
+            <span class="card-dot" style="--dot-color: #eab308;"></span>
             <span class="panel-header-title">Area Lights — Configuration</span>
             <button class="panel-close" @click=${this._closeDialog}>✕</button>
           </div>
 
           <div class="panel-body">
-            ${t.length>0?r`
+            ${t.length>0?n`
               <div class="list-section-label">Entities in Scene (Automatically Controlled)</div>
               <div class="grid-list">
-                ${t.map(s=>r`
+                ${t.map(a=>n`
                   <div class="picker-row static">
                     <div style="font-size: 14px; color: var(--secondary-text-color); margin-right: 4px; display: flex; align-items: center;">🎬</div>
                     <div style="flex: 1; min-width: 0;">
                       <div style="display:flex; align-items:center; gap:8px;">
-                        <span class="picker-label">${s.name}</span>
-                        <span style="font-size: 9px; opacity: 0.5; text-transform: uppercase; font-weight: bold;">(${s.domain})</span>
+                        <span class="picker-label">${a.name}</span>
+                        <span style="font-size: 9px; opacity: 0.5; text-transform: uppercase; font-weight: bold;">(${a.domain})</span>
                       </div>
-                      <div class="picker-sublabel">${s.entity_id}</div>
+                      <div class="picker-sublabel">${a.entity_id}</div>
                     </div>
                   </div>
                 `)}
@@ -1384,38 +1464,38 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
 
             <div class="list-section-label">Entities in this Area (Additional Turn-Off Control)</div>
             <div class="grid-list">
-              ${e.map(s=>r`
-                <div class="picker-row" @click=${()=>this._toggleEntity(s.entity_id)}>
-                  <div class="picker-checkbox ${s.isManual?"checked":""}"></div>
+              ${e.map(a=>n`
+                <div class="picker-row" @click=${()=>this._toggleEntity(a.entity_id)}>
+                  <div class="picker-checkbox ${a.isManual?"checked":""}"></div>
                   <div style="flex: 1; min-width: 0;">
                     <div style="display:flex; align-items:center; gap:8px;">
-                      <span class="picker-label">${s.name}</span>
-                      <span style="font-size: 9px; opacity: 0.5; text-transform: uppercase; font-weight: bold;">(${s.domain})</span>
+                      <span class="picker-label">${a.name}</span>
+                      <span style="font-size: 9px; opacity: 0.5; text-transform: uppercase; font-weight: bold;">(${a.domain})</span>
                     </div>
-                    <div class="picker-sublabel">${s.entity_id}</div>
+                    <div class="picker-sublabel">${a.entity_id}</div>
                   </div>
                 </div>
               `)}
             </div>
 
-            ${i.length>0?r`
+            ${i.length>0?n`
               <div class="divider"></div>
               <div class="list-section-label">Additional Entities (Manually Added)</div>
               <div class="grid-list">
-                ${i.map(s=>r`
-                  <div class="picker-row" @click=${()=>this._toggleEntity(s.entity_id)}>
+                ${i.map(a=>n`
+                  <div class="picker-row" @click=${()=>this._toggleEntity(a.entity_id)}>
                     <div class="picker-checkbox checked"></div>
                     <div style="flex: 1; min-width: 0;">
                       <div style="display:flex; align-items:center; gap:8px;">
-                        <span class="picker-label">${s.name}</span>
-                        ${s.isExtracted?r`
+                        <span class="picker-label">${a.name}</span>
+                        ${a.isExtracted?n`
                           <span class="entity-badge" style="background: color-mix(in srgb, var(--info-color, #2196f3) 20%, transparent); color: var(--info-color, #2196f3); border: 1px solid color-mix(in srgb, var(--info-color, #2196f3) 40%, transparent); font-size: 8px; padding: 1px 4px; border-radius: 3px; font-weight: bold; text-transform: uppercase;">
                             in scene
                           </span>
                         `:""}
-                        <span style="font-size: 9px; opacity: 0.5; text-transform: uppercase; font-weight: bold;">(${s.domain})</span>
+                        <span style="font-size: 9px; opacity: 0.5; text-transform: uppercase; font-weight: bold;">(${a.domain})</span>
                       </div>
-                      <div class="picker-sublabel">${s.entity_id}</div>
+                      <div class="picker-sublabel">${a.entity_id}</div>
                     </div>
                   </div>
                 `)}
@@ -1430,11 +1510,11 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                 .value=${this._pickerValue}
                 .includeDomains=${["light","switch"]}
                 allow-custom-entity
-                @value-changed=${s=>{s.detail.value&&this._addEntity(s.detail.value)}}
+                @value-changed=${a=>{a.detail.value&&this._addEntity(a.detail.value)}}
               ></ha-entity-picker>
             </div>
 
-            ${a?r`
+            ${s?n`
               <div class="divider"></div>
               <div>
                 <div class="list-section-label">Turn-Off Options</div>
@@ -1456,7 +1536,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
           </div>
         </div>
       </div>
-    `}};Zt.styles=[jt,z`
+    `}};se.styles=[Dt,O`
       :host {
         display: contents;
       }
@@ -1537,11 +1617,11 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
         background: color-mix(in srgb, var(--primary-text-color, #fff) 8%, transparent);
         margin: 8px 0;
       }
-    `],me([h({type:Boolean})],Zt.prototype,"open",2),me([h({attribute:!1})],Zt.prototype,"hass",2),me([h({type:Array})],Zt.prototype,"entities",2),me([h({type:Boolean})],Zt.prototype,"manualOnly",2),me([b()],Zt.prototype,"_pickerValue",2),Zt=me([H("twilight-area-lights-dialog")],Zt);var eo=Object.defineProperty,io=Object.getOwnPropertyDescriptor,Yt=(t,e,i,a)=>{for(var s=a>1?void 0:a?io(e,i):e,o=t.length-1,n;o>=0;o--)(n=t[o])&&(s=(a?n(e,i,s):n(s))||s);return a&&s&&eo(e,i,s),s};let Mt=class extends L{constructor(){super(...arguments),this.hass=null,this.activeSceneName="No Scene Active",this.noHeader=!1,this.runState=null,this.entities=[],this.manualOnly=!1,this._editOpen=!1,this._isDark=!1}willUpdate(t){t.has("hass")&&(this._isDark=Ca(this.hass,this))}_toggleManualOnly(t){this.manualOnly=t.detail.manualOnly,this.dispatchEvent(new CustomEvent("mode-changed",{detail:{manualOnly:this.manualOnly},bubbles:!0,composed:!0}))}_onLightsChanged(t){this.entities=t.detail.entities,this.dispatchEvent(new CustomEvent("lights-changed",{detail:{entities:this.entities},bubbles:!0,composed:!0}))}render(){var n;const t=((n=this.runState)==null?void 0:n.light_states)??{},e=this._isDark?"dark":"light",i=Object.keys(t).length>0;let a=[],s=[];i?Object.keys(t).forEach(l=>{const c=t[l],u=this.entities.find(f=>f.entity_id===l),g=u?!!u.isExtracted:!0,p=u?!!u.isManual:!1,d={entity_id:l,name:c.name||(u==null?void 0:u.name)||l,actual_on:c.actual_on,on:c.on,brightness:c.brightness,color:c.color};g?a.push(d):p?s.push(d):a.push(d)}):this.entities.forEach(l=>{const c=!!l.isManual,u=!!l.isExtracted;if(!c&&!u)return;const g={entity_id:l.entity_id,name:l.name||l.entity_id,actual_on:!1,on:null,brightness:null,color:null};u?a.push(g):s.push(g)});const o=a.length+s.length;return this.manualOnly,r`
+    `],Se([h({type:Boolean})],se.prototype,"open",2),Se([h({attribute:!1})],se.prototype,"hass",2),Se([h({type:Array})],se.prototype,"entities",2),Se([h({type:Boolean})],se.prototype,"manualOnly",2),Se([b()],se.prototype,"_pickerValue",2),se=Se([z("twilight-area-lights-dialog")],se);var go=Object.defineProperty,fo=Object.getOwnPropertyDescriptor,Xt=(t,e,i,s)=>{for(var a=s>1?void 0:s?fo(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&go(e,i,a),a};let Rt=class extends L{constructor(){super(...arguments),this.hass=null,this.activeSceneName="No Scene Active",this.noHeader=!1,this.runState=null,this.entities=[],this.manualOnly=!1,this._editOpen=!1,this._isDark=!1}willUpdate(t){t.has("hass")&&(this._isDark=Ma(this.hass,this))}_toggleManualOnly(t){this.manualOnly=t.detail.manualOnly,this.dispatchEvent(new CustomEvent("mode-changed",{detail:{manualOnly:this.manualOnly},bubbles:!0,composed:!0}))}_onLightsChanged(t){this.entities=t.detail.entities,this.dispatchEvent(new CustomEvent("lights-changed",{detail:{entities:this.entities},bubbles:!0,composed:!0}))}render(){var r;const t=((r=this.runState)==null?void 0:r.light_states)??{},e=this._isDark?"dark":"light",i=Object.keys(t).length>0;let s=[],a=[];i?Object.keys(t).forEach(l=>{const c=t[l],g=this.entities.find(f=>f.entity_id===l),u=g?!!g.isExtracted:!0,p=g?!!g.isManual:!1,d={entity_id:l,name:c.name||(g==null?void 0:g.name)||l,actual_on:c.actual_on,on:c.on,brightness:c.brightness,color:c.color};u?s.push(d):p?a.push(d):s.push(d)}):this.entities.forEach(l=>{const c=!!l.isManual,g=!!l.isExtracted;if(!c&&!g)return;const u={entity_id:l.entity_id,name:l.name||l.entity_id,actual_on:!1,on:null,brightness:null,color:null};g?s.push(u):a.push(u)});const o=s.length+a.length;return this.manualOnly,n`
       <div class="devices-card">
-        ${this.noHeader?"":r`
+        ${this.noHeader?"":n`
           <div class="devices-card-header">
-            <span class="devices-card-icon">💡</span>
+            <span class="card-dot" style="--dot-color: #eab308;"></span>
             <span class="devices-card-title">Area Lights</span>
             <div class="active-scene-wrap">
               <span class="active-scene-label">Active Scene:</span>
@@ -1552,7 +1632,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
         `}
 
         <div class="table-container">
-          ${o===0?r`<div style="padding: 12px 0; font-size: 13px; color: var(--secondary-text-color); font-style: italic;">No lights configured</div>`:r`
+          ${o===0?n`<div style="padding: 12px 0; font-size: 13px; color: var(--secondary-text-color); font-style: italic;">No lights configured</div>`:n`
                 <table class="lights-table">
                   <thead>
                     <tr>
@@ -1563,18 +1643,18 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                     </tr>
                   </thead>
                   <tbody>
-                    ${a.length>0?r`
+                    ${s.length>0?n`
                       <tr class="section-row">
                         <td colspan="4">Scene Lights (Extracted)</td>
                       </tr>
-                      ${a.map(l=>this._renderTableRow(l,e))}
+                      ${s.map(l=>this._renderTableRow(l,e))}
                     `:""}
 
-                    ${s.length>0?r`
+                    ${a.length>0?n`
                       <tr class="section-row">
                         <td colspan="4">Additional Entities (Manually Configured)</td>
                       </tr>
-                      ${s.map(l=>this._renderTableRow(l,e))}
+                      ${a.map(l=>this._renderTableRow(l,e))}
                     `:""}
                   </tbody>
                 </table>
@@ -1591,7 +1671,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
         @mode-changed=${this._toggleManualOnly}
         @lights-changed=${this._onLightsChanged}
       ></twilight-area-lights-dialog>
-    `}_renderTableRow(t,e){const i=t.actual_on?"var(--success-color, #4caf50)":"color-mix(in srgb, var(--primary-text-color) 15%, transparent)";return r`
+    `}_renderTableRow(t,e){const i=t.actual_on?"var(--success-color, #4caf50)":"color-mix(in srgb, var(--primary-text-color) 15%, transparent)";return n`
       <tr>
         <td>
           <div style="display: flex; align-items: center; gap: 8px;">
@@ -1604,11 +1684,11 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
             </div>
           </div>
         </td>
-        <td style="text-align: center; font-weight: 500; vertical-align: top; padding-top: 10px;">${Ei(t.on,e)}</td>
-        <td style="text-align: center; font-weight: 500; vertical-align: top; padding-top: 10px;">${Ei(t.brightness,e)}</td>
-        <td style="text-align: center; font-weight: 500; vertical-align: top; padding-top: 10px;">${Ei(t.color,e)}</td>
+        <td style="text-align: center; font-weight: 500; vertical-align: top; padding-top: 10px;">${ji(t.on,e)}</td>
+        <td style="text-align: center; font-weight: 500; vertical-align: top; padding-top: 10px;">${ji(t.brightness,e)}</td>
+        <td style="text-align: center; font-weight: 500; vertical-align: top; padding-top: 10px;">${ji(t.color,e)}</td>
       </tr>
-    `}};Mt.styles=z`
+    `}};Rt.styles=O`
     :host {
       display: flex;
       flex-direction: column;
@@ -1638,9 +1718,14 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
       padding: 16px 20px 12px;
     }
 
-    .devices-card-icon {
-      font-size: 18px;
-      opacity: 0.7;
+    .card-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--dot-color, #eab308);
+      box-shadow: 0 0 6px var(--dot-color, #eab308);
+      flex-shrink: 0;
+      display: inline-block;
     }
 
     .devices-card-title {
@@ -1830,20 +1915,21 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
       background: color-mix(in srgb, var(--primary-text-color, #fff) 8%, transparent);
       margin: 8px 0;
     }
-  `,Yt([h({attribute:!1})],Mt.prototype,"hass",2),Yt([h({type:String})],Mt.prototype,"activeSceneName",2),Yt([h({type:Boolean})],Mt.prototype,"noHeader",2),Yt([h({attribute:!1})],Mt.prototype,"runState",2),Yt([h({type:Array})],Mt.prototype,"entities",2),Yt([h({type:Boolean})],Mt.prototype,"manualOnly",2),Yt([b()],Mt.prototype,"_editOpen",2),Yt([b()],Mt.prototype,"_isDark",2),Mt=Yt([H("twilight-area-lights-card")],Mt);function Sa(t){switch(t){case"min":return"Minimum";case"max":return"Maximum";case"mean":return"Average";case"median":return"Median";default:return"Minimum"}}class Oi{constructor(e,i={}){this._prevOpen=!1,this.draft=null,this.draggedIndex=null,this._host=e,this._options=i,this._host.addController(this)}hostConnected(){}hostDisconnected(){}hostUpdate(){var e,i;this._host.open!==this._prevOpen&&(this._prevOpen=this._host.open,this._host.open?(this.draft=this._host.config?structuredClone(this._host.config):null,(i=(e=this._options).onOpen)==null||i.call(e),xi()):this.draft=null)}closeDiscard(){this._host.dispatchEvent(new CustomEvent("close",{bubbles:!0,composed:!0}))}closeAndSave(e){this._host.dispatchEvent(e),this._host.dispatchEvent(new CustomEvent("close",{bubbles:!0,composed:!0}))}onDragStart(e,i){this.draggedIndex=i,e.dataTransfer&&(e.dataTransfer.effectAllowed="move",e.dataTransfer.setData("text/plain",String(i)))}onDragOver(e,i){if(e.preventDefault(),this.draggedIndex===null||this.draggedIndex===i||!Array.isArray(this.draft))return;const a=[...this.draft],s=a[this.draggedIndex];a.splice(this.draggedIndex,1),a.splice(i,0,s),this.draft=a,this.draggedIndex=i,this._host.requestUpdate()}onDragEnd(){this.draggedIndex=null}}const Da=!1,Aa="none";function Ii(t,e){const i=t.lux_threshold!==null&&t.lux_threshold!==void 0?t.lux_threshold:(e==null?void 0:e.lux_threshold)??30,a=t.lux_watch_window!==null&&t.lux_watch_window!==void 0?t.lux_watch_window:(e==null?void 0:e.lux_watch_window)??10,s=t.lux_ignore_active!==null&&t.lux_ignore_active!==void 0?t.lux_ignore_active:Da,o=t.lux_ignore_scope!==null&&t.lux_ignore_scope!==void 0?t.lux_ignore_scope:Aa;return{threshold:i,watch:a,ignoreActive:s,ignoreScope:o}}function qe(t){const e=`lux ≤ ${t.threshold} lx`+(t.watch?` (watch: ${t.watch}s)`:""),i=[t.ignoreActive?"ignore when active":"",t.ignoreScope==="twilight_slots"?"ignore twilight/night":"",t.ignoreScope==="all_slots"?"ignore lux (all slots)":""].filter(Boolean).join(", ");return`${e}${i?` · ${i}`:""}`}function zi(t,e){const i=t.entity_ids??[];if(i.length===0)return{friendlyName:"No entities configured",subText:"—"};const a=i.map(n=>{var l,c;return((c=(l=e==null?void 0:e.states[n])==null?void 0:l.attributes)==null?void 0:c.friendly_name)??n});let s=a.join(", ");s.length>35&&a.length>1&&(s=`${a[0]} + ${a.length-1} more`);let o=i.join(", ");if(o.length>50&&i.length>1&&(o=`${i[0]} + ${i.length-1} more`),t.type==="motion"){const n=t.retrigger??"every";o+=` [retrigger: ${n}]`}else if(i.length>=2&&t.type==="binary"){const n=t.aggregation??"any",l=n==="count"?`count:${t.aggregation_count??1}`:n;o+=` [combine: ${l}]`}return{friendlyName:s,subText:o}}function Ye(t,e){const a=e.filter(s=>s.type===t.type).indexOf(t)+1;return`${t.type}_${a}`}function Ta(t){const e=t.trim();if(e==="")return null;const i=e.split(":");if(i.length<1||i.length>3||!i.every(n=>/^\d+$/.test(n)))return null;const[a,s=0,o=0]=i.map(n=>parseInt(n,10));return a>23||s>59||o>59?null:[a,s,o]}function ao(t){const e=Ta(t);if(e===null)return null;const i=a=>String(a).padStart(2,"0");return`${i(e[0])}:${i(e[1])}:${i(e[2])}`}function Mi(t){return t.trim()===""||Ta(t)!==null}function so(t){return t.map(i=>i==="no_entity"?"No entity configured":i==="user"?"Disabled by user":i.startsWith("activity:")?`Suppressed by: ${i.substring(9)}`:i).join(", ")}var oo=Object.defineProperty,no=Object.getOwnPropertyDescriptor,Jt=(t,e,i,a)=>{for(var s=a>1?void 0:a?no(e,i):e,o=t.length-1,n;o>=0;o--)(n=t[o])&&(s=(a?n(e,i,s):n(s))||s);return a&&s&&oo(e,i,s),s};let Ht=class extends L{constructor(){super(...arguments),this.open=!1,this.hass=null,this.config=[],this.templateMode=!1,this._subEditOpen=!1,this._subEditingIndex=null,this._editDraft=null,this._draftController=new Oi(this,{onOpen:()=>{this._subEditOpen=!1}})}_closeAndSave(){const t=this._draftController.draft??this.config;this._draftController.closeAndSave(new hi([...t]))}_openAddSensor(){this._subEditingIndex=null,this._editDraft={id:"",name:void 0,type:"illuminance",entity_ids:[],aggregation:void 0},this._subEditOpen=!0}_openEditSensor(t){const e=this._draftController.draft;if(!e)return;const i=e[t];this._subEditingIndex=t,this._editDraft={id:i.id??"",name:i.name??void 0,type:i.type,entity_ids:i.entity_ids??[],aggregation:i.aggregation??void 0},this._subEditOpen=!0}_removeSensor(t){if(!this._draftController.draft)return;const e=[...this._draftController.draft];e.splice(t,1),this._draftController.draft=e,this.requestUpdate()}_saveSubEdit(){if(!this._editDraft||!this._draftController.draft)return;const t=[...this._draftController.draft],e=this._subEditingIndex;e===null?t.push(this._editDraft):t[e]=this._editDraft,this._editDraft.name||(this._editDraft.name=Ye(this._editDraft,t)),this._draftController.draft=t,this._subEditOpen=!1,this._editDraft=null,this.requestUpdate()}render(){if(!this.open||!this._draftController.draft)return r``;const t=this._draftController.draft,e=t.some(i=>i.type==="illuminance");return r`
+  `,Xt([h({attribute:!1})],Rt.prototype,"hass",2),Xt([h({type:String})],Rt.prototype,"activeSceneName",2),Xt([h({type:Boolean})],Rt.prototype,"noHeader",2),Xt([h({attribute:!1})],Rt.prototype,"runState",2),Xt([h({type:Array})],Rt.prototype,"entities",2),Xt([h({type:Boolean})],Rt.prototype,"manualOnly",2),Xt([b()],Rt.prototype,"_editOpen",2),Xt([b()],Rt.prototype,"_isDark",2),Rt=Xt([z("twilight-area-lights-card")],Rt);function Pa(t){switch(t){case"min":return"Minimum";case"max":return"Maximum";case"mean":return"Average";case"median":return"Median";default:return"Minimum"}}class Ze{constructor(e,i={}){this._prevOpen=!1,this.draft=null,this.draggedIndex=null,this._host=e,this._options=i,this._host.addController(this)}hostConnected(){}hostDisconnected(){}hostUpdate(){var e,i;this._host.open!==this._prevOpen&&(this._prevOpen=this._host.open,this._host.open?(this.draft=this._host.config?structuredClone(this._host.config):null,(i=(e=this._options).onOpen)==null||i.call(e),Ai()):this.draft=null)}closeDiscard(){this._host.dispatchEvent(new CustomEvent("close",{bubbles:!0,composed:!0}))}closeAndSave(e){this._host.dispatchEvent(e),this._host.dispatchEvent(new CustomEvent("close",{bubbles:!0,composed:!0}))}onDragStart(e,i){this.draggedIndex=i,e.dataTransfer&&(e.dataTransfer.effectAllowed="move",e.dataTransfer.setData("text/plain",String(i)))}onDragOver(e,i){if(e.preventDefault(),this.draggedIndex===null||this.draggedIndex===i||!Array.isArray(this.draft))return;const s=[...this.draft],a=s[this.draggedIndex];s.splice(this.draggedIndex,1),s.splice(i,0,a),this.draft=s,this.draggedIndex=i,this._host.requestUpdate()}onDragEnd(){this.draggedIndex=null}}const Na=!1,Ra="none";function Hi(t,e){const i=t.lux_threshold!==null&&t.lux_threshold!==void 0?t.lux_threshold:(e==null?void 0:e.lux_threshold)??30,s=t.lux_watch_window!==null&&t.lux_watch_window!==void 0?t.lux_watch_window:(e==null?void 0:e.lux_watch_window)??10,a=t.lux_ignore_active!==null&&t.lux_ignore_active!==void 0?t.lux_ignore_active:Na,o=t.lux_ignore_scope!==null&&t.lux_ignore_scope!==void 0?t.lux_ignore_scope:Ra;return{threshold:i,watch:s,ignoreActive:a,ignoreScope:o}}function Je(t){const e=`lux ≤ ${t.threshold} lx`+(t.watch?` (watch: ${t.watch}s)`:""),i=[t.ignoreActive?"ignore when active":"",t.ignoreScope==="twilight_slots"?"ignore twilight/night":"",t.ignoreScope==="all_slots"?"ignore lux (all slots)":""].filter(Boolean).join(", ");return`${e}${i?` · ${i}`:""}`}function Ui(t,e){const i=t.entity_ids??[];if(i.length===0)return{friendlyName:"No entities configured",subText:"—"};const s=i.map(r=>{var l,c;return((c=(l=e==null?void 0:e.states[r])==null?void 0:l.attributes)==null?void 0:c.friendly_name)??r});let a=s.join(", ");a.length>35&&s.length>1&&(a=`${s[0]} + ${s.length-1} more`);let o=i.join(", ");if(o.length>50&&i.length>1&&(o=`${i[0]} + ${i.length-1} more`),t.type==="motion"){const r=t.retrigger??"every";o+=` [retrigger: ${r}]`}else if(i.length>=2&&t.type==="binary"){const r=t.aggregation??"any",l=r==="count"?`count:${t.aggregation_count??1}`:r;o+=` [combine: ${l}]`}return{friendlyName:a,subText:o}}function Qe(t,e){const s=e.filter(a=>a.type===t.type).indexOf(t)+1;return`${t.type}_${s}`}function La(t){const e=t.trim();if(e==="")return null;const i=e.split(":");if(i.length<1||i.length>3||!i.every(r=>/^\d+$/.test(r)))return null;const[s,a=0,o=0]=i.map(r=>parseInt(r,10));return s>23||a>59||o>59?null:[s,a,o]}function vo(t){const e=La(t);if(e===null)return null;const i=s=>String(s).padStart(2,"0");return`${i(e[0])}:${i(e[1])}:${i(e[2])}`}function Bi(t){return t.trim()===""||La(t)!==null}function bo(t){return t.map(i=>i==="no_entity"?"No entity configured":i==="user"?"Disabled by user":i.startsWith("activity:")?`Suppressed by: ${i.substring(9)}`:i).join(", ")}var mo=Object.defineProperty,xo=Object.getOwnPropertyDescriptor,oe=(t,e,i,s)=>{for(var a=s>1?void 0:s?xo(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&mo(e,i,a),a};let Wt=class extends ae{constructor(){super(...arguments),this.open=!1,this.hass=null,this.config=[],this.templateMode=!1,this._subEditOpen=!1,this._subEditingIndex=null,this._editDraft=null,this._draftController=new Ze(this,{onOpen:()=>{this._subEditOpen=!1}})}_closeAndSave(){const t=this._draftController.draft??this.config;this._draftController.closeAndSave(new xi([...t]))}_openAddSensor(){this._subEditingIndex=null,this._editDraft={id:"",name:void 0,type:"illuminance",entity_ids:[],aggregation:void 0},this._subEditOpen=!0}_openEditSensor(t){const e=this._draftController.draft;if(!e)return;const i=e[t];this._subEditingIndex=t,this._editDraft={id:i.id??"",name:i.name??void 0,type:i.type,entity_ids:i.entity_ids??[],aggregation:i.aggregation??void 0},this._subEditOpen=!0}_removeSensor(t){if(!this._draftController.draft)return;const e=[...this._draftController.draft];e.splice(t,1),this._draftController.draft=e,this.requestUpdate()}_saveSubEdit(){if(!this._editDraft||!this._draftController.draft)return;const t=[...this._draftController.draft],e=this._subEditingIndex;e===null?t.push(this._editDraft):t[e]=this._editDraft,this._editDraft.name||(this._editDraft.name=Qe(this._editDraft,t)),this._draftController.draft=t,this._subEditOpen=!1,this._editDraft=null,this.requestUpdate()}render(){if(!this.open||!this._draftController.draft)return n``;const t=this._draftController.draft,e=t.some(i=>i.type==="illuminance");return n`
       <div class="overlay" @click=${i=>{i.target===i.currentTarget&&!this._subEditOpen&&this._draftController.closeDiscard()}}>
         <div class="edit-panel list-panel" style="${this._subEditOpen?"display: none;":""}">
           <div class="panel-header">
-            <span class="panel-header-icon">📡</span>
+            <span class="card-dot" style="--dot-color: #3b82f6;"></span>
             <span class="panel-header-title">Sensors — Configuration</span>
             <button class="panel-close" @click=${()=>this._draftController.closeDiscard()}>✕</button>
           </div>
 
           <div class="panel-body">
             <div class="list-section-label">Configured Sensors</div>
-            <table class="sensor-table">
+            <table class="config-table sensor-table">
               <thead>
                 <tr>
+                  <th style="min-width: 30px;"></th>
                   <th style="min-width: 150px;">Name</th>
                   <th style="min-width: 80px;">Type</th>
                   <th style="min-width: 220px;">Entities / Aggregation</th>
@@ -1851,32 +1937,41 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                 </tr>
               </thead>
               <tbody>
-                ${t.map((i,a)=>{const s=this.templateMode?(i.entity_ids||[]).join(", ")||"Template Sensor (No Entities)":(i.entity_ids||[]).map(n=>{var l,c,u;return((u=(c=(l=this.hass)==null?void 0:l.states[n])==null?void 0:c.attributes)==null?void 0:u.friendly_name)??n}).join(", ")||"—",o=Sa(i.aggregation);return r`
-                    <tr class="sensor-row">
+                ${t.map((i,s)=>{const a=i.entity_ids||[],o=Pa(i.aggregation);return n`
+                    <tr
+                      class="sensor-row ${this._draftController.draggedIndex===s?"dragging":""}"
+                      draggable="true"
+                      @dragstart=${r=>this._draftController.onDragStart(r,s)}
+                      @dragover=${r=>this._draftController.onDragOver(r,s)}
+                      @dragend=${()=>this._draftController.onDragEnd()}
+                    >
+                      <td style="text-align: center; padding: 0 4px; vertical-align: middle;">
+                        <div class="drag-handle" title="Drag to reorder">⋮⋮</div>
+                      </td>
                       <td>
-                        <div style="font-weight: 600;">${i.name||Ye(i,t)||i.id}</div>
-                        ${i.name&&i.id?r`<div style="font-size: 10px; font-family: monospace; opacity: 0.5;">${i.id}</div>`:""}
+                        <div style="font-weight: 600;">${i.name||Qe(i,t)||i.id}</div>
+                        ${i.name&&i.id?n`<div style="font-size: 10px; font-family: monospace; opacity: 0.5;">${i.id}</div>`:""}
                       </td>
                       <td>
                         <span class="type-badge ${i.type}">${i.type}</span>
                       </td>
                       <td>
-                        <div style="font-weight: 500; word-break: break-word;">${s}</div>
-                        <div style="font-size: 11px; color: var(--secondary-text-color); margin-top: 2px;">
-                          Aggregation: <strong>${o}</strong>
+                        <div style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center;">
+                          ${a.length>0?a.map(r=>{var c,g,u;const l=this.templateMode?r:((u=(g=(c=this.hass)==null?void 0:c.states[r])==null?void 0:g.attributes)==null?void 0:u.friendly_name)??r;return n`<span class="pill">${l}</span>`}):n`<span style="opacity: 0.4;">—</span>`}
+                          <span class="pill" style="opacity: 0.8;" title="Aggregation mode">Agg: ${o}</span>
                         </div>
                       </td>
                       <td style="text-align: center;">
                         <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
-                          <button class="row-action-btn edit" title="Edit sensor" @click=${()=>this._openEditSensor(a)}>✏️</button>
-                          <button class="row-action-btn remove" title="Remove sensor" @click=${()=>this._removeSensor(a)}>✕</button>
+                          <button class="row-action-btn edit" title="Edit sensor" @click=${()=>this._openEditSensor(s)}>✏️</button>
+                          <button class="row-action-btn remove" title="Remove sensor" @click=${()=>this._removeSensor(s)}>✕</button>
                         </div>
                       </td>
                     </tr>
                   `})}
-                ${t.length===0?r`
+                ${t.length===0?n`
                   <tr>
-                    <td colspan="4" style="text-align: center; color: var(--secondary-text-color); font-style: italic; padding: 16px;">
+                    <td colspan="5" style="text-align: center; color: var(--secondary-text-color); font-style: italic; padding: 16px;">
                       No sensors configured
                     </td>
                   </tr>
@@ -1888,7 +1983,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
               <button class="btn-add" ?disabled=${e} @click=${this._openAddSensor}>
                 <span>+</span> Add Sensor
               </button>
-              ${e?r`
+              ${e?n`
                 <div style="font-size: 11px; color: var(--secondary-text-color);">
                   Only one illuminance sensor per area is supported at this time.
                 </div>
@@ -1902,10 +1997,10 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
         </div>
 
         <!-- Sub-dialog: Add/Edit Sensor -->
-        ${this._subEditOpen&&this._editDraft?r`
+        ${this._subEditOpen&&this._editDraft?n`
           <div class="edit-panel" @click=${i=>i.stopPropagation()}>
             <div class="panel-header">
-              <span class="panel-header-icon">📡</span>
+              <span class="card-dot" style="--dot-color: #3b82f6;"></span>
               <span class="panel-header-title">${this._subEditingIndex===null?"Add Sensor":"Edit Sensor"}</span>
               <button class="panel-close" @click=${()=>{this._subEditOpen=!1,this._editDraft=null}}>✕</button>
             </div>
@@ -1929,23 +2024,23 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                 </select>
               </div>
 
-              ${this.templateMode?"":r`
+              ${this.templateMode?"":n`
                 <div class="form-field">
                   <label class="form-label">Entities</label>
                   <table class="entity-table">
                     <tbody>
-                      ${(this._editDraft.entity_ids||[]).map((i,a)=>{var o,n,l;const s=this.templateMode?i:((l=(n=(o=this.hass)==null?void 0:o.states[i])==null?void 0:n.attributes)==null?void 0:l.friendly_name)??i;return r`
+                      ${(this._editDraft.entity_ids||[]).map((i,s)=>{var o,r,l;const a=this.templateMode?i:((l=(r=(o=this.hass)==null?void 0:o.states[i])==null?void 0:r.attributes)==null?void 0:l.friendly_name)??i;return n`
                           <tr class="entity-row">
                             <td style="padding: 6px 0;">
-                              <div style="font-weight: 500;">${s}</div>
+                              <div style="font-weight: 500;">${a}</div>
                               <div style="font-size: 11px; color: var(--secondary-text-color); font-family: monospace;">${i}</div>
                             </td>
                             <td style="text-align: right; width: 40px;">
-                              <button class="entity-remove-btn" @click=${()=>{this._editDraft={...this._editDraft,entity_ids:(this._editDraft.entity_ids||[]).filter((c,u)=>u!==a)}}}>✕</button>
+                              <button class="entity-remove-btn" @click=${()=>{this._editDraft={...this._editDraft,entity_ids:(this._editDraft.entity_ids||[]).filter((c,g)=>g!==s)}}}>✕</button>
                             </td>
                           </tr>
                         `})}
-                      ${(this._editDraft.entity_ids||[]).length===0?r`
+                      ${(this._editDraft.entity_ids||[]).length===0?n`
                         <tr>
                           <td style="text-align: center; color: var(--secondary-text-color); font-style: italic; padding: 12px 0;">
                             No entities selected
@@ -1960,7 +2055,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                     .includeDomains=${["sensor"]}
                     allow-custom-entity
                     label="Add Entity"
-                    @value-changed=${i=>{const a=i.detail.value;if(a){const s=this._editDraft.entity_ids||[];s.includes(a)||(this._editDraft={...this._editDraft,entity_ids:[...s,a]}),i.target.value=""}}}
+                    @value-changed=${i=>{const s=i.detail.value;if(s){const a=this._editDraft.entity_ids||[];a.includes(s)||(this._editDraft={...this._editDraft,entity_ids:[...a,s]}),i.target.value=""}}}
                   ></ha-entity-picker>
                 </div>
               `}
@@ -1970,7 +2065,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                 <div style="font-size: 11px; color: var(--secondary-text-color); margin-bottom: 4px;">
                   How values are combined if multiple entities are added.
                 </div>
-                <select class="option-select" .value=${this._editDraft.aggregation||"min"} @change=${i=>{const a=i.target.value;this._editDraft={...this._editDraft,aggregation:a}}}>
+                <select class="option-select" .value=${this._editDraft.aggregation||"min"} @change=${i=>{const s=i.target.value;this._editDraft={...this._editDraft,aggregation:s}}}>
                   <option value="min">Minimum</option>
                   <option value="max">Maximum</option>
                   <option value="mean">Average</option>
@@ -1988,7 +2083,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
           </div>
         `:""}
       </div>
-    `}};Ht.styles=[jt,z`
+    `}};Wt.styles=[Dt,O`
       :host {
         display: contents;
       }
@@ -2112,25 +2207,10 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
       }
 
       .type-badge {
-        font-size: 9px;
-        font-weight: 700;
-        text-transform: uppercase;
-        padding: 2px 6px;
-        border-radius: 4px;
-        color: #fff;
-        min-width: 48px;
-        text-align: center;
-        letter-spacing: 0.3px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        box-sizing: border-box;
-        height: 18px;
-      }
-      .type-badge.illuminance {
-        background: rgba(255, 193, 7, 0.18);
-        border: 1px solid rgba(255, 193, 7, 0.4);
-        color: #ffc107;
+        font-size: 13px;
+        color: var(--primary-text-color);
+        font-weight: normal;
+        text-transform: lowercase;
       }
 
       .btn-add {
@@ -2168,30 +2248,30 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
       .activity-input:focus {
         border-color: var(--tp-accent, var(--accent-color, #e91e8c));
       }
-    `],Jt([h({type:Boolean})],Ht.prototype,"open",2),Jt([h({attribute:!1})],Ht.prototype,"hass",2),Jt([h({attribute:!1})],Ht.prototype,"config",2),Jt([h({type:Boolean})],Ht.prototype,"templateMode",2),Jt([b()],Ht.prototype,"_subEditOpen",2),Jt([b()],Ht.prototype,"_subEditingIndex",2),Jt([b()],Ht.prototype,"_editDraft",2),Ht=Jt([H("twilight-sensors-dialog")],Ht);var ro=Object.defineProperty,lo=Object.getOwnPropertyDescriptor,xe=(t,e,i,a)=>{for(var s=a>1?void 0:a?lo(e,i):e,o=t.length-1,n;o>=0;o--)(n=t[o])&&(s=(a?n(e,i,s):n(s))||s);return a&&s&&ro(e,i,s),s};let Qt=class extends L{constructor(){super(...arguments),this.hass=null,this.config=[],this.noHeader=!1,this.templateMode=!1,this._editOpen=!1}_openEdit(){this._editOpen=!0}render(){return r`
+    `],oe([h({type:Boolean})],Wt.prototype,"open",2),oe([h({attribute:!1})],Wt.prototype,"hass",2),oe([h({attribute:!1})],Wt.prototype,"config",2),oe([h({type:Boolean})],Wt.prototype,"templateMode",2),oe([b()],Wt.prototype,"_subEditOpen",2),oe([b()],Wt.prototype,"_subEditingIndex",2),oe([b()],Wt.prototype,"_editDraft",2),Wt=oe([z("twilight-sensors-dialog")],Wt);var _o=Object.defineProperty,yo=Object.getOwnPropertyDescriptor,De=(t,e,i,s)=>{for(var a=s>1?void 0:s?yo(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&_o(e,i,a),a};let re=class extends L{constructor(){super(...arguments),this.hass=null,this.config=[],this.noHeader=!1,this.templateMode=!1,this._editOpen=!1}_openEdit(){this._editOpen=!0}render(){return n`
       <div class="devices-card">
-        ${this.noHeader?"":r`
+        ${this.noHeader?"":n`
           <div class="devices-card-header">
-            <span class="devices-card-icon">📡</span>
+            <span class="card-dot" style="--dot-color: #3b82f6;"></span>
             <span class="devices-card-title">Sensors</span>
             <button class="edit-btn" @click=${this._openEdit}>⋮</button>
           </div>
         `}
         <div class="entity-list">
-          ${(this.config||[]).map((t,e)=>{const i=t.entity_ids||[],a=this.templateMode?i.length>0?i.join(", "):"Template Sensor (No Entities)":i.map(o=>{var n,l,c;return((c=(l=(n=this.hass)==null?void 0:n.states[o])==null?void 0:l.attributes)==null?void 0:c.friendly_name)??o}).join(", ")||"—",s=Sa(t.aggregation||"min");return r`
+          ${(this.config||[]).map((t,e)=>{const i=t.entity_ids||[],s=this.templateMode?i.length>0?i.join(", "):"Template Sensor (No Entities)":i.map(o=>{var r,l,c;return((c=(l=(r=this.hass)==null?void 0:r.states[o])==null?void 0:l.attributes)==null?void 0:c.friendly_name)??o}).join(", ")||"—",a=Pa(t.aggregation||"min");return n`
               <div class="entity-row">
                 <span class="type-badge ${t.type}">${t.type}</span>
                 <div class="entity-name-wrap">
                   <span class="entity-name">${t.name||"Illuminance Sensors"}</span>
-                  <span class="entity-id">${a}</span>
+                  <span class="entity-id">${s}</span>
                 </div>
                 <span class="agg-badge" title="Aggregation Method">
-                  ${s}
+                  ${a}
                 </span>
               </div>
-              ${e<this.config.length-1?r`<div class="divider"></div>`:""}
+              ${e<this.config.length-1?n`<div class="divider"></div>`:""}
             `})}
-          ${!this.config||this.config.length===0?r`
+          ${!this.config||this.config.length===0?n`
             <div class="empty-state">No sensors configured. Click edit to configure.</div>
           `:""}
         </div>
@@ -2204,7 +2284,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
         .templateMode=${this.templateMode}
         @close=${()=>{this._editOpen=!1}}
       ></twilight-sensors-dialog>
-    `}};Qt.styles=z`
+    `}};re.styles=O`
     :host {
       display: flex;
       flex-direction: column;
@@ -2234,9 +2314,14 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
       padding: 16px 20px 12px;
     }
 
-    .devices-card-icon {
-      font-size: 18px;
-      opacity: 0.7;
+    .card-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--dot-color, #3b82f6);
+      box-shadow: 0 0 6px var(--dot-color, #3b82f6);
+      flex-shrink: 0;
+      display: inline-block;
     }
 
     .devices-card-title {
@@ -2362,11 +2447,11 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
       font-size: 13px;
       font-style: italic;
     }
-  `,xe([h({attribute:!1})],Qt.prototype,"hass",2),xe([h({attribute:!1})],Qt.prototype,"config",2),xe([h({type:Boolean})],Qt.prototype,"noHeader",2),xe([h({type:Boolean})],Qt.prototype,"templateMode",2),xe([b()],Qt.prototype,"_editOpen",2),Qt=xe([H("twilight-sensors-card")],Qt);const co="respect_lux",Pi="slot",Ea="turn_off";function Ni(t){return{auto_expire:(t==null?void 0:t.auto_expire)??"03:00:00",transition_off_seconds:(t==null?void 0:t.transition_off_seconds)??0,expire_check_mode:co,action_type:Pi,release_action_type:Ea}}function Oa(t){const e=t.trim();if(e==="")return null;const i=e.split(":");if(i.length>3||!i.every(s=>/^\d+$/.test(s)))return null;const a=i.map(s=>parseInt(s,10));return a.length===1?a[0]:a.length===2?a[0]*60+a[1]:a[0]*3600+a[1]*60+a[2]}function po(t){const e=Math.floor(t/3600),i=Math.floor(t%3600/60),a=t%60,s=o=>String(o).padStart(2,"0");return`${s(e)}:${s(i)}:${s(a)}`}function ho(t){const e=Oa(t);return e===null?null:po(e)}function Li(t){return t.trim()===""||Oa(t)!==null}function Ia(t,e){const i=t??e;if(i==null)return"—";if(i==="00:00:00"||i===0||i==="0")return"none";if(typeof i=="number")return i>=60?`${i/60}h`:`${i}m`;const a=i.split(":");if(a.length===3){const s=parseInt(a[0],10),o=parseInt(a[1],10),n=parseInt(a[2],10);let l="";return s>0&&(l+=`${s}h `),o>0&&(l+=`${o}m `),n>0&&(l+=`${n}s`),l.trim()||"none"}return i}function za(t){var i;const e=(t==null?void 0:t.type)||Pi;return e==="slot"?"slot":e==="none"?"none":e==="reset"?"reset":e==="simulation"?"simulation":e==="entity"?`entity: ${((t==null?void 0:t.entity_id)||"").split(".")[1]||(t==null?void 0:t.entity_id)||"—"}`:e==="light"?`lights: ${((i=t==null?void 0:t.targets)==null?void 0:i.length)??0}`:e}function Ma(t){const e=(t==null?void 0:t.type)||Ea;return e==="turn_off"?"turn off":e==="slot"?"restore slot":e==="none"?"nothing":e}function Ve(t,e){var a;const i=e==null?void 0:e.find(s=>s.id===t);return(a=i==null?void 0:i.action)!=null&&a.type?i.action.type:Pi}function Pa(t){return!t||t.length===0?[{id:"sleep",suppress_inputs:[],auto_expire:null}]:t}var uo=Object.defineProperty,go=Object.getOwnPropertyDescriptor,Ut=(t,e,i,a)=>{for(var s=a>1?void 0:a?go(e,i):e,o=t.length-1,n;o>=0;o--)(n=t[o])&&(s=(a?n(e,i,s):n(s))||s);return a&&s&&uo(e,i,s),s};let At=class extends L{constructor(){super(...arguments),this.open=!1,this.hass=null,this.input=null,this.editIndex=null,this.activities=[],this.placeholderDefaults=null,this.templateMode=!1,this.siblings=[],this._editDraft=null}willUpdate(t){(t.has("open")||t.has("input"))&&(this.open&&this.input?this._editDraft={...this.input}:this.open||(this._editDraft=null))}_cancel(){this.dispatchEvent(new CustomEvent("cancel",{bubbles:!0,composed:!0}))}_isSaveDisabled(t){const e=!this.templateMode&&t.type!=="timer"&&t.type!=="button"&&(!t.entity_ids||t.entity_ids.length===0),i=t.type==="timer"&&!Mi(t.trigger_time??"");return e||i||!t.activity}_save(){if(!this._editDraft||this._isSaveDisabled(this._editDraft))return;const t={...this._editDraft,enabled:this.templateMode?!0:this._editDraft.enabled};if(t.type==="timer"?(t.trigger_time=ao(t.trigger_time??"")??"00:00:00",delete t.entity_ids,delete t.aggregation,delete t.aggregation_count,delete t.retrigger,delete t.event_type,delete t.lux_threshold,delete t.lux_watch_window,delete t.lux_ignore_active,delete t.lux_ignore_scope,delete t.label,delete t.button_mode,delete t.create_entity):t.type==="button"?(delete t.entity_ids,delete t.aggregation,delete t.aggregation_count,delete t.retrigger,delete t.event_type,delete t.lux_threshold,delete t.lux_watch_window,delete t.lux_ignore_active,delete t.lux_ignore_scope):(delete t.trigger_time,delete t.label,delete t.button_mode,delete t.create_entity,t.type!=="event"&&delete t.event_type,t.type!=="motion"&&(delete t.lux_threshold,delete t.lux_watch_window,delete t.lux_ignore_active,delete t.lux_ignore_scope),t.type!=="motion"&&delete t.retrigger,t.type!=="binary"&&(delete t.aggregation,delete t.aggregation_count)),!t.name){const e=this.editIndex,i=e===null?[...this.siblings,t]:this.siblings.map((a,s)=>s===e?t:a);t.name=t.label||Ye(t,i)}this.dispatchEvent(new CustomEvent("save",{detail:t,bubbles:!0,composed:!0}))}_getIncludeDomains(t){return t==="binary"?["input_boolean","binary_sensor"]:t==="event"?["event"]:t==="motion"?["binary_sensor","device_tracker"]:[]}render(){var n,l,c,u,g,p;if(!this.open||!this._editDraft)return r``;const t=this._editDraft,e=this.editIndex!==null,i=this._isSaveDisabled(t),a=this._getIncludeDomains(t.type),s=((n=t.entity_ids)==null?void 0:n[0])||"",o=t.type==="event"&&s&&((u=(c=(l=this.hass)==null?void 0:l.states[s])==null?void 0:c.attributes)==null?void 0:u.event_types)||[];return r`
+  `,De([h({attribute:!1})],re.prototype,"hass",2),De([h({attribute:!1})],re.prototype,"config",2),De([h({type:Boolean})],re.prototype,"noHeader",2),De([h({type:Boolean})],re.prototype,"templateMode",2),De([b()],re.prototype,"_editOpen",2),re=De([z("twilight-sensors-card")],re);const wo="respect_lux",Fi="slot",ja="turn_off";function Wi(t){return{auto_expire:(t==null?void 0:t.auto_expire)??"03:00:00",transition_off_seconds:(t==null?void 0:t.transition_off_seconds)??0,expire_check_mode:wo,action_type:Fi,release_action_type:ja}}function Ha(t){const e=t.trim();if(e==="")return null;const i=e.split(":");if(i.length>3||!i.every(a=>/^\d+$/.test(a)))return null;const s=i.map(a=>parseInt(a,10));return s.length===1?s[0]:s.length===2?s[0]*60+s[1]:s[0]*3600+s[1]*60+s[2]}function $o(t){const e=Math.floor(t/3600),i=Math.floor(t%3600/60),s=t%60,a=o=>String(o).padStart(2,"0");return`${a(e)}:${a(i)}:${a(s)}`}function ko(t){const e=Ha(t);return e===null?null:$o(e)}function qi(t){return t.trim()===""||Ha(t)!==null}function Ua(t,e){const i=t??e;if(i==null)return"—";if(i==="00:00:00"||i===0||i==="0")return"none";if(typeof i=="number"){if(i<=0)return"none";const a=Math.floor(i/3600),o=Math.floor(i%3600/60),r=Math.floor(i%60);let l="";return a>0&&(l+=`${a}h `),o>0&&(l+=`${o}m `),r>0&&(l+=`${r}s`),l.trim()||"none"}const s=i.split(":");if(s.length===3){const a=parseInt(s[0],10),o=parseInt(s[1],10),r=parseInt(s[2],10);let l="";return a>0&&(l+=`${a}h `),o>0&&(l+=`${o}m `),r>0&&(l+=`${r}s`),l.trim()||"none"}return i}function Ba(t){var i;const e=(t==null?void 0:t.type)||Fi;return e==="slot"?"slot":e==="none"?"none":e==="reset"?"reset":e==="simulation"?"simulation":e==="entity"?`entity: ${((t==null?void 0:t.entity_id)||"").split(".")[1]||(t==null?void 0:t.entity_id)||"—"}`:e==="light"?`lights: ${((i=t==null?void 0:t.targets)==null?void 0:i.length)??0}`:e}function Fa(t){const e=(t==null?void 0:t.type)||ja;return e==="turn_off"?"turn off":e==="slot"?"restore slot":e==="none"?"nothing":e}function Wa(t,e){var s;const i=e==null?void 0:e.find(a=>a.id===t);return(s=i==null?void 0:i.action)!=null&&s.type?i.action.type:Fi}function qa(t){return!t||t.length===0?[{id:"sleep",suppress_inputs:[],auto_expire:null}]:t}var Co=Object.defineProperty,So=Object.getOwnPropertyDescriptor,Lt=(t,e,i,s)=>{for(var a=s>1?void 0:s?So(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&Co(e,i,a),a};let Ct=class extends L{constructor(){super(...arguments),this.open=!1,this.hass=null,this.input=null,this.editIndex=null,this.activities=[],this.rules=[],this.placeholderDefaults=null,this.templateMode=!1,this.siblings=[],this._editDraft=null}willUpdate(t){(t.has("open")||t.has("input"))&&(this.open&&this.input?this._editDraft={...this.input}:this.open||(this._editDraft=null))}_cancel(){this.dispatchEvent(new CustomEvent("cancel",{bubbles:!0,composed:!0}))}_canTargetRule(t){return t.type==="binary"||t.type==="button"&&t.button_mode==="toggle"}_isSaveDisabled(t){const e=!this.templateMode&&t.type!=="timer"&&t.type!=="button"&&(!t.entity_ids||t.entity_ids.length===0),i=t.type==="timer"&&!Bi(t.trigger_time??""),s=!t.activity&&!t.rule,a=!!t.rule&&!this._canTargetRule(t);return e||i||s||a}_save(){if(!this._editDraft||this._isSaveDisabled(this._editDraft))return;const t={...this._editDraft,enabled:this.templateMode?!0:this._editDraft.enabled};if(t.type==="timer"?(t.trigger_time=vo(t.trigger_time??"")??"00:00:00",delete t.entity_ids,delete t.aggregation,delete t.aggregation_count,delete t.retrigger,delete t.event_type,delete t.lux_threshold,delete t.lux_watch_window,delete t.lux_ignore_active,delete t.lux_ignore_scope,delete t.label,delete t.button_mode,delete t.create_entity):t.type==="button"?(delete t.entity_ids,delete t.aggregation,delete t.aggregation_count,delete t.retrigger,delete t.event_type,delete t.lux_threshold,delete t.lux_watch_window,delete t.lux_ignore_active,delete t.lux_ignore_scope):(delete t.trigger_time,delete t.label,delete t.button_mode,delete t.create_entity,t.type!=="event"&&delete t.event_type,t.type!=="motion"&&(delete t.lux_threshold,delete t.lux_watch_window,delete t.lux_ignore_active,delete t.lux_ignore_scope),t.type!=="motion"&&delete t.retrigger,t.type!=="binary"&&(delete t.aggregation,delete t.aggregation_count)),!t.name){const e=this.editIndex,i=e===null?[...this.siblings,t]:this.siblings.map((s,a)=>a===e?t:s);t.name=t.label||Qe(t,i)}this.dispatchEvent(new CustomEvent("save",{detail:t,bubbles:!0,composed:!0}))}_getIncludeDomains(t){return t==="binary"?["input_boolean","binary_sensor"]:t==="event"?["event"]:t==="motion"?["binary_sensor","device_tracker"]:[]}render(){var r,l,c,g,u,p;if(!this.open||!this._editDraft)return n``;const t=this._editDraft,e=this.editIndex!==null,i=this._isSaveDisabled(t),s=this._getIncludeDomains(t.type),a=((r=t.entity_ids)==null?void 0:r[0])||"",o=t.type==="event"&&a&&((g=(c=(l=this.hass)==null?void 0:l.states[a])==null?void 0:c.attributes)==null?void 0:g.event_types)||[];return n`
       <div class="overlay" style="z-index: 1100;" @click=${d=>{d.target===d.currentTarget&&this._cancel()}}>
         <div class="edit-panel" style="max-width: 560px; max-height: calc(100vh - 120px);">
           <div class="panel-header">
-            <span class="panel-header-icon">🔌</span>
+            <span class="card-dot" style="--dot-color: #10b981;"></span>
             <span class="panel-header-title">${e?"Edit Input":"Add Input"}</span>
             <button class="panel-close" @click=${this._cancel}>✕</button>
           </div>
@@ -2384,7 +2469,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                 />
               </div>
 
-              ${this.templateMode?"":r`
+              ${this.templateMode?"":n`
                 <div class="form-field">
                   <span class="form-label">Status</span>
                   <select class="option-select" .value=${t.enabled!==!1?"true":"false"} @change=${d=>{this._editDraft={...this._editDraft,enabled:d.target.value==="true"}}}>
@@ -2397,7 +2482,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                 <div class="form-field">
                   <span class="form-label">Type</span>
-                  <select class="option-select" .value=${t.type} @change=${d=>{this._editDraft={...this._editDraft,type:d.target.value,entity_ids:[],aggregation:void 0,aggregation_count:void 0,retrigger:void 0,event_type:void 0,lux_threshold:null,lux_watch_window:null,lux_ignore_active:null,lux_ignore_scope:null,trigger_time:"00:00:00",label:"",button_mode:"click"}}}>
+                  <select class="option-select" .value=${t.type} @change=${d=>{var y;const f=d.target.value,v=f==="binary";this._editDraft={...this._editDraft,type:f,entity_ids:[],aggregation:void 0,aggregation_count:void 0,retrigger:void 0,event_type:void 0,lux_threshold:null,lux_watch_window:null,lux_ignore_active:null,lux_ignore_scope:null,trigger_time:"00:00:00",label:"",button_mode:"click",...(y=this._editDraft)!=null&&y.rule&&!v?{rule:null,activity:this.activities[0]??null}:{}}}}>
                     <option value="binary">Binary</option>
                     <option value="button">Button</option>
                     <option value="event">Event</option>
@@ -2406,32 +2491,58 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                   </select>
                 </div>
 
-                <div class="form-field">
-                  <span class="form-label">Target Activity</span>
-                  <select class="option-select" @change=${d=>{this._editDraft={...this._editDraft,activity:d.target.value}}}>
-                    ${this.activities.map(d=>r`
-                      <option value="${d}" ?selected=${d===t.activity}>${d}</option>
-                    `)}
-                  </select>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                  <div class="form-field">
+                    <span class="form-label">Target Type</span>
+                    <select class="option-select" .value=${t.rule?"rule":"activity"} @change=${d=>{var v;if(d.target.value==="rule"){const y=((v=this.rules[0])==null?void 0:v.id)??"";this._editDraft={...this._editDraft,rule:y,activity:null}}else{const y=this.activities[0]??"";this._editDraft={...this._editDraft,activity:y,rule:null}}}}>
+                      <option value="activity">Activity</option>
+                      ${this._canTargetRule(t)?n`
+                        <option value="rule" ?disabled=${(this.rules||[]).length===0}>Rule${(this.rules||[]).length===0?" (No rules)":""}</option>
+                      `:""}
+                    </select>
+                    ${this._canTargetRule(t)?"":n`
+                      <span class="form-hint">Only Binary and Toggle-mode Button inputs can target a rule — other input types don't reliably track an on/off state.</span>
+                    `}
+                  </div>
+
+                  ${t.rule?n`
+                    <div class="form-field">
+                      <span class="form-label">Target Rule</span>
+                      <select class="option-select" .value=${t.rule??""} @change=${d=>{this._editDraft={...this._editDraft,rule:d.target.value,activity:null}}}>
+                        ${(this.rules||[]).map(d=>n`
+                          <option value="${d.id}" ?selected=${d.id===t.rule}>${d.name||d.id}</option>
+                        `)}
+                      </select>
+                    </div>
+                  `:n`
+                    <div class="form-field">
+                      <span class="form-label">Target Activity</span>
+                      <select class="option-select" @change=${d=>{this._editDraft={...this._editDraft,activity:d.target.value,rule:null}}}>
+                        ${this.activities.map(d=>n`
+                          <option value="${d}" ?selected=${d===t.activity}>${d}</option>
+                        `)}
+                      </select>
+                    </div>
+                  `}
                 </div>
               </div>
 
-              ${t.type==="timer"?r`
+              ${t.type==="timer"?n`
                 <div class="form-field">
                   <span class="form-label">Trigger Time (HH:MM:SS)</span>
                   <input
                     type="text"
-                    class="activity-input ${Mi(t.trigger_time??"")?"":"invalid"}"
+                    class="activity-input ${Bi(t.trigger_time??"")?"":"invalid"}"
                     .value=${t.trigger_time??"00:00:00"}
                     placeholder="22:00:00"
                     @input=${d=>{this._editDraft={...this._editDraft,trigger_time:d.target.value.trim()}}}
                   />
                   <span class="form-hint">Accepts <code>22</code>, <code>22:30</code> or <code>22:30:15</code> — saved as HH:MM:SS.</span>
-                  ${Mi(t.trigger_time??"")?"":r`
+                  ${Bi(t.trigger_time??"")?"":n`
                     <span class="form-error">Enter a time like 22, 22:30 or 22:30:15 (0–23h).</span>
                   `}
                 </div>
-              `:t.type==="button"?r`
+              `:t.type==="button"?n`
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                   <div class="form-field">
                     <span class="form-label">Label (Optional)</span>
@@ -2445,7 +2556,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                   </div>
                   <div class="form-field">
                     <span class="form-label">Mode</span>
-                    <select class="option-select" .value=${t.button_mode??"click"} @change=${d=>{this._editDraft={...this._editDraft,button_mode:d.target.value}}}>
+                    <select class="option-select" .value=${t.button_mode??"click"} @change=${d=>{var v;const f=d.target.value;this._editDraft={...this._editDraft,button_mode:f,...(v=this._editDraft)!=null&&v.rule&&f==="click"?{rule:null,activity:this.activities[0]??null}:{}}}}>
                       <option value="click">Click (fire once)</option>
                       <option value="toggle">Toggle (on/off)</option>
                     </select>
@@ -2465,23 +2576,23 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                     </div>
                   </div>
                 </div>
-              `:this.templateMode?"":r`
+              `:this.templateMode?"":n`
                 <div class="form-field">
                   <span class="form-label">Entities</span>
                   <table class="sensor-table">
                     <tbody>
-                      ${(t.entity_ids||[]).map((d,f)=>{var w,k,v;const x=((v=(k=(w=this.hass)==null?void 0:w.states[d])==null?void 0:k.attributes)==null?void 0:v.friendly_name)??d;return r`
+                      ${(t.entity_ids||[]).map((d,f)=>{var y,k,x;const v=((x=(k=(y=this.hass)==null?void 0:y.states[d])==null?void 0:k.attributes)==null?void 0:x.friendly_name)??d;return n`
                           <tr class="sensor-row">
                             <td style="padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle;">
-                              <div style="font-weight: 500; font-size: 13px;">${x}</div>
+                              <div style="font-weight: 500; font-size: 13px;">${v}</div>
                               <div style="font-size: 11px; color: var(--secondary-text-color); font-family: monospace;">${d}</div>
                             </td>
                             <td style="text-align: center; width: 40px; padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle;">
-                              <button class="sensor-remove-btn" title="Remove entity" @click=${()=>{this._editDraft={...this._editDraft,entity_ids:(this._editDraft.entity_ids||[]).filter((m,C)=>C!==f)}}}>✕</button>
+                              <button class="sensor-remove-btn" title="Remove entity" @click=${()=>{this._editDraft={...this._editDraft,entity_ids:(this._editDraft.entity_ids||[]).filter((_,C)=>C!==f)}}}>✕</button>
                             </td>
                           </tr>
                         `})}
-                      ${!t.entity_ids||t.entity_ids.length===0?r`
+                      ${!t.entity_ids||t.entity_ids.length===0?n`
                         <tr>
                           <td colspan="2" style="text-align: center; color: var(--secondary-text-color); font-style: italic; padding: 12px; font-size: 12px; border-bottom: 1px solid rgba(255,255,255,0.04);">
                             No entities configured
@@ -2493,15 +2604,15 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
 
                   <ha-entity-picker
                     .hass=${this.hass}
-                    .includeDomains=${a}
+                    .includeDomains=${s}
                     allow-custom-entity
                     label="Add input entity"
-                    @value-changed=${d=>{const f=d.detail.value;if(f){const x=this._editDraft.entity_ids||[];x.includes(f)||(this._editDraft={...this._editDraft,entity_ids:[...x,f]});const w=d.target;w&&(w.value="")}}}
+                    @value-changed=${d=>{const f=d.detail.value;if(f){const v=this._editDraft.entity_ids||[];v.includes(f)||(this._editDraft={...this._editDraft,entity_ids:[...v,f]});const y=d.target;y&&(y.value="")}}}
                   ></ha-entity-picker>
                 </div>
               `}
 
-              ${t.type==="motion"?r`
+              ${t.type==="motion"?n`
                 <div class="form-field" style="margin-top: 4px;">
                   <span class="form-label">Re-trigger</span>
                   <select class="option-select" .value=${t.retrigger??"every"} @change=${d=>{this._editDraft={...this._editDraft,retrigger:d.target.value||void 0}}}>
@@ -2512,7 +2623,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                 </div>
               `:""}
 
-              ${t.type==="binary"?r`
+              ${t.type==="binary"?n`
                 <div class="form-field" style="margin-top: 4px;">
                   <span class="form-label">Combine multiple sensors</span>
                   <select class="option-select" .value=${t.aggregation??"any"} @change=${d=>{const f=d.target.value||void 0;this._editDraft={...this._editDraft,aggregation:f,aggregation_count:f!=="count"?void 0:this._editDraft.aggregation_count}}}>
@@ -2523,7 +2634,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                   <span class="form-hint">How the states of multiple sensors combine into one active signal.</span>
                 </div>
 
-                ${t.aggregation==="count"?r`
+                ${t.aggregation==="count"?n`
                   <div class="form-field" style="margin-top: 4px;">
                     <span class="form-label">Required Active Entities (N)</span>
                     <input
@@ -2538,17 +2649,17 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                 `:""}
               `:""}
 
-              ${t.type==="event"&&(t.entity_ids||[]).length>0?r`
+              ${t.type==="event"&&(t.entity_ids||[]).length>0?n`
                 <div class="form-field">
                   <span class="form-label">Event Type (Optional)</span>
-                  ${o.length>0?r`
+                  ${o.length>0?n`
                     <select class="option-select" @change=${d=>{this._editDraft={...this._editDraft,event_type:d.target.value||void 0}}}>
                       <option value="" ?selected=${!t.event_type}>All Events</option>
-                      ${o.map(d=>r`
+                      ${o.map(d=>n`
                         <option value="${d}" ?selected=${d===t.event_type}>${d}</option>
                       `)}
                     </select>
-                  `:r`
+                  `:n`
                     <input
                       type="text"
                       class="activity-input"
@@ -2560,14 +2671,14 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                 </div>
               `:""}
 
-              ${t.type==="motion"?r`
+              ${t.type==="motion"?n`
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                   <div class="form-field">
                     <span class="form-label">Lux Threshold (lx)</span>
                     <input
                       type="number"
                       class="activity-input"
-                      .placeholder=${String(((g=this.placeholderDefaults)==null?void 0:g.lux_threshold)??30)}
+                      .placeholder=${String(((u=this.placeholderDefaults)==null?void 0:u.lux_threshold)??30)}
                       .value=${t.lux_threshold!==null?String(t.lux_threshold):""}
                       @input=${d=>{const f=d.target.value;this._editDraft={...this._editDraft,lux_threshold:f!==""?Number(f):null}}}
                       min="0"
@@ -2613,7 +2724,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
           </div>
         </div>
       </div>
-    `}};At.styles=[jt,z`
+    `}};Ct.styles=[Dt,O`
       :host {
         display: contents;
       }
@@ -2740,18 +2851,18 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
         color: var(--secondary-text-color);
         cursor: not-allowed;
       }
-    `],Ut([h({type:Boolean})],At.prototype,"open",2),Ut([h({attribute:!1})],At.prototype,"hass",2),Ut([h({attribute:!1})],At.prototype,"input",2),Ut([h({type:Number})],At.prototype,"editIndex",2),Ut([h({type:Array})],At.prototype,"activities",2),Ut([h({attribute:!1})],At.prototype,"placeholderDefaults",2),Ut([h({type:Boolean})],At.prototype,"templateMode",2),Ut([h({attribute:!1})],At.prototype,"siblings",2),Ut([b()],At.prototype,"_editDraft",2),At=Ut([H("twilight-input-row-editor")],At);function fo(t){return{id:"",name:void 0,type:"binary",activity:t,enabled:!0,entity_ids:[],aggregation:void 0,aggregation_count:void 0,retrigger:void 0,trigger_time:"00:00:00",event_type:void 0,lux_threshold:null,lux_watch_window:null,lux_ignore_active:Da,lux_ignore_scope:Aa,label:"",button_mode:"click",create_entity:!1}}var vo=Object.defineProperty,bo=Object.getOwnPropertyDescriptor,wt=(t,e,i,a)=>{for(var s=a>1?void 0:a?bo(e,i):e,o=t.length-1,n;o>=0;o--)(n=t[o])&&(s=(a?n(e,i,s):n(s))||s);return a&&s&&vo(e,i,s),s};let ut=class extends L{constructor(){super(...arguments),this.open=!1,this.hass=null,this.config=[],this.activities=[],this.activitiesConfig=[],this.placeholderDefaults=null,this.runState=null,this.templateMode=!1,this.areaId=null,this._subEditOpen=!1,this._subEditingIndex=null,this._subEditInput=null,this._dialog=new fe(this),this._draftController=new Oi(this,{onOpen:()=>{this._subEditOpen=!1}})}_closeDiscard(){this._draftController.closeDiscard()}_closeAndSave(){this._draftController.closeAndSave(new ui(this._draftController.draft||[]))}_openAddInput(){this._subEditingIndex=null,this._subEditInput=fo(this.activities[0]||""),this._subEditOpen=!0}_openEditInput(t){const e=this._draftController.draft;e&&(this._subEditingIndex=t,this._subEditInput={...e[t]},this._subEditOpen=!0)}_onSubEditSave(t){const e=this._draftController.draft;if(!e)return;const i=t.detail,a=this._subEditingIndex,s=a===null?[...e,i]:e.map((o,n)=>n===a?i:o);this._draftController.draft=s,this._subEditOpen=!1,this.requestUpdate()}_onSubEditCancel(){this._subEditOpen=!1}_onRemoveInput(t){const e=this._draftController.draft;e&&(this._draftController.draft=e.filter((i,a)=>a!==t),this.requestUpdate())}_getResolvedMotionInfo(t){return Ii(t,this.placeholderDefaults)}render(){if(!this.open||!this._draftController.draft)return r``;const t=this._draftController.draft;return r`
+    `],Lt([h({type:Boolean})],Ct.prototype,"open",2),Lt([h({attribute:!1})],Ct.prototype,"hass",2),Lt([h({attribute:!1})],Ct.prototype,"input",2),Lt([h({type:Number})],Ct.prototype,"editIndex",2),Lt([h({type:Array})],Ct.prototype,"activities",2),Lt([h({attribute:!1})],Ct.prototype,"rules",2),Lt([h({attribute:!1})],Ct.prototype,"placeholderDefaults",2),Lt([h({type:Boolean})],Ct.prototype,"templateMode",2),Lt([h({attribute:!1})],Ct.prototype,"siblings",2),Lt([b()],Ct.prototype,"_editDraft",2),Ct=Lt([z("twilight-input-row-editor")],Ct);function Do(t){return{id:"",name:void 0,type:"binary",activity:t,enabled:!0,entity_ids:[],aggregation:void 0,aggregation_count:void 0,retrigger:void 0,trigger_time:"00:00:00",event_type:void 0,lux_threshold:null,lux_watch_window:null,lux_ignore_active:Na,lux_ignore_scope:Ra,label:"",button_mode:"click",create_entity:!1}}var Ao=Object.defineProperty,To=Object.getOwnPropertyDescriptor,vt=(t,e,i,s)=>{for(var a=s>1?void 0:s?To(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&Ao(e,i,a),a};let ot=class extends ae{constructor(){super(...arguments),this.open=!1,this.hass=null,this.config=[],this.activities=[],this.activitiesConfig=[],this.rulesConfig=[],this.placeholderDefaults=null,this.runState=null,this.templateMode=!1,this.areaId=null,this._subEditOpen=!1,this._subEditingIndex=null,this._subEditInput=null,this._dialog=new fe(this),this._draftController=new Ze(this,{onOpen:()=>{this._subEditOpen=!1}})}_closeDiscard(){this._draftController.closeDiscard()}_getRuleName(t){if(!t)return"None";const e=(this.rulesConfig||[]).find(i=>i.id===t);return(e==null?void 0:e.name)||(e==null?void 0:e.id)||t}_closeAndSave(){this._draftController.closeAndSave(new _i(this._draftController.draft||[]))}_openAddInput(){this._subEditingIndex=null,this._subEditInput=Do(this.activities[0]||""),this._subEditOpen=!0}_openEditInput(t){const e=this._draftController.draft;e&&(this._subEditingIndex=t,this._subEditInput={...e[t]},this._subEditOpen=!0)}_onSubEditSave(t){const e=this._draftController.draft;if(!e)return;const i=t.detail,s=this._subEditingIndex,a=s===null?[...e,i]:e.map((o,r)=>r===s?i:o);this._draftController.draft=a,this._subEditOpen=!1,this.requestUpdate()}_onSubEditCancel(){this._subEditOpen=!1}_onRemoveInput(t){const e=this._draftController.draft;e&&(this._draftController.draft=e.filter((i,s)=>s!==t),this.requestUpdate())}_getResolvedMotionInfo(t){return Hi(t,this.placeholderDefaults)}render(){if(!this.open||!this._draftController.draft)return n``;const t=this._draftController.draft;return n`
       <div class="overlay" @click=${e=>{e.target===e.currentTarget&&!this._subEditOpen&&this._closeDiscard()}}>
         <div class="edit-panel list-panel">
           <div class="panel-header">
-            <span class="panel-header-icon">🔌</span>
+            <span class="card-dot" style="--dot-color: #10b981;"></span>
             <span class="panel-header-title">Inputs — Configuration</span>
             <button class="panel-close" @click=${this._closeDiscard}>✕</button>
           </div>
 
           <div class="panel-body">
             <div class="list-section-label">Configured Inputs</div>
-            <table class="input-table">
+            <table class="config-table input-table">
               <thead>
                 <tr>
                   <th style="min-width: 30px;"></th>
@@ -2763,12 +2874,12 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                 </tr>
               </thead>
               <tbody>
-                ${t.map((e,i)=>{var p,d;let a=r`—`,s=r`—`;if(this.templateMode)if(e.type==="motion"){const f=this._getResolvedMotionInfo(e),x=qe(f);a=r`<div style="opacity: 0.7; font-size: 11px;">${x}</div>`}else e.type==="timer"?a=r`<div class="entity-id">Trigger Time: ${e.trigger_time??"00:00:00"}</div>`:e.type==="event"&&e.event_type?a=r`<div style="opacity: 0.7; font-size: 11px;">Event Type: ${e.event_type}</div>`:e.type==="button"&&(a=r`<div style="opacity: 0.7; font-size: 11px;">Mode: ${e.button_mode??"click"}</div>`);else if(e.type==="motion"){const{friendlyName:f,subText:x}=zi(e,this.hass??void 0);s=r`<div style="font-weight: 500; word-break: break-word;">${e.name||f}</div>`;const w=this._getResolvedMotionInfo(e),k=qe(w);a=r`
-                        <div class="entity-id">${e.name?`${f} (${x})`:x}</div>
+                ${t.map((e,i)=>{var p,d;let s=n`—`,a=n`—`;if(this.templateMode)if(e.type==="motion"){const f=this._getResolvedMotionInfo(e),v=Je(f);s=n`<div style="opacity: 0.7; font-size: 11px;">${v}</div>`}else e.type==="timer"?s=n`<div class="entity-id">Trigger Time: ${e.trigger_time??"00:00:00"}</div>`:e.type==="event"&&e.event_type?s=n`<div style="opacity: 0.7; font-size: 11px;">Event Type: ${e.event_type}</div>`:e.type==="button"&&(s=n`<div style="opacity: 0.7; font-size: 11px;">Mode: ${e.button_mode??"click"}</div>`);else if(e.type==="motion"){const{friendlyName:f,subText:v}=Ui(e,this.hass??void 0);a=n`<div style="font-weight: 500; word-break: break-word;">${e.name||f}</div>`;const y=this._getResolvedMotionInfo(e),k=Je(y);s=n`
+                        <div class="entity-id">${e.name?`${f} (${v})`:v}</div>
                         <div style="opacity: 0.7; font-size: 11px; margin-top: 2px;">${k}</div>
-                      `}else if(e.type==="timer")s=r`<div style="font-weight: 500; word-break: break-word;">${e.name||"Daily Timer"}</div>`,a=r`<div class="entity-id">Trigger Time: ${e.trigger_time??"00:00:00"}</div>`;else if(e.type==="button")s=r`<div style="font-weight: 500; word-break: break-word;">${e.name||e.label||e.id}</div>`,a=r`<div style="opacity: 0.7; font-size: 11px;">Mode: ${e.button_mode??"click"}${e.create_entity?r` <ha-icon icon="mdi:home-assistant" style="--mdc-icon-size: 12px; vertical-align: middle;"></ha-icon>`:""}</div>`;else if(e.entity_ids&&e.entity_ids.length>0){const{friendlyName:f,subText:x}=zi(e,this.hass??void 0);s=r`<div style="font-weight: 500; word-break: break-word;">${e.name||f}</div>`;let w=x;e.type==="event"&&e.event_type&&(w+=` [event: ${e.event_type}]`),a=r`<div class="entity-id">${e.name?`${f} (${w})`:w}</div>`}const o=(d=(p=this.runState)==null?void 0:p.inputs)==null?void 0:d[e.id],n=(o==null?void 0:o.disabled_by)||[],l=!!(e.entity_ids&&e.entity_ids.length>0),c=new Set;!this.templateMode&&e.type!=="timer"&&e.type!=="button"&&!l&&c.add("no_entity"),e.enabled===!1&&c.add("user");for(const f of n)c.add(f);const u=Array.from(c),g=e.enabled===!1||!this.templateMode&&e.type!=="timer"&&e.type!=="button"&&!l||u.length>0;return r`
+                      `}else if(e.type==="timer")a=n`<div style="font-weight: 500; word-break: break-word;">${e.name||"Daily Timer"}</div>`,s=n`<div class="entity-id">Trigger Time: ${e.trigger_time??"00:00:00"}</div>`;else if(e.type==="button")a=n`<div style="font-weight: 500; word-break: break-word;">${e.name||e.label||e.id}</div>`,s=n`<div style="opacity: 0.7; font-size: 11px;">Mode: ${e.button_mode??"click"}${e.create_entity?n` <ha-icon icon="mdi:home-assistant" style="--mdc-icon-size: 12px; vertical-align: middle;"></ha-icon>`:""}</div>`;else if(e.entity_ids&&e.entity_ids.length>0){const{friendlyName:f,subText:v}=Ui(e,this.hass??void 0);a=n`<div style="font-weight: 500; word-break: break-word;">${e.name||f}</div>`;let y=v;e.type==="event"&&e.event_type&&(y+=` [event: ${e.event_type}]`),s=n`<div class="entity-id">${e.name?`${f} (${y})`:y}</div>`}const o=(d=(p=this.runState)==null?void 0:p.inputs)==null?void 0:d[e.id],r=(o==null?void 0:o.disabled_by)||[],l=!!(e.entity_ids&&e.entity_ids.length>0),c=new Set;!this.templateMode&&e.type!=="timer"&&e.type!=="button"&&!l&&c.add("no_entity"),e.enabled===!1&&c.add("user");for(const f of r)c.add(f);const g=Array.from(c),u=e.enabled===!1||!this.templateMode&&e.type!=="timer"&&e.type!=="button"&&!l||g.length>0;return n`
                     <tr
-                      class="input-row ${this._draftController.draggedIndex===i?"dragging":""} ${g?"disabled":""}"
+                      class="input-row ${this._draftController.draggedIndex===i?"dragging":""} ${u?"disabled":""}"
                       draggable="true"
                       @dragstart=${f=>this._draftController.onDragStart(f,i)}
                       @dragover=${f=>this._draftController.onDragOver(f,i)}
@@ -2778,23 +2889,27 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                         <div class="drag-handle" title="Drag to reorder">⋮⋮</div>
                       </td>
                       <td>
-                        <div style="font-weight: 600;">${e.name||e.label||Ye(e,t)||e.id}</div>
-                        ${(e.name||e.label)&&e.id?r`<div style="font-size: 10px; font-family: monospace; opacity: 0.5;">${e.id}</div>`:""}
+                        <div style="font-weight: 600;">${e.name||e.label||Qe(e,t)||e.id}</div>
+                        ${(e.name||e.label)&&e.id?n`<div style="font-size: 10px; font-family: monospace; opacity: 0.5;">${e.id}</div>`:""}
                       </td>
                       <td>
                         <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
                           <span class="type-badge ${e.type}">${e.type}</span>
-                          ${u.map(f=>{let x="user",w="Disabled";return f==="no_entity"?(x="no_entity",w="No Entity"):f.startsWith("activity:")&&(x="activity",w=`Suppressed: ${f.substring(9)}`),r`
-                              <span class="status-badge ${x}">${w}</span>
+                          ${g.map(f=>{let v="user",y="Disabled";return f==="no_entity"?(v="no_entity",y="No Entity"):f.startsWith("activity:")&&(v="activity",y=`Suppressed: ${f.substring(9)}`),n`
+                              <span class="status-badge ${v}">${y}</span>
                             `})}
                         </div>
                       </td>
                       <td>
-                        ${s}
                         ${a}
+                        ${s}
                       </td>
                       <td>
-                        <span class="activity-badge ${Ve(e.activity,this.activitiesConfig)}">${e.activity}</span>
+                        ${e.rule?n`
+                          <span class="pill" title="Targets Rule">${this._getRuleName(e.rule)}</span>
+                        `:n`
+                          <span class="pill">${e.activity||"None"}</span>
+                        `}
                       </td>
                       <td style="text-align: center;">
                         <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
@@ -2804,7 +2919,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                       </td>
                     </tr>
                   `})}
-                ${t.length===0?r`
+                ${t.length===0?n`
                   <tr>
                     <td colspan="6" style="text-align: center; color: var(--secondary-text-color); font-style: italic; padding: 16px;">
                       No inputs configured
@@ -2833,6 +2948,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
         .input=${this._subEditInput}
         .editIndex=${this._subEditingIndex}
         .activities=${this.activities}
+        .rules=${this.rulesConfig}
         .placeholderDefaults=${this.placeholderDefaults}
         .templateMode=${this.templateMode}
         .siblings=${this._draftController.draft??[]}
@@ -2846,7 +2962,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
         .message=${this._dialog.alertMessage}
         @close=${this._dialog._onCloseAlert}
       ></twilight-alert-dialog>
-    `}};ut.styles=[Ie,jt,z`
+    `}};ot.styles=[ie,Dt,O`
       :host {
         display: contents;
       }
@@ -3120,39 +3236,39 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
       .input-row.disabled .entity-id {
         opacity: 0.45;
       }
-    `],wt([h({type:Boolean})],ut.prototype,"open",2),wt([h({attribute:!1})],ut.prototype,"hass",2),wt([h({attribute:!1})],ut.prototype,"config",2),wt([h({type:Array})],ut.prototype,"activities",2),wt([h({attribute:!1})],ut.prototype,"activitiesConfig",2),wt([h({attribute:!1})],ut.prototype,"placeholderDefaults",2),wt([h({attribute:!1})],ut.prototype,"runState",2),wt([h({type:Boolean})],ut.prototype,"templateMode",2),wt([h({type:String})],ut.prototype,"areaId",2),wt([b()],ut.prototype,"_subEditOpen",2),wt([b()],ut.prototype,"_subEditingIndex",2),wt([b()],ut.prototype,"_subEditInput",2),ut=wt([H("twilight-inputs-dialog")],ut);var mo=Object.defineProperty,xo=Object.getOwnPropertyDescriptor,Pt=(t,e,i,a)=>{for(var s=a>1?void 0:a?xo(e,i):e,o=t.length-1,n;o>=0;o--)(n=t[o])&&(s=(a?n(e,i,s):n(s))||s);return a&&s&&mo(e,i,s),s};let $t=class extends L{constructor(){super(...arguments),this.hass=null,this.config=[],this.activities=[],this.activitiesConfig=[],this.noHeader=!1,this.placeholderDefaults=null,this.runState=null,this.templateMode=!1,this.areaId=null,this._editOpen=!1}_openEdit(){this._editOpen=!0}async _triggerButton(t,e){if(!this.hass||this._editOpen)return;const i=this.areaId;if(!i)return;const a={area_id:i,input_id:t.id};t.button_mode==="toggle"&&e!==void 0&&(a.active=e);try{await Ns(this.hass,a)}catch(s){console.error("[twilight] trigger_input failed",s)}}_renderManualTriggers(){const t=this.config.filter(e=>e.type==="button");return t.length===0?r``:r`
+    `],vt([h({type:Boolean})],ot.prototype,"open",2),vt([h({attribute:!1})],ot.prototype,"hass",2),vt([h({attribute:!1})],ot.prototype,"config",2),vt([h({type:Array})],ot.prototype,"activities",2),vt([h({attribute:!1})],ot.prototype,"activitiesConfig",2),vt([h({attribute:!1})],ot.prototype,"rulesConfig",2),vt([h({attribute:!1})],ot.prototype,"placeholderDefaults",2),vt([h({attribute:!1})],ot.prototype,"runState",2),vt([h({type:Boolean})],ot.prototype,"templateMode",2),vt([h({type:String})],ot.prototype,"areaId",2),vt([b()],ot.prototype,"_subEditOpen",2),vt([b()],ot.prototype,"_subEditingIndex",2),vt([b()],ot.prototype,"_subEditInput",2),ot=vt([z("twilight-inputs-dialog")],ot);var Eo=Object.defineProperty,Oo=Object.getOwnPropertyDescriptor,Tt=(t,e,i,s)=>{for(var a=s>1?void 0:s?Oo(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&Eo(e,i,a),a};let bt=class extends L{constructor(){super(...arguments),this.hass=null,this.config=[],this.activities=[],this.activitiesConfig=[],this.rulesConfig=[],this.noHeader=!1,this.placeholderDefaults=null,this.runState=null,this.templateMode=!1,this.areaId=null,this._editOpen=!1}_openEdit(){this._editOpen=!0}async _triggerButton(t,e){if(!this.hass||this._editOpen)return;const i=this.areaId;if(!i)return;const s={area_id:i,input_id:t.id};t.button_mode==="toggle"&&e!==void 0&&(s.active=e);try{await Ys(this.hass,s)}catch(a){console.error("[twilight] trigger_input failed",a)}}_renderManualTriggers(){const t=this.config.filter(e=>e.type==="button");return t.length===0?n``:n`
       <div style="padding: 10px 12px 4px; border-bottom: 1px solid rgba(255,255,255,0.08);">
         <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--secondary-text-color); margin-bottom: 8px;">Manual Triggers</div>
         <div style="display: flex; flex-wrap: wrap; gap: 8px; padding-bottom: 10px;">
-          ${t.map(e=>{var l,c,u;const i=(c=(l=this.runState)==null?void 0:l.inputs)==null?void 0:c[e.id],a=(i==null?void 0:i.active)||!1,o=(((u=i==null?void 0:i.disabled_by)==null?void 0:u.filter(g=>g!=="no_entity"))||[]).length>0||!!this._editOpen,n=e.name||e.label||e.id;return e.button_mode==="toggle"?r`
+          ${t.map(e=>{var l,c,g;const i=(c=(l=this.runState)==null?void 0:l.inputs)==null?void 0:c[e.id],s=(i==null?void 0:i.active)||!1,o=(((g=i==null?void 0:i.disabled_by)==null?void 0:g.filter(u=>u!=="no_entity"))||[]).length>0||!!this._editOpen,r=e.name||e.label||e.id;return e.button_mode==="toggle"?n`
                 <button
-                  class="manual-trigger-btn ${a?"active":""}"
+                  class="manual-trigger-btn ${s?"active":""}"
                   ?disabled=${o}
-                  title="${o?"Disabled":a?"Click to deactivate":"Click to activate"}"
-                  @click=${()=>this._triggerButton(e,!a)}
+                  title="${o?"Disabled":s?"Click to deactivate":"Click to activate"}"
+                  @click=${()=>this._triggerButton(e,!s)}
                 >
                   <span class="manual-trigger-icon">${"⏻"}</span>
-                  ${n}
-                  ${a?r`<span class="manual-trigger-dot"></span>`:""}
+                  ${r}
+                  ${s?n`<span class="manual-trigger-dot"></span>`:""}
                 </button>
-              `:r`
+              `:n`
               <button
                 class="manual-trigger-btn"
                 ?disabled=${o}
-                title="${o?"Disabled":`Trigger ${n}`}"
+                title="${o?"Disabled":`Trigger ${r}`}"
                 @click=${()=>this._triggerButton(e)}
               >
                 <span class="manual-trigger-icon">▶</span>
-                ${n}
+                ${r}
               </button>
             `})}
         </div>
       </div>
-    `}_getEntityDisplay(t){return zi(t,this.hass??void 0)}_getActivityActionType(t){return Ve(t,this.activitiesConfig)}render(){return r`
+    `}_getEntityDisplay(t){return Ui(t,this.hass??void 0)}_getActivityActionType(t){return t?Wa(t,this.activitiesConfig):"none"}_getRuleName(t){const e=(this.rulesConfig||[]).find(i=>i.id===t);return(e==null?void 0:e.name)||t}render(){return n`
       <div class="devices-card">
-        ${this.noHeader?"":r`
+        ${this.noHeader?"":n`
           <div class="devices-card-header">
-            <span class="devices-card-icon">🔌</span>
+            <span class="card-dot" style="--dot-color: #10b981;"></span>
             <span class="devices-card-title">Inputs</span>
             <button class="edit-btn" @click=${this._openEdit}>⋮</button>
           </div>
@@ -3161,33 +3277,39 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
         ${this._renderManualTriggers()}
 
         <div class="entity-list">
-          ${this.config.map((t,e)=>{var g,p;const i=(p=(g=this.runState)==null?void 0:g.inputs)==null?void 0:p[t.id],a=(i==null?void 0:i.disabled_by)||[],s=this.templateMode||t.type==="button"?a.filter(d=>d!=="no_entity"):a,o=s.length>0,n=(i==null?void 0:i.active)||!1;let l="user";s.includes("no_entity")?l="no_entity":s.some(d=>d.startsWith("activity:"))&&(l="activity");let c=r`—`,u=r`—`;if(this.templateMode)if(t.type==="motion"){c=r`<span class="entity-name">${t.name||"Motion Sensor"}</span>`;const d=Ii(t,this.placeholderDefaults),f=qe(d);u=r`<span class="entity-id" style="margin-top: 2px; font-family: inherit;">${f}</span>`}else t.type==="timer"?(c=r`<span class="entity-name">${t.name||"Daily Timer"}</span>`,u=r`<span class="entity-id">Trigger Time: ${t.trigger_time??"00:00:00"}</span>`):t.type==="event"?(c=r`<span class="entity-name">${t.name||"Event Input"}</span>`,t.event_type&&(u=r`<span class="entity-id">Event Type: ${t.event_type}</span>`)):t.type==="binary"?c=r`<span class="entity-name">${t.name||"Binary Input"}</span>`:t.type==="button"&&(c=r`<span class="entity-name">${t.name||t.label||"Button"}</span>`,u=r`<span class="entity-id">Mode: ${t.button_mode??"click"}</span>`);else if(t.type==="motion"){const{friendlyName:d,subText:f}=this._getEntityDisplay(t);c=r`<span class="entity-name">${t.name||d}</span>`;const x=Ii(t,this.placeholderDefaults),w=qe(x);u=r`
+          ${this.config.map((t,e)=>{var u,p;const i=(p=(u=this.runState)==null?void 0:u.inputs)==null?void 0:p[t.id],s=(i==null?void 0:i.disabled_by)||[],a=this.templateMode||t.type==="button"?s.filter(d=>d!=="no_entity"):s,o=a.length>0,r=(i==null?void 0:i.active)||!1;let l="user";a.includes("no_entity")?l="no_entity":a.some(d=>d.startsWith("activity:"))&&(l="activity");let c=n`—`,g=n`—`;if(this.templateMode)if(t.type==="motion"){c=n`<span class="entity-name">${t.name||"Motion Sensor"}</span>`;const d=Hi(t,this.placeholderDefaults),f=Je(d);g=n`<span class="entity-id" style="margin-top: 2px; font-family: inherit;">${f}</span>`}else t.type==="timer"?(c=n`<span class="entity-name">${t.name||"Daily Timer"}</span>`,g=n`<span class="entity-id">Trigger Time: ${t.trigger_time??"00:00:00"}</span>`):t.type==="event"?(c=n`<span class="entity-name">${t.name||"Event Input"}</span>`,t.event_type&&(g=n`<span class="entity-id">Event Type: ${t.event_type}</span>`)):t.type==="binary"?c=n`<span class="entity-name">${t.name||"Binary Input"}</span>`:t.type==="button"&&(c=n`<span class="entity-name">${t.name||t.label||"Button"}</span>`,g=n`<span class="entity-id">Mode: ${t.button_mode??"click"}</span>`);else if(t.type==="motion"){const{friendlyName:d,subText:f}=this._getEntityDisplay(t);c=n`<span class="entity-name">${t.name||d}</span>`;const v=Hi(t,this.placeholderDefaults),y=Je(v);g=n`
                   <span class="entity-id" style="font-family: monospace;">${t.name?`${d} (${f})`:f}</span>
-                  <span class="entity-id" style="margin-top: 2px; font-family: inherit;">${w}</span>
-                `}else if(t.type==="timer")c=r`<span class="entity-name">${t.name||"Daily Timer"}</span>`,u=r`
+                  <span class="entity-id" style="margin-top: 2px; font-family: inherit;">${y}</span>
+                `}else if(t.type==="timer")c=n`<span class="entity-name">${t.name||"Daily Timer"}</span>`,g=n`
                   <span class="entity-id">Trigger Time: ${t.trigger_time??"00:00:00"}</span>
-                `;else if(t.type==="button")c=r`<span class="entity-name">${t.name||t.label||"Button"}</span>`,u=r`<span class="entity-id">Mode: ${t.button_mode??"click"}${t.create_entity?r` <ha-icon icon="mdi:home-assistant" style="--mdc-icon-size: 12px; vertical-align: middle;"></ha-icon>`:""}</span>`;else{const{friendlyName:d,subText:f}=this._getEntityDisplay(t);c=r`<span class="entity-name">${t.name||d}</span>`;let x="";t.type==="event"&&t.event_type&&(x=` [event: ${t.event_type}]`),u=r`
-                  <span class="entity-id">${t.name?`${d} (${f})`:f}${x}</span>
-                `}return r`
+                `;else if(t.type==="button")c=n`<span class="entity-name">${t.name||t.label||"Button"}</span>`,g=n`<span class="entity-id">Mode: ${t.button_mode??"click"}${t.create_entity?n` <ha-icon icon="mdi:home-assistant" style="--mdc-icon-size: 12px; vertical-align: middle;"></ha-icon>`:""}</span>`;else{const{friendlyName:d,subText:f}=this._getEntityDisplay(t);c=n`<span class="entity-name">${t.name||d}</span>`;let v="";t.type==="event"&&t.event_type&&(v=` [event: ${t.event_type}]`),g=n`
+                  <span class="entity-id">${t.name?`${d} (${f})`:f}${v}</span>
+                `}return n`
               <div class="entity-row ${o?"disabled":""}">
                 <span class="type-badge ${t.type}">${t.type}</span>
                 <div class="entity-name-wrap">
                   ${c}
-                  ${u}
+                  ${g}
                 </div>
-                ${n?r`<span class="active-indicator" title="Sensor active"></span>`:""}
-                <span class="activity-badge ${this._getActivityActionType(t.activity)}">${t.activity}</span>
-                ${o?r`
+                ${r?n`<span class="active-indicator" title="Sensor active"></span>`:""}
+                ${t.rule?n`
+                  <span class="activity-badge rule" title="Targets Rule">${this._getRuleName(t.rule)}</span>
+                `:t.activity?n`
+                  <span class="activity-badge ${this._getActivityActionType(t.activity)}">${t.activity}</span>
+                `:n`
+                  <span class="activity-badge none">None</span>
+                `}
+                ${o?n`
                   <div class="disabled-overlay">
                     <span class="disabler-badge ${l}">
-                      ${so(s)}
+                      ${bo(a)}
                     </span>
                   </div>
                 `:""}
               </div>
-              ${e<this.config.length-1?r`<div class="divider"></div>`:""}
+              ${e<this.config.length-1?n`<div class="divider"></div>`:""}
             `})}
-          ${this.config.length===0?r`
+          ${this.config.length===0?n`
             <div class="empty-state">No inputs configured. Click edit to configure.</div>
           `:""}
         </div>
@@ -3199,13 +3321,14 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
         .config=${this.config}
         .activities=${this.activities}
         .activitiesConfig=${this.activitiesConfig}
+        .rulesConfig=${this.rulesConfig}
         .placeholderDefaults=${this.placeholderDefaults}
         .runState=${this.runState}
         .templateMode=${this.templateMode}
         .areaId=${this.areaId}
         @close=${()=>{this._editOpen=!1}}
       ></twilight-inputs-dialog>
-    `}};$t.styles=[Ie,z`
+    `}};bt.styles=[ie,O`
       :host {
         display: flex;
         flex-direction: column;
@@ -3235,9 +3358,14 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
         padding: 16px 20px 12px;
       }
 
-      .devices-card-icon {
-        font-size: 18px;
-        opacity: 0.7;
+      .card-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--dot-color, #10b981);
+        box-shadow: 0 0 6px var(--dot-color, #10b981);
+        flex-shrink: 0;
+        display: inline-block;
       }
 
       .devices-card-title {
@@ -3468,35 +3596,35 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
         font-style: italic;
         font-size: 13px;
       }
-    `],Pt([h({attribute:!1})],$t.prototype,"hass",2),Pt([h({attribute:!1})],$t.prototype,"config",2),Pt([h({type:Array})],$t.prototype,"activities",2),Pt([h({attribute:!1})],$t.prototype,"activitiesConfig",2),Pt([h({type:Boolean})],$t.prototype,"noHeader",2),Pt([h({attribute:!1})],$t.prototype,"placeholderDefaults",2),Pt([h({attribute:!1})],$t.prototype,"runState",2),Pt([h({type:Boolean})],$t.prototype,"templateMode",2),Pt([h({type:String})],$t.prototype,"areaId",2),Pt([b()],$t.prototype,"_editOpen",2),$t=Pt([H("twilight-inputs-card")],$t);var _o=Object.defineProperty,yo=Object.getOwnPropertyDescriptor,Ge=(t,e,i,a)=>{for(var s=a>1?void 0:a?yo(e,i):e,o=t.length-1,n;o>=0;o--)(n=t[o])&&(s=(a?n(e,i,s):n(s))||s);return a&&s&&_o(e,i,s),s};let _e=class extends L{constructor(){super(...arguments),this.channels={},this.excludedSlotIds={},this._expandedNodes={}}get _nodes(){return Object.keys(this.channels).sort((e,i)=>e===T?-1:i===T?1:0).map(e=>{var i,a;return{id:e,label:((i=this.channels[e])==null?void 0:i.name)||e,children:(((a=this.channels[e])==null?void 0:a.slots)??[]).map(s=>({id:s.id,label:s.name||s.id}))}})}_isExcluded(t,e){return(this.excludedSlotIds[t]??[]).includes(e)}_isChannelIndeterminate(t){if(t.children.length===0)return!1;const e=t.children.filter(i=>this._isExcluded(t.id,i.id)).length;return e>0&&e<t.children.length}_isChannelFullyExcluded(t){return t.children.length>0&&t.children.every(e=>this._isExcluded(t.id,e.id))}_setChannelExcluded(t,e,i){const a={...this.excludedSlotIds};a[t]=i?e:[],this._emit(a)}_setSlotExcluded(t,e,i){const a=new Set(this.excludedSlotIds[t]??[]);i?a.add(e):a.delete(e);const s={...this.excludedSlotIds,[t]:[...a]};this._emit(s)}_emit(t){this.excludedSlotIds=t,this.dispatchEvent(new CustomEvent("excluded-changed",{detail:{value:t},bubbles:!0,composed:!0}))}_toggleExpanded(t){this._expandedNodes={...this._expandedNodes,[t]:!this._expandedNodes[t]}}render(){const t=this._nodes;return t.length===0?r``:r`
+    `],Tt([h({attribute:!1})],bt.prototype,"hass",2),Tt([h({attribute:!1})],bt.prototype,"config",2),Tt([h({type:Array})],bt.prototype,"activities",2),Tt([h({attribute:!1})],bt.prototype,"activitiesConfig",2),Tt([h({attribute:!1})],bt.prototype,"rulesConfig",2),Tt([h({type:Boolean})],bt.prototype,"noHeader",2),Tt([h({attribute:!1})],bt.prototype,"placeholderDefaults",2),Tt([h({attribute:!1})],bt.prototype,"runState",2),Tt([h({type:Boolean})],bt.prototype,"templateMode",2),Tt([h({type:String})],bt.prototype,"areaId",2),Tt([b()],bt.prototype,"_editOpen",2),bt=Tt([z("twilight-inputs-card")],bt);var Io=Object.defineProperty,zo=Object.getOwnPropertyDescriptor,ti=(t,e,i,s)=>{for(var a=s>1?void 0:s?zo(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&Io(e,i,a),a};let Ae=class extends L{constructor(){super(...arguments),this.channels={},this.excludedSlotIds={},this._expandedNodes={}}get _nodes(){return Object.keys(this.channels).sort((e,i)=>e===I?-1:i===I?1:0).map(e=>{var i,s;return{id:e,label:((i=this.channels[e])==null?void 0:i.name)||e,children:(((s=this.channels[e])==null?void 0:s.slots)??[]).map(a=>({id:a.id,label:a.name||a.id}))}})}_isExcluded(t,e){return(this.excludedSlotIds[t]??[]).includes(e)}_isChannelIndeterminate(t){if(t.children.length===0)return!1;const e=t.children.filter(i=>this._isExcluded(t.id,i.id)).length;return e>0&&e<t.children.length}_isChannelFullyExcluded(t){return t.children.length>0&&t.children.every(e=>this._isExcluded(t.id,e.id))}_setChannelExcluded(t,e,i){const s={...this.excludedSlotIds};s[t]=i?e:[],this._emit(s)}_setSlotExcluded(t,e,i){const s=new Set(this.excludedSlotIds[t]??[]);i?s.add(e):s.delete(e);const a={...this.excludedSlotIds,[t]:[...s]};this._emit(a)}_emit(t){this.excludedSlotIds=t,this.dispatchEvent(new CustomEvent("excluded-changed",{detail:{value:t},bubbles:!0,composed:!0}))}_toggleExpanded(t){this._expandedNodes={...this._expandedNodes,[t]:!this._expandedNodes[t]}}render(){const t=this._nodes;return t.length===0?n``:n`
       <p class="hint">Unchecked channels/slots are excluded: while this activity is active and one of its excluded slots is current, that channel is turned off instead of following the schedule.</p>
       <div class="tree">
-        ${t.map(e=>{const i=!!this._expandedNodes[e.id],a=this._isChannelFullyExcluded(e);return r`
+        ${t.map(e=>{const i=!!this._expandedNodes[e.id],s=this._isChannelFullyExcluded(e);return n`
             <div class="tree-node">
               <div
                 class="tree-node-header"
-                @click=${s=>{s.target.tagName!=="INPUT"&&this._toggleExpanded(e.id)}}
+                @click=${a=>{a.target.tagName!=="INPUT"&&this._toggleExpanded(e.id)}}
               >
                 <span class="tree-node-chevron ${i?"expanded":""}">&#9656;</span>
                 <input
                   type="checkbox"
-                  .checked=${!a}
+                  .checked=${!s}
                   .indeterminate=${this._isChannelIndeterminate(e)}
-                  @change=${s=>{const o=s.target.checked;this._setChannelExcluded(e.id,e.children.map(n=>n.id),!o)}}
+                  @change=${a=>{const o=a.target.checked;this._setChannelExcluded(e.id,e.children.map(r=>r.id),!o)}}
                 />
                 <span>${e.label}</span>
               </div>
 
-              ${i?r`
+              ${i?n`
                 <div class="tree-node-children">
-                  ${e.children.map(s=>r`
+                  ${e.children.map(a=>n`
                     <div class="tree-leaf">
                       <input
                         type="checkbox"
-                        .checked=${!this._isExcluded(e.id,s.id)}
-                        @change=${o=>{const n=o.target.checked;this._setSlotExcluded(e.id,s.id,!n)}}
+                        .checked=${!this._isExcluded(e.id,a.id)}
+                        @change=${o=>{const r=o.target.checked;this._setSlotExcluded(e.id,a.id,!r)}}
                       />
-                      <span>${s.label}</span>
+                      <span>${a.label}</span>
                     </div>
                   `)}
                 </div>
@@ -3504,7 +3632,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
             </div>
           `})}
       </div>
-    `}};_e.styles=z`
+    `}};Ae.styles=O`
     *, *:before, *:after {
       box-sizing: border-box;
     }
@@ -3621,12 +3749,12 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
       color: var(--secondary-text-color);
       margin: 0 0 4px 0;
     }
-  `,Ge([h({attribute:!1})],_e.prototype,"channels",2),Ge([h({attribute:!1})],_e.prototype,"excludedSlotIds",2),Ge([b()],_e.prototype,"_expandedNodes",2),_e=Ge([H("twilight-slot-action-tree")],_e);var wo=Object.defineProperty,$o=Object.getOwnPropertyDescriptor,Bt=(t,e,i,a)=>{for(var s=a>1?void 0:a?$o(e,i):e,o=t.length-1,n;o>=0;o--)(n=t[o])&&(s=(a?n(e,i,s):n(s))||s);return a&&s&&wo(e,i,s),s};const Na={input_boolean:[{value:"on",label:"On"},{value:"off",label:"Off"},{value:"toggle",label:"Toggle"}],switch:[{value:"on",label:"On"},{value:"off",label:"Off"},{value:"toggle",label:"Toggle"}],script:[{value:"activate",label:"Activate"}]};function ko(){return{id:"",suppress_inputs:[],auto_expire:null,expire_check_mode:null,action_type:"",action_entity_id:"",action_targets:[],action_target_picker_value:"",action_state:"on",action_brightness:255,action_color_temp:370,action_entity_targets:[],action_excluded_slot_ids:{},release_action_type:"",transition_off_seconds:null}}function Co(t){const e=t.action,i=t.release_action;return{id:t.id,suppress_inputs:[...t.suppress_inputs??[]],auto_expire:t.auto_expire??null,expire_check_mode:t.expire_check_mode??null,action_type:(e==null?void 0:e.type)??"",action_entity_id:(e==null?void 0:e.entity_id)??"",action_targets:(e==null?void 0:e.targets)??[],action_target_picker_value:"",action_state:(e==null?void 0:e.state)??"on",action_brightness:(e==null?void 0:e.brightness)??255,action_color_temp:(e==null?void 0:e.color_temp)??370,action_entity_targets:[...(e==null?void 0:e.entity_targets)??[]],action_excluded_slot_ids:{...(e==null?void 0:e.excluded_slot_ids)??{}},release_action_type:(i==null?void 0:i.type)??"",transition_off_seconds:t.transition_off_seconds??null}}let Tt=class extends L{constructor(){super(...arguments),this.open=!1,this.hass=null,this.activity=null,this.editIndex=null,this.inputs=[],this.placeholderDefaults=null,this.channels={},this.existingIds=[],this._editDraft=null}willUpdate(t){(t.has("open")||t.has("activity"))&&(this.open&&this.activity?this._editDraft=this.editIndex===null&&this.activity.id===""?ko():Co(this.activity):this.open||(this._editDraft=null))}_getFallbackActivityInfo(){return Ni(this.placeholderDefaults)}_cancel(){this.dispatchEvent(new CustomEvent("cancel",{bubbles:!0,composed:!0}))}_isSaveDisabled(t){const i=!(this.editIndex!==null)&&(!t.id.trim()||this.existingIds.includes(t.id.trim().toLowerCase())),a=t.auto_expire!==null&&!Li(t.auto_expire);return i||a}_save(){if(!this._editDraft)return;const t=this._editDraft.id.trim().toLowerCase();if(!t)return;const e=this._getFallbackActivityInfo(),i=this._editDraft.action_type===""?e.action_type:this._editDraft.action_type,a=this._editDraft.action_type===""?null:this._editDraft.action_type,s={type:a};a==="entity"?s.entity_id=this._editDraft.action_entity_id:a==="light"?(s.targets=this._editDraft.action_targets,s.state=this._editDraft.action_state,this._editDraft.action_state==="on"&&(s.brightness=this._editDraft.action_brightness,this._editDraft.action_color_temp>0&&(s.color_temp=this._editDraft.action_color_temp))):a==="reset"?this._editDraft.action_entity_targets.length>0&&(s.entity_targets=this._editDraft.action_entity_targets):i==="slot"&&Object.values(this._editDraft.action_excluded_slot_ids).some(u=>u.length>0)&&(s.excluded_slot_ids=this._editDraft.action_excluded_slot_ids);const n={type:i==="reset"?"none":this._editDraft.release_action_type===""?null:this._editDraft.release_action_type},l=this._editDraft.auto_expire===null?null:ho(this._editDraft.auto_expire),c={id:t,suppress_inputs:i==="reset"?[]:this._editDraft.suppress_inputs,auto_expire:i==="reset"?null:l,...i!=="reset"&&{expire_check_mode:this._editDraft.expire_check_mode??"respect_lux"},transition_off_seconds:this._editDraft.transition_off_seconds,action:s,release_action:n};this.dispatchEvent(new CustomEvent("save",{detail:c,bubbles:!0,composed:!0}))}render(){if(!this.open||!this._editDraft)return r``;const t=this._editDraft,e=this.editIndex!==null,i=this._isSaveDisabled(t),a=this._getFallbackActivityInfo(),s=t.action_type===""?a.action_type:t.action_type;return r`
+  `,ti([h({attribute:!1})],Ae.prototype,"channels",2),ti([h({attribute:!1})],Ae.prototype,"excludedSlotIds",2),ti([b()],Ae.prototype,"_expandedNodes",2),Ae=ti([z("twilight-slot-action-tree")],Ae);var Mo=Object.defineProperty,Po=Object.getOwnPropertyDescriptor,Et=(t,e,i,s)=>{for(var a=s>1?void 0:s?Po(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&Mo(e,i,a),a};const Va={input_boolean:[{value:"on",label:"On"},{value:"off",label:"Off"},{value:"toggle",label:"Toggle"}],switch:[{value:"on",label:"On"},{value:"off",label:"Off"},{value:"toggle",label:"Toggle"}],script:[{value:"activate",label:"Activate"}]};function No(){return{id:"",name:"",suppress_inputs:[],auto_expire:null,expire_check_mode:null,action_type:"",action_entity_id:"",action_targets:[],action_target_picker_value:"",action_state:"on",action_brightness:255,action_color_temp:370,action_entity_targets:[],action_excluded_slot_ids:{},action_sim_template_activity:"",action_sim_lux_mode:"dusk_dawn",action_sim_heatmap_profile_id:"",release_action_type:"",transition_off_seconds:null}}function Ro(t){const e=t.action,i=t.release_action;return{id:t.id,name:t.name??"",suppress_inputs:[...t.suppress_inputs??[]],auto_expire:t.auto_expire??null,expire_check_mode:t.expire_check_mode??null,action_type:(e==null?void 0:e.type)??"",action_entity_id:(e==null?void 0:e.entity_id)??"",action_targets:(e==null?void 0:e.targets)??[],action_target_picker_value:"",action_state:(e==null?void 0:e.state)??"on",action_brightness:(e==null?void 0:e.brightness)??255,action_color_temp:(e==null?void 0:e.color_temp)??370,action_entity_targets:[...(e==null?void 0:e.entity_targets)??[]],action_excluded_slot_ids:{...(e==null?void 0:e.excluded_slot_ids)??{}},action_sim_template_activity:(e==null?void 0:e.template_activity)??"",action_sim_lux_mode:(e==null?void 0:e.lux_mode)??"dusk_dawn",action_sim_heatmap_profile_id:(e==null?void 0:e.heatmap_profile_id)??"",release_action_type:(i==null?void 0:i.type)??"",transition_off_seconds:t.transition_off_seconds??null}}let mt=class extends L{constructor(){super(...arguments),this.open=!1,this.hass=null,this.activity=null,this.editIndex=null,this.inputs=[],this.placeholderDefaults=null,this.channels={},this.existingIds=[],this.allActivities=[],this.heatmapProfiles=[],this._editDraft=null}willUpdate(t){(t.has("open")||t.has("activity"))&&(this.open&&this.activity?this._editDraft=this.editIndex===null&&this.activity.id===""?No():Ro(this.activity):this.open||(this._editDraft=null))}_getFallbackActivityInfo(){return Wi(this.placeholderDefaults)}_eligibleTemplateActivities(){var e;const t=(e=this._editDraft)==null?void 0:e.id.trim().toLowerCase();return this.allActivities.filter(i=>{var a;if(i.id===t)return!1;const s=((a=i.action)==null?void 0:a.type)??"slot";return s==="slot"||s==="entity"||s==="light"})}_cancel(){this.dispatchEvent(new CustomEvent("cancel",{bubbles:!0,composed:!0}))}_isSaveDisabled(t){const e=!!(t.name.trim()||t.id.trim()),i=t.auto_expire!==null&&!qi(t.auto_expire);return!e||i}_save(){if(!this._editDraft)return;let t=this._editDraft.id.trim().toLowerCase();const e=this._editDraft.name.trim()||t||"Activity";t||(t=`activity_${Array.from({length:8},()=>Math.floor(Math.random()*16).toString(16)).join("")}`);const i=this._getFallbackActivityInfo(),s=this._editDraft.action_type===""?i.action_type:this._editDraft.action_type,a=this._editDraft.action_type===""?null:this._editDraft.action_type,o={type:a};a==="entity"?o.entity_id=this._editDraft.action_entity_id:a==="light"?(o.targets=this._editDraft.action_targets,o.state=this._editDraft.action_state,this._editDraft.action_state==="on"&&(o.brightness=this._editDraft.action_brightness,this._editDraft.action_color_temp>0&&(o.color_temp=this._editDraft.action_color_temp))):a==="reset"?this._editDraft.action_entity_targets.length>0&&(o.entity_targets=this._editDraft.action_entity_targets):a==="simulation"?(o.mode="presence_heatmap",o.template_activity=this._editDraft.action_sim_template_activity,o.lux_mode=this._editDraft.action_sim_lux_mode,this._editDraft.action_sim_heatmap_profile_id&&(o.heatmap_profile_id=this._editDraft.action_sim_heatmap_profile_id)):s==="slot"&&Object.values(this._editDraft.action_excluded_slot_ids).some(u=>u.length>0)&&(o.excluded_slot_ids=this._editDraft.action_excluded_slot_ids);const l={type:s==="reset"?"none":this._editDraft.release_action_type===""?null:this._editDraft.release_action_type},c=this._editDraft.auto_expire===null?null:ko(this._editDraft.auto_expire),g={id:t,name:e,suppress_inputs:s==="reset"?[]:this._editDraft.suppress_inputs,auto_expire:s==="reset"?null:c,...s!=="reset"&&{expire_check_mode:this._editDraft.expire_check_mode??"respect_lux"},transition_off_seconds:this._editDraft.transition_off_seconds,action:o,release_action:l};this.dispatchEvent(new CustomEvent("save",{detail:g,bubbles:!0,composed:!0}))}render(){if(!this.open||!this._editDraft)return n``;const t=this._editDraft,e=this.editIndex!==null,i=this._isSaveDisabled(t),s=this._getFallbackActivityInfo(),a=t.action_type===""?s.action_type:t.action_type;return n`
       <div class="overlay" style="z-index: 1100;" @click=${o=>{o.target===o.currentTarget&&this._cancel()}}>
         <div class="edit-panel" style="max-width: 640px; max-height: calc(100vh - 120px);">
           <div class="panel-header">
-            <span class="panel-header-icon">🎭</span>
-            <span class="panel-header-title">${e?`Edit Activity: ${t.id}`:"Add Activity"}</span>
+            <span class="card-dot" style="--dot-color: #a855f7;"></span>
+            <span class="panel-header-title">${e?`Edit Activity: ${t.name||t.id}`:"Add Activity"}</span>
             <button class="panel-close" @click=${this._cancel}>✕</button>
           </div>
 
@@ -3639,10 +3767,9 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                   <input
                     type="text"
                     class="activity-input"
-                    .value=${t.id}
-                    placeholder="e.g. party"
-                    ?disabled=${e}
-                    @input=${o=>{this._editDraft={...this._editDraft,id:o.target.value}}}
+                    .value=${t.name||t.id}
+                    placeholder="e.g. Cinema Mode"
+                    @input=${o=>{this._editDraft={...this._editDraft,name:o.target.value}}}
                   />
                 </div>
               </div>
@@ -3653,7 +3780,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                   <span class="form-label">Action Type</span>
                   <select
                     class="option-select"
-                    .value=${t.action_type||a.action_type}
+                    .value=${t.action_type||s.action_type}
                     @change=${o=>{this._editDraft={...this._editDraft,action_type:o.target.value}}}
                   >
                     <option value="slot">Slot</option>
@@ -3661,10 +3788,11 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                     <option value="light">Direct Lights</option>
                     <option value="none">None (Block Only)</option>
                     <option value="reset">Reset (Off + Clear)</option>
+                    <option value="simulation">Presence Simulation</option>
                   </select>
                 </div>
 
-                ${s==="slot"?r`
+                ${a==="slot"?n`
                   <div class="form-field">
                     <span class="form-label">Excluded Channels / Slots</span>
                     <twilight-slot-action-tree
@@ -3675,7 +3803,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                   </div>
                 `:""}
 
-                ${t.action_type==="entity"?r`
+                ${t.action_type==="entity"?n`
                   <div class="form-field">
                     <span class="form-label">Scene or Script Entity</span>
                     <ha-entity-picker
@@ -3688,7 +3816,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                   </div>
                 `:""}
 
-                ${t.action_type==="light"?r`
+                ${t.action_type==="light"?n`
                   <div class="form-field">
                     <span class="form-label">Target Lights</span>
                     <ha-entity-picker
@@ -3697,16 +3825,16 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                       .includeDomains=${["light"]}
                       allow-custom-entity
                       placeholder="Select light to add..."
-                      @value-changed=${o=>{const n=o.detail.value,l=this._editDraft.action_targets,c=n&&!l.includes(n)?[...l,n]:l;this._editDraft={...this._editDraft,action_targets:c,action_target_picker_value:""}}}
+                      @value-changed=${o=>{const r=o.detail.value,l=this._editDraft.action_targets,c=r&&!l.includes(r)?[...l,r]:l;this._editDraft={...this._editDraft,action_targets:c,action_target_picker_value:""}}}
                     ></ha-entity-picker>
                     <div class="checkbox-list" style="margin-top: 8px;">
-                      ${t.action_targets.map(o=>r`
+                      ${t.action_targets.map(o=>n`
                         <div class="checkbox-item" style="justify-content: space-between;">
                           <span>${o}</span>
-                          <button class="row-action-btn remove" style="padding: 2px 6px;" @click=${()=>{this._editDraft={...this._editDraft,action_targets:this._editDraft.action_targets.filter(n=>n!==o)}}}>✕</button>
+                          <button class="row-action-btn remove" style="padding: 2px 6px;" @click=${()=>{this._editDraft={...this._editDraft,action_targets:this._editDraft.action_targets.filter(r=>r!==o)}}}>✕</button>
                         </div>
                       `)}
-                      ${t.action_targets.length===0?r`<div style="font-style: italic; opacity: 0.4; font-size: 11px;">No lights selected</div>`:""}
+                      ${t.action_targets.length===0?n`<div style="font-style: italic; opacity: 0.4; font-size: 11px;">No lights selected</div>`:""}
                     </div>
                   </div>
 
@@ -3718,7 +3846,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                     </select>
                   </div>
 
-                  ${t.action_state==="on"?r`
+                  ${t.action_state==="on"?n`
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                       <div class="form-field">
                         <span class="form-label">Brightness (1-255)</span>
@@ -3746,32 +3874,32 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                   `:""}
                 `:""}
 
-                ${t.action_type==="reset"?r`
+                ${t.action_type==="reset"?n`
                   <div class="form-field">
                     <span class="form-label">Additional Entities</span>
                     <table class="sensor-table">
                       <tbody>
-                        ${t.action_entity_targets.map((o,n)=>{var g,p,d;const l=o.entity_id.split(".")[0],c=Na[l]??[],u=((d=(p=(g=this.hass)==null?void 0:g.states[o.entity_id])==null?void 0:p.attributes)==null?void 0:d.friendly_name)??o.entity_id;return r`
+                        ${t.action_entity_targets.map((o,r)=>{var u,p,d;const l=o.entity_id.split(".")[0],c=Va[l]??[],g=((d=(p=(u=this.hass)==null?void 0:u.states[o.entity_id])==null?void 0:p.attributes)==null?void 0:d.friendly_name)??o.entity_id;return n`
                             <tr class="sensor-row">
                               <td style="padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle;">
-                                <div style="font-weight: 500; font-size: 13px;">${u}</div>
+                                <div style="font-weight: 500; font-size: 13px;">${g}</div>
                                 <div style="font-size: 11px; color: var(--secondary-text-color); font-family: monospace;">${o.entity_id}</div>
                               </td>
                               <td style="text-align: right; width: 170px; padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle;">
                                 <select
                                   class="option-select"
                                   style="width: 100%; min-width: 0;"
-                                  @change=${f=>{const x=[...this._editDraft.action_entity_targets];x[n]={...o,action:f.target.value},this._editDraft={...this._editDraft,action_entity_targets:x}}}
+                                  @change=${f=>{const v=[...this._editDraft.action_entity_targets];v[r]={...o,action:f.target.value},this._editDraft={...this._editDraft,action_entity_targets:v}}}
                                 >
-                                  ${c.map(f=>r`<option value=${f.value} ?selected=${f.value===o.action}>${f.label}</option>`)}
+                                  ${c.map(f=>n`<option value=${f.value} ?selected=${f.value===o.action}>${f.label}</option>`)}
                                 </select>
                               </td>
                               <td style="text-align: center; width: 40px; padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle;">
-                                <button class="sensor-remove-btn" title="Remove entity" @click=${()=>{this._editDraft={...this._editDraft,action_entity_targets:this._editDraft.action_entity_targets.filter((f,x)=>x!==n)}}}>✕</button>
+                                <button class="sensor-remove-btn" title="Remove entity" @click=${()=>{this._editDraft={...this._editDraft,action_entity_targets:this._editDraft.action_entity_targets.filter((f,v)=>v!==r)}}}>✕</button>
                               </td>
                             </tr>
                           `})}
-                        ${t.action_entity_targets.length===0?r`
+                        ${t.action_entity_targets.length===0?n`
                           <tr>
                             <td colspan="3" style="text-align: center; color: var(--secondary-text-color); font-style: italic; padding: 12px; font-size: 12px; border-bottom: 1px solid rgba(255,255,255,0.04);">
                               No additional entities
@@ -3786,17 +3914,61 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                       .includeDomains=${["input_boolean","switch","script"]}
                       allow-custom-entity
                       label="Add entity"
-                      @value-changed=${o=>{var l,c;const n=o.detail.value;if(n){const u=this._editDraft.action_entity_targets;if(!u.some(p=>p.entity_id===n)){const p=n.split(".")[0],d=((c=(l=Na[p])==null?void 0:l[0])==null?void 0:c.value)??"off";this._editDraft={...this._editDraft,action_entity_targets:[...u,{entity_id:n,action:d}]}}const g=o.target;g&&(g.value="")}}}
+                      @value-changed=${o=>{var l,c;const r=o.detail.value;if(r){const g=this._editDraft.action_entity_targets;if(!g.some(p=>p.entity_id===r)){const p=r.split(".")[0],d=((c=(l=Va[p])==null?void 0:l[0])==null?void 0:c.value)??"off";this._editDraft={...this._editDraft,action_entity_targets:[...g,{entity_id:r,action:d}]}}const u=o.target;u&&(u.value="")}}}
                     ></ha-entity-picker>
                   </div>
                 `:""}
 
-                ${s!=="none"&&s!=="reset"?r`
+                ${t.action_type==="simulation"?n`
+                  <div class="form-field">
+                    <span class="form-label">Template Activity</span>
+                    <select
+                      class="option-select"
+                      .value=${t.action_sim_template_activity}
+                      @change=${o=>{this._editDraft={...this._editDraft,action_sim_template_activity:o.target.value}}}
+                    >
+                      <option value="">Select activity…</option>
+                      ${this._eligibleTemplateActivities().map(o=>n`
+                        <option value=${o.id} ?selected=${o.id===t.action_sim_template_activity}>${o.id}</option>
+                      `)}
+                    </select>
+                    <span class="form-hint">Its start/release action is played back timed by the heatmap. Only light-switching activities (slot/scene/light) are listed.</span>
+                  </div>
+
+                  <div class="form-field">
+                    <span class="form-label">Heatmap Profile</span>
+                    <select
+                      class="option-select"
+                      .value=${t.action_sim_heatmap_profile_id}
+                      @change=${o=>{this._editDraft={...this._editDraft,action_sim_heatmap_profile_id:o.target.value}}}
+                    >
+                      <option value="">Dynamic (last 30 days)</option>
+                      ${this.heatmapProfiles.map(o=>n`
+                        <option value=${o.id} ?selected=${o.id===t.action_sim_heatmap_profile_id}>${o.name}</option>
+                      `)}
+                    </select>
+                  </div>
+
+                  <div class="form-field">
+                    <span class="form-label">Lux Mode</span>
+                    <select
+                      class="option-select"
+                      .value=${t.action_sim_lux_mode}
+                      @change=${o=>{this._editDraft={...this._editDraft,action_sim_lux_mode:o.target.value}}}
+                    >
+                      <option value="dusk_dawn">Only dusk–dawn</option>
+                      <option value="threshold">Lux threshold</option>
+                      <option value="always">Always</option>
+                    </select>
+                  </div>
+                `:""}
+
+                ${a!=="none"&&a!=="reset"?n`
                   <div class="form-field">
                     <span class="form-label">Release Action</span>
                     <select
                       class="option-select"
-                      .value=${t.release_action_type||a.release_action_type}
+                      .value=${t.release_action_type||s.release_action_type}
                       @change=${o=>{this._editDraft={...this._editDraft,release_action_type:o.target.value}}}
                     >
                       <option value="turn_off">Turn Off</option>
@@ -3807,7 +3979,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                 `:""}
               </div>
 
-              ${s!=="reset"?r`
+              ${a!=="reset"?n`
                 <div style="display: flex; flex-direction: column; gap: 12px;">
                   <div class="list-section-label">Timing & Window Extension</div>
 
@@ -3815,13 +3987,13 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                     <span class="form-label">Auto-Expire Duration (HH:MM:SS, 0 = never expires)</span>
                     <input
                       type="text"
-                      class="activity-input ${t.auto_expire!==null&&!Li(t.auto_expire)?"invalid":""}"
+                      class="activity-input ${t.auto_expire!==null&&!qi(t.auto_expire)?"invalid":""}"
                       .value=${t.auto_expire??""}
-                      .placeholder=${a.auto_expire}
+                      .placeholder=${s.auto_expire}
                       @input=${o=>{this._editDraft={...this._editDraft,auto_expire:o.target.value.trim()||null}}}
                     />
                     <span class="form-hint">Accepts seconds (<code>90</code>), <code>M:SS</code> (<code>5:30</code>) or <code>H:MM:SS</code> — saved as HH:MM:SS.</span>
-                    ${t.auto_expire!==null&&!Li(t.auto_expire)?r`
+                    ${t.auto_expire!==null&&!qi(t.auto_expire)?n`
                       <span class="form-error">Enter a duration like 90, 5:30 or 1:02:03.</span>
                     `:""}
                   </div>
@@ -3843,9 +4015,9 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                       class="activity-input"
                       min="0"
                       max="300"
-                      .placeholder=${String(a.transition_off_seconds)}
+                      .placeholder=${String(s.transition_off_seconds)}
                       .value=${t.transition_off_seconds!=null?String(t.transition_off_seconds):""}
-                      @input=${o=>{const n=o.target.value.trim();this._editDraft={...this._editDraft,transition_off_seconds:n===""?null:parseInt(n,10)||0}}}
+                      @input=${o=>{const r=o.target.value.trim();this._editDraft={...this._editDraft,transition_off_seconds:r===""?null:parseInt(r,10)||0}}}
                     />
                   </div>
                 </div>
@@ -3855,17 +4027,17 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                   <div class="form-field">
                     <span class="form-label">Check inputs to ignore while active</span>
                     <div class="checkbox-list">
-                      ${this.inputs.map(o=>{const n=t.suppress_inputs.includes(o.id);return r`
+                      ${this.inputs.map(o=>{const r=t.suppress_inputs.includes(o.id);return n`
                           <label class="checkbox-item">
                             <input
                               type="checkbox"
-                              ?checked=${n}
-                              @change=${l=>{const c=l.target.checked,u=this._editDraft.suppress_inputs,g=c?[...u,o.id]:u.filter(p=>p!==o.id);this._editDraft={...this._editDraft,suppress_inputs:g}}}
+                              ?checked=${r}
+                              @change=${l=>{const c=l.target.checked,g=this._editDraft.suppress_inputs,u=c?[...g,o.id]:g.filter(p=>p!==o.id);this._editDraft={...this._editDraft,suppress_inputs:u}}}
                             />
                             <span>${o.name||o.id} (${o.type})</span>
                           </label>
                         `})}
-                      ${this.inputs.length===0?r`<div style="font-style: italic; opacity: 0.4; font-size: 11px;">No inputs configured</div>`:""}
+                      ${this.inputs.length===0?n`<div style="font-style: italic; opacity: 0.4; font-size: 11px;">No inputs configured</div>`:""}
                     </div>
                   </div>
                 </div>
@@ -3879,7 +4051,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
           </div>
         </div>
       </div>
-    `}};Tt.styles=[Ie,jt,z`
+    `}};mt.styles=[ie,Dt,O`
       :host {
         display: contents;
       }
@@ -4059,11 +4231,11 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
         color: var(--error-color, #db4437);
         background: rgba(219, 68, 55, 0.1);
       }
-    `],Bt([h({type:Boolean})],Tt.prototype,"open",2),Bt([h({attribute:!1})],Tt.prototype,"hass",2),Bt([h({attribute:!1})],Tt.prototype,"activity",2),Bt([h({type:Number})],Tt.prototype,"editIndex",2),Bt([h({attribute:!1})],Tt.prototype,"inputs",2),Bt([h({attribute:!1})],Tt.prototype,"placeholderDefaults",2),Bt([h({attribute:!1})],Tt.prototype,"channels",2),Bt([h({type:Array})],Tt.prototype,"existingIds",2),Bt([b()],Tt.prototype,"_editDraft",2),Tt=Bt([H("twilight-activity-row-editor")],Tt);var So=Object.defineProperty,Do=Object.getOwnPropertyDescriptor,Nt=(t,e,i,a)=>{for(var s=a>1?void 0:a?Do(e,i):e,o=t.length-1,n;o>=0;o--)(n=t[o])&&(s=(a?n(e,i,s):n(s))||s);return a&&s&&So(e,i,s),s};let kt=class extends L{constructor(){super(...arguments),this.open=!1,this.hass=null,this.config=[],this.inputs=[],this.placeholderDefaults=null,this.templateMode=!1,this.channels={},this._subEditOpen=!1,this._subEditingIndex=null,this._subEditActivity=null,this._dialog=new fe(this),this._draftController=new Oi(this,{onOpen:()=>{this._subEditOpen=!1}})}_closeDiscard(){this._draftController.closeDiscard()}_closeAndSave(){this._draftController.closeAndSave(new gi({activities:this._draftController.draft||[]}))}_getFallbackActivityInfo(){return Ni(this.placeholderDefaults)}_openAddActivity(){this._subEditingIndex=null,this._subEditActivity={id:""},this._subEditOpen=!0}_openEditActivity(t){const e=this._draftController.draft;e&&(this._subEditingIndex=t,this._subEditActivity=e[t],this._subEditOpen=!0)}async _onSubEditSave(t){const e=this._draftController.draft;if(!e)return;const i=t.detail;if(this._subEditingIndex===null){const a=i.id;if(!/^[a-z0-9_-]+$/.test(a)){await this._dialog.showAlert("Invalid Name","Activity name must contain only lowercase letters, numbers, hyphens and underscores.");return}if(e.some(s=>s.id===a)){await this._dialog.showAlert("Duplicate Name","This activity name already exists!");return}this._draftController.draft=[...e,i]}else{const a=this._subEditingIndex,s=[...e];s[a]=i,this._draftController.draft=s}this._subEditOpen=!1,this.requestUpdate()}_onSubEditCancel(){this._subEditOpen=!1}_onRemoveActivity(t){const e=this._draftController.draft;e&&(this._draftController.draft=e.filter((i,a)=>a!==t),this.requestUpdate())}render(){if(!this.open||!this._draftController.draft)return r``;const t=this._draftController.draft;return r`
+    `],Et([h({type:Boolean})],mt.prototype,"open",2),Et([h({attribute:!1})],mt.prototype,"hass",2),Et([h({attribute:!1})],mt.prototype,"activity",2),Et([h({type:Number})],mt.prototype,"editIndex",2),Et([h({attribute:!1})],mt.prototype,"inputs",2),Et([h({attribute:!1})],mt.prototype,"placeholderDefaults",2),Et([h({attribute:!1})],mt.prototype,"channels",2),Et([h({type:Array})],mt.prototype,"existingIds",2),Et([h({attribute:!1})],mt.prototype,"allActivities",2),Et([h({attribute:!1})],mt.prototype,"heatmapProfiles",2),Et([b()],mt.prototype,"_editDraft",2),mt=Et([z("twilight-activity-row-editor")],mt);var Lo=Object.defineProperty,jo=Object.getOwnPropertyDescriptor,Ot=(t,e,i,s)=>{for(var a=s>1?void 0:s?jo(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&Lo(e,i,a),a};let xt=class extends ae{constructor(){super(...arguments),this.open=!1,this.hass=null,this.config=[],this.inputs=[],this.placeholderDefaults=null,this.templateMode=!1,this.channels={},this.heatmapProfiles=[],this._subEditOpen=!1,this._subEditingIndex=null,this._subEditActivity=null,this._dialog=new fe(this),this._draftController=new Ze(this,{onOpen:()=>{this._subEditOpen=!1}})}_closeDiscard(){this._draftController.closeDiscard()}_closeAndSave(){this._draftController.closeAndSave(new yi({activities:this._draftController.draft||[]}))}_getFallbackActivityInfo(){return Wi(this.placeholderDefaults)}_openAddActivity(){this._subEditingIndex=null,this._subEditActivity={id:""},this._subEditOpen=!0}_openEditActivity(t){const e=this._draftController.draft;e&&(this._subEditingIndex=t,this._subEditActivity=e[t],this._subEditOpen=!0)}async _onSubEditSave(t){const e=this._draftController.draft;if(!e)return;const i=t.detail;if(this._subEditingIndex===null){const s=i.id;if(!/^[a-z0-9_-]+$/.test(s)){await this._dialog.showAlert("Invalid Name","Activity name must contain only lowercase letters, numbers, hyphens and underscores.");return}if(e.some(a=>a.id===s)){await this._dialog.showAlert("Duplicate Name","This activity name already exists!");return}this._draftController.draft=[...e,i]}else{const s=this._subEditingIndex,a=[...e];a[s]=i,this._draftController.draft=a}this._subEditOpen=!1,this.requestUpdate()}_onSubEditCancel(){this._subEditOpen=!1}_onRemoveActivity(t){const e=this._draftController.draft;e&&(this._draftController.draft=e.filter((i,s)=>s!==t),this.requestUpdate())}render(){if(!this.open||!this._draftController.draft)return n``;const t=this._draftController.draft;return n`
       <div class="overlay" @click=${e=>{e.target===e.currentTarget&&!this._subEditOpen&&this._closeDiscard()}}>
         <div class="edit-panel list-panel">
           <div class="panel-header">
-            <span class="panel-header-icon">🎭</span>
+            <span class="card-dot" style="--dot-color: #a855f7;"></span>
             <span class="panel-header-title">Activities — Configuration</span>
             <button class="panel-close" @click=${this._closeDiscard}>✕</button>
           </div>
@@ -4071,11 +4243,12 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
           <div class="panel-body">
             <div style="display: flex; flex-direction: column; gap: 20px;">
               <div class="list-section-label">Configured Activities</div>
-              <table class="activity-table">
+              <table class="config-table activity-table">
                 <thead>
                   <tr>
                     <th style="min-width: 30px;"></th>
                     <th style="min-width: 140px;">Name</th>
+                    <th style="min-width: 120px;">Triggers</th>
                     <th style="min-width: 100px;">Action</th>
                     <th style="min-width: 100px;">Release</th>
                     <th style="min-width: 100px;">Suppresses</th>
@@ -4084,30 +4257,34 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                   </tr>
                 </thead>
                 <tbody>
-                  ${t.map((e,i)=>{var n,l;const a=this._getFallbackActivityInfo(),o=(((n=e.action)==null?void 0:n.type)||a.action_type)==="reset";return r`
+                  ${t.map((e,i)=>{var c,g;const s=this._getFallbackActivityInfo(),o=(((c=e.action)==null?void 0:c.type)||s.action_type)==="reset",l=(this.inputs||[]).filter(u=>u.activity===e.id).map(u=>u.name||u.label||u.id);return n`
                       <tr
                         class="input-row ${this._draftController.draggedIndex===i?"dragging":""}"
                         draggable="true"
-                        @dragstart=${c=>this._draftController.onDragStart(c,i)}
-                        @dragover=${c=>this._draftController.onDragOver(c,i)}
+                        @dragstart=${u=>this._draftController.onDragStart(u,i)}
+                        @dragover=${u=>this._draftController.onDragOver(u,i)}
                         @dragend=${()=>this._draftController.onDragEnd()}
                       >
                         <td style="text-align: center; padding: 0 4px; vertical-align: middle;">
                           <div class="drag-handle" title="Drag to reorder">⋮⋮</div>
                         </td>
                         <td>
-                          <span class="activity-badge ${Ve(e.id,t)}">${e.id}</span>
+                          <div style="font-weight: 600;">${e.name||e.id}</div>
+                          <div style="font-size: 10px; font-family: monospace; opacity: 0.5;">${e.id}</div>
                         </td>
                         <td style="color: var(--primary-text-color);">
-                          ${za(e.action)}
+                          ${l.length>0?l.map(u=>n`<span class="pill" style="margin-right: 4px;">${u}</span>`):n`<span style="opacity:0.4">—</span>`}
                         </td>
                         <td style="color: var(--primary-text-color);">
-                          ${o?"—":Ma(e.release_action)}
+                          ${Ba(e.action)}
                         </td>
                         <td style="color: var(--primary-text-color);">
-                          ${(l=e.suppress_inputs)!=null&&l.length?e.suppress_inputs.map(c=>{const u=this.inputs.find(g=>g.id===c);return u?u.name||u.label||u.id:c}).join(" · "):r`<span style="opacity:0.4">—</span>`}
+                          ${o?"—":Fa(e.release_action)}
                         </td>
-                        <td style="color: var(--primary-text-color);">${o?"—":Ia(e.auto_expire,a.auto_expire)}</td>
+                        <td style="color: var(--primary-text-color);">
+                          ${(g=e.suppress_inputs)!=null&&g.length?e.suppress_inputs.map(u=>{const p=this.inputs.find(d=>d.id===u);return p?p.name||p.label||p.id:u}).join(" · "):n`<span style="opacity:0.4">—</span>`}
+                        </td>
+                        <td style="color: var(--primary-text-color);">${o?"—":Ua(e.auto_expire,s.auto_expire)}</td>
                         <td style="text-align: center;">
                           <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
                             <button class="row-action-btn edit" title="Edit activity" @click=${()=>this._openEditActivity(i)}>✏️</button>
@@ -4116,7 +4293,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                         </td>
                       </tr>
                     `})}
-                  ${t.length===0?r`
+                  ${t.length===0?n`
                     <tr>
                       <td colspan="9" style="text-align: center; color: var(--secondary-text-color); font-style: italic; padding: 16px;">
                         No custom activities configured
@@ -4150,6 +4327,8 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
         .placeholderDefaults=${this.placeholderDefaults}
         .channels=${this.channels}
         .existingIds=${(this._draftController.draft??[]).map(e=>e.id)}
+        .allActivities=${this._draftController.draft??[]}
+        .heatmapProfiles=${this.heatmapProfiles}
         @save=${this._onSubEditSave}
         @cancel=${this._onSubEditCancel}
       ></twilight-activity-row-editor>
@@ -4160,7 +4339,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
         .message=${this._dialog.alertMessage}
         @close=${this._dialog._onCloseAlert}
       ></twilight-alert-dialog>
-    `}};kt.styles=[Ie,jt,z`
+    `}};xt.styles=[ie,Dt,O`
       :host {
         display: contents;
       }
@@ -4402,30 +4581,43 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
         background: color-mix(in srgb, var(--primary-text-color, #fff) 8%, transparent);
         margin: 16px 0 8px 0;
       }
-    `],Nt([h({type:Boolean})],kt.prototype,"open",2),Nt([h({attribute:!1})],kt.prototype,"hass",2),Nt([h({attribute:!1})],kt.prototype,"config",2),Nt([h({attribute:!1})],kt.prototype,"inputs",2),Nt([h({attribute:!1})],kt.prototype,"placeholderDefaults",2),Nt([h({type:Boolean})],kt.prototype,"templateMode",2),Nt([h({attribute:!1})],kt.prototype,"channels",2),Nt([b()],kt.prototype,"_subEditOpen",2),Nt([b()],kt.prototype,"_subEditingIndex",2),Nt([b()],kt.prototype,"_subEditActivity",2),kt=Nt([H("twilight-activities-dialog")],kt);var Ao=Object.defineProperty,To=Object.getOwnPropertyDescriptor,Vt=(t,e,i,a)=>{for(var s=a>1?void 0:a?To(e,i):e,o=t.length-1,n;o>=0;o--)(n=t[o])&&(s=(a?n(e,i,s):n(s))||s);return a&&s&&Ao(e,i,s),s};let Lt=class extends L{constructor(){super(...arguments),this.hass=null,this.config=[],this.inputs=[],this.noHeader=!1,this.placeholderDefaults=null,this.templateMode=!1,this.channels={},this._editOpen=!1}_openEdit(){this._editOpen=!0}render(){return r`
+
+      .pill {
+        display: inline-block;
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--secondary-text-color);
+        font-weight: 500;
+      }
+    `],Ot([h({type:Boolean})],xt.prototype,"open",2),Ot([h({attribute:!1})],xt.prototype,"hass",2),Ot([h({attribute:!1})],xt.prototype,"config",2),Ot([h({attribute:!1})],xt.prototype,"inputs",2),Ot([h({attribute:!1})],xt.prototype,"placeholderDefaults",2),Ot([h({type:Boolean})],xt.prototype,"templateMode",2),Ot([h({attribute:!1})],xt.prototype,"channels",2),Ot([h({attribute:!1})],xt.prototype,"heatmapProfiles",2),Ot([b()],xt.prototype,"_subEditOpen",2),Ot([b()],xt.prototype,"_subEditingIndex",2),Ot([b()],xt.prototype,"_subEditActivity",2),xt=Ot([z("twilight-activities-dialog")],xt);var Ho=Object.defineProperty,Uo=Object.getOwnPropertyDescriptor,qt=(t,e,i,s)=>{for(var a=s>1?void 0:s?Uo(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&Ho(e,i,a),a};let It=class extends L{constructor(){super(...arguments),this.hass=null,this.config=[],this.inputs=[],this.noHeader=!1,this.placeholderDefaults=null,this.templateMode=!1,this.channels={},this.heatmapProfiles=[],this._editOpen=!1}_openEdit(){this._editOpen=!0}render(){return n`
       <div class="devices-card">
-        ${this.noHeader?"":r`
+        ${this.noHeader?"":n`
           <div class="devices-card-header">
-            <span class="devices-card-icon">🎭</span>
+            <span class="card-dot" style="--dot-color: #a855f7;"></span>
             <span class="devices-card-title">Activities</span>
             <button class="edit-btn" @click=${this._openEdit}>⋮</button>
           </div>
         `}
 
         <div class="entity-list">
-          ${this.config.map((t,e)=>{var g,p;const i=Ni(this.placeholderDefaults),s=(((g=t.action)==null?void 0:g.type)||i.action_type)==="reset",o=za(t.action),n=Ia(t.auto_expire,i.auto_expire),l=s?"—":Ma(t.release_action),c=(p=t.suppress_inputs)!=null&&p.length?t.suppress_inputs.map(d=>{const f=this.inputs.find(x=>x.id===d);return f?f.name||f.label||f.id:d}).join(", "):"none",u=s?"Reset":`Action: ${o} · Auto-expire: ${n} · Release: ${l} · Suppresses: ${c}`;return r`
+          ${this.config.map((t,e)=>{var d,f;const i=Wi(this.placeholderDefaults),a=(((d=t.action)==null?void 0:d.type)||i.action_type)==="reset",o=Ba(t.action),r=Ua(t.auto_expire,i.auto_expire),l=a?"—":Fa(t.release_action),c=(f=t.suppress_inputs)!=null&&f.length?t.suppress_inputs.map(v=>{const y=this.inputs.find(k=>k.id===v);return y?y.name||y.label||y.id:v}).join(", "):"none",g=(this.inputs||[]).filter(v=>v.activity===t.id),u=g.length>0?g.map(v=>v.name||v.label||v.id).join(", "):"none",p=a?`Reset · Triggers: ${u}`:`Triggers: ${u} · Action: ${o} · Auto-expire: ${r} · Release: ${l} · Suppresses: ${c}`;return n`
               <div class="activity-row">
-                <span class="activity-badge ${Ve(t.id,this.config)}">${t.id}</span>
+                <span class="activity-badge ${Wa(t.id,this.config)}">${t.id}</span>
                 <div class="activity-desc">
-                  <div style="font-weight: 600;">${t.id}</div>
+                  <div style="font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                    <span>${t.name||t.id}</span>
+                    ${t.name&&t.name.toLowerCase()!==t.id.toLowerCase()?n`<span style="font-size: 10px; font-family: monospace; opacity: 0.5; font-weight: normal;">${t.id}</span>`:""}
+                  </div>
                   <div style="font-size: 11px; color: var(--secondary-text-color); margin-top: 2px;">
-                    ${u}
+                    ${p}
                   </div>
                 </div>
               </div>
-              ${e<this.config.length-1?r`<div class="divider"></div>`:""}
+              ${e<this.config.length-1?n`<div class="divider"></div>`:""}
             `})}
-          ${this.config.length===0?r`
+          ${this.config.length===0?n`
             <div style="padding:20px; text-align:center; color: var(--secondary-text-color); font-style:italic;">
               No custom activities configured
             </div>
@@ -4441,9 +4633,10 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
         .placeholderDefaults=${this.placeholderDefaults}
         .templateMode=${this.templateMode}
         .channels=${this.channels}
+        .heatmapProfiles=${this.heatmapProfiles}
         @close=${()=>{this._editOpen=!1}}
       ></twilight-activities-dialog>
-    `}};Lt.styles=[Ie,z`
+    `}};It.styles=[ie,O`
       :host {
         display: flex;
         flex-direction: column;
@@ -4473,9 +4666,14 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
         padding: 16px 20px 12px;
       }
 
-      .devices-card-icon {
-        font-size: 18px;
-        opacity: 0.7;
+      .card-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--dot-color, #a855f7);
+        box-shadow: 0 0 6px var(--dot-color, #a855f7);
+        flex-shrink: 0;
+        display: inline-block;
       }
 
       .devices-card-title {
@@ -4534,7 +4732,506 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
         background: color-mix(in srgb, var(--primary-text-color, #fff) 8%, transparent);
         margin: 4px 20px;
       }
-    `],Vt([h({attribute:!1})],Lt.prototype,"hass",2),Vt([h({attribute:!1})],Lt.prototype,"config",2),Vt([h({attribute:!1})],Lt.prototype,"inputs",2),Vt([h({type:Boolean})],Lt.prototype,"noHeader",2),Vt([h({attribute:!1})],Lt.prototype,"placeholderDefaults",2),Vt([h({type:Boolean})],Lt.prototype,"templateMode",2),Vt([h({attribute:!1})],Lt.prototype,"channels",2),Vt([b()],Lt.prototype,"_editOpen",2),Lt=Vt([H("twilight-activities-card")],Lt);var Eo=Object.defineProperty,Oo=Object.getOwnPropertyDescriptor,re=(t,e,i,a)=>{for(var s=a>1?void 0:a?Oo(e,i):e,o=t.length-1,n;o>=0;o--)(n=t[o])&&(s=(a?n(e,i,s):n(s))||s);return a&&s&&Eo(e,i,s),s};let Gt=class extends L{constructor(){super(...arguments),this.open=!1,this.title="Reset Settings",this.description="",this.nodes=[],this._selectedNodes={},this._expandedNodes={}}willUpdate(t){if(t.has("open")&&this.open||t.has("nodes")){const e={},i={};this.nodes.forEach(a=>{e[a.id]=!0,i[a.id]=!0,a.children&&a.children.forEach(s=>{e[s.id]=!0})}),this._selectedNodes=e,this._expandedNodes=i}}_isNodeSelected(t){return!!this._selectedNodes[t]}_isNodeIndeterminate(t){if(!t.children||t.children.length===0)return!1;const e=t.children.filter(i=>this._selectedNodes[i.id]).length;return e>0&&e<t.children.length}_onCheckboxChange(t,e){const i={...this._selectedNodes};if(i[t.id]=e,t.children)t.children.forEach(a=>{i[a.id]=e});else{const a=this.nodes.find(s=>{var o;return(o=s.children)==null?void 0:o.some(n=>n.id===t.id)});if(a&&a.children){const s=a.children.every(o=>{const n=o.id;return n===t.id?e:!!i[n]});i[a.id]=s}}this._selectedNodes=i,this.requestUpdate()}_toggleExpanded(t){this._expandedNodes={...this._expandedNodes,[t]:!this._expandedNodes[t]},this.requestUpdate()}_onConfirm(){const t=Object.keys(this._selectedNodes).filter(e=>this._selectedNodes[e]);this.dispatchEvent(new CustomEvent("confirm",{detail:{selectedIds:t},bubbles:!0,composed:!0}))}_onCancel(){this.dispatchEvent(new CustomEvent("cancel",{bubbles:!0,composed:!0}))}render(){return this.open?r`
+    `],qt([h({attribute:!1})],It.prototype,"hass",2),qt([h({attribute:!1})],It.prototype,"config",2),qt([h({attribute:!1})],It.prototype,"inputs",2),qt([h({type:Boolean})],It.prototype,"noHeader",2),qt([h({attribute:!1})],It.prototype,"placeholderDefaults",2),qt([h({type:Boolean})],It.prototype,"templateMode",2),qt([h({attribute:!1})],It.prototype,"channels",2),qt([h({attribute:!1})],It.prototype,"heatmapProfiles",2),qt([b()],It.prototype,"_editOpen",2),It=qt([z("twilight-activities-card")],It);var Bo=Object.defineProperty,Fo=Object.getOwnPropertyDescriptor,ne=(t,e,i,s)=>{for(var a=s>1?void 0:s?Fo(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&Bo(e,i,a),a};let Vt=class extends L{constructor(){super(...arguments),this.open=!1,this.rule=null,this.editIndex=null,this.activitiesConfig=[],this.channels={},this.siblings=[],this._editDraft=null}updated(t){if(t.has("open")||t.has("rule"))if(this.open&&this.rule){this._editDraft=structuredClone(this.rule);const i=(this.activitiesConfig||[]).map(s=>s.id)[0]||"motion";(!this._editDraft.applied_activities||this._editDraft.applied_activities.length===0)&&(this._editDraft.applied_activities=[i])}else this.open||(this._editDraft=null)}_onSlotOverridesChanged(t,e){this._editDraft&&(this._editDraft={...this._editDraft,applied_activities:[t],slot_overrides:{...this._editDraft.slot_overrides||{},[t]:e}},this.requestUpdate())}_cancel(){this.dispatchEvent(new CustomEvent("cancel",{bubbles:!0,composed:!0}))}_save(){if(!this._editDraft)return;const t=(this.activitiesConfig||[]).map(s=>s.id),e=this._editDraft.applied_activities&&this._editDraft.applied_activities.length>0?this._editDraft.applied_activities[0]:t[0]||"motion";let i={...this._editDraft,applied_activities:[e]};if(!i.id){const s=new Set((this.siblings||[]).map(o=>o.id));let a=`rule_${Array.from({length:8},()=>Math.floor(Math.random()*16).toString(16)).join("")}`;for(;s.has(a);)a=`rule_${Array.from({length:8},()=>Math.floor(Math.random()*16).toString(16)).join("")}`;i.id=a}this.dispatchEvent(new CustomEvent("save",{detail:i,bubbles:!0,composed:!0}))}render(){var o,r;if(!this.open||!this._editDraft)return n``;const t=this._editDraft,e=this.editIndex!==null,i=!((o=t.name)!=null&&o.trim()),s=(this.activitiesConfig||[]).map(l=>l.id),a=t.applied_activities&&t.applied_activities.length>0?t.applied_activities[0]:s[0]||"motion";return n`
+      <div class="overlay" @click=${l=>{l.target===l.currentTarget&&this._cancel()}}>
+        <div class="edit-panel" style="max-width: 650px;" @click=${l=>l.stopPropagation()}>
+          <div class="panel-header">
+            <span class="panel-header-title">${e?`Edit Rule: ${t.name||t.id}`:"Add Rule"}</span>
+            <button class="panel-close" @click=${this._cancel}>✕</button>
+          </div>
+
+          <div class="panel-body">
+            <div class="form-field">
+              <div class="list-section-label">General</div>
+              <span class="form-label">Rule Name</span>
+              <input
+                type="text"
+                class="activity-input"
+                placeholder="e.g. Nachtmodus Ausnahmen"
+                .value=${t.name||""}
+                @input=${l=>{this._editDraft={...this._editDraft,name:l.target.value}}}
+              />
+            </div>
+
+            <div class="form-field">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input
+                  type="checkbox"
+                  ?checked=${t.enabled??!0}
+                  @change=${l=>{this._editDraft={...this._editDraft,enabled:l.target.checked}}}
+                />
+                <span class="form-label" style="margin: 0;">Enable Rule</span>
+              </label>
+            </div>
+
+            <div class="form-field">
+              <div class="list-section-label">Target Activity & Excluded Slots</div>
+              <span class="form-label">Target Activity</span>
+              <select class="option-select" .value=${a} @change=${l=>{const c=l.target.value;this._editDraft={...this._editDraft,applied_activities:[c]}}}>
+                ${s.map(l=>n`
+                  <option value="${l}" ?selected=${l===a}>${l}</option>
+                `)}
+              </select>
+              <span class="form-hint">Select the single activity whose channel/slot schedule this rule overrides when active.</span>
+            </div>
+
+            <div class="form-field">
+              <span class="form-label">Excluded Channels / Slots</span>
+              <twilight-slot-action-tree
+                .channels=${this.channels}
+                .excludedSlotIds=${((r=t.slot_overrides)==null?void 0:r[a])||{}}
+                @excluded-changed=${l=>this._onSlotOverridesChanged(a,l.detail.value)}
+              ></twilight-slot-action-tree>
+            </div>
+          </div>
+
+          <div class="panel-footer">
+            <button class="btn-cancel-dialog" @click=${this._cancel}>Cancel</button>
+            <button class="btn-save-dialog" ?disabled=${i} @click=${this._save}>${e?"Save":"Add"}</button>
+          </div>
+        </div>
+      </div>
+    `}};Vt.styles=[ie,Dt,O`
+      :host {
+        display: contents;
+      }
+
+      .panel-body {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 16px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .list-section-label {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.9px;
+        color: var(--secondary-text-color);
+        padding: 0 0 6px;
+      }
+
+      .form-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .form-label {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: var(--secondary-text-color);
+      }
+
+      .form-hint {
+        display: block;
+        margin-top: 4px;
+        font-size: 11px;
+        line-height: 1.35;
+        color: var(--secondary-text-color);
+        opacity: 0.85;
+      }
+
+      .activity-input {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        border-radius: 4px;
+        color: var(--primary-text-color);
+        padding: 8px 12px;
+        font-size: 13px;
+        outline: none;
+        box-sizing: border-box;
+        height: 38px;
+        transition: border-color 0.15s;
+      }
+      .activity-input:focus {
+        border-color: var(--tp-accent, var(--accent-color, #e91e8c));
+      }
+
+      .option-select {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        border-radius: 4px;
+        color: var(--primary-text-color);
+        padding: 8px 12px;
+        font-size: 13px;
+        outline: none;
+        cursor: pointer;
+        box-sizing: border-box;
+        height: 38px;
+      }
+      .option-select:focus {
+        border-color: var(--tp-accent, var(--accent-color, #e91e8c));
+      }
+    `],ne([h({type:Boolean})],Vt.prototype,"open",2),ne([h({attribute:!1})],Vt.prototype,"rule",2),ne([h({type:Number})],Vt.prototype,"editIndex",2),ne([h({attribute:!1})],Vt.prototype,"activitiesConfig",2),ne([h({attribute:!1})],Vt.prototype,"channels",2),ne([h({attribute:!1})],Vt.prototype,"siblings",2),ne([b()],Vt.prototype,"_editDraft",2),Vt=ne([z("twilight-rule-row-editor")],Vt);function Wo(){return{id:"",name:"",enabled:!0,applied_activities:[],slot_overrides:{}}}var qo=Object.defineProperty,Vo=Object.getOwnPropertyDescriptor,Kt=(t,e,i,s)=>{for(var a=s>1?void 0:s?Vo(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&qo(e,i,a),a};let jt=class extends L{constructor(){super(...arguments),this.open=!1,this.config=[],this.inputsConfig=[],this.activitiesConfig=[],this.channels={},this._subEditOpen=!1,this._subEditingIndex=null,this._subEditRule=null,this._draftController=new Ze(this,{onOpen:()=>{this._subEditOpen=!1}})}_closeDiscard(){this._draftController.closeDiscard()}_closeAndSave(){this._draftController.closeAndSave(new wi(this._draftController.draft||[]))}_openAddRule(){this._subEditingIndex=null,this._subEditRule=Wo(),this._subEditOpen=!0}_openEditRule(t){const e=this._draftController.draft;e&&(this._subEditingIndex=t,this._subEditRule=structuredClone(e[t]),this._subEditOpen=!0)}_closeSubEdit(){this._subEditOpen=!1,this._subEditingIndex=null,this._subEditRule=null}_handleSubEditSave(t){const e=this._draftController.draft;if(!e)return;const i=t.detail,s=[...e];this._subEditingIndex===null?s.push(i):s[this._subEditingIndex]=i,this._draftController.draft=s,this.requestUpdate(),this._closeSubEdit()}_removeRule(t){const e=this._draftController.draft;if(!e)return;const i=[...e];i.splice(t,1),this._draftController.draft=i,this.requestUpdate()}render(){if(!this.open)return n``;const t=this._draftController.draft||[];return n`
+      <div class="overlay" @click=${e=>{e.target===e.currentTarget&&!this._subEditOpen&&this._closeDiscard()}}>
+        <div class="edit-panel list-panel">
+          <div class="panel-header">
+            <span class="card-dot" style="--dot-color: #ef4444;"></span>
+            <span class="panel-header-title">Rules — Configuration</span>
+            <button class="panel-close" @click=${this._closeDiscard}>✕</button>
+          </div>
+
+          <div class="panel-body">
+            <table class="config-table rule-table">
+              <thead>
+                <tr>
+                  <th style="min-width: 30px;"></th>
+                  <th style="min-width: 140px;">Name</th>
+                  <th style="min-width: 140px;">Triggers</th>
+                  <th style="min-width: 140px;">Target Activities</th>
+                  <th style="min-width: 90px;">Status</th>
+                  <th style="min-width: 100px; text-align: center;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${t.map((e,i)=>{const a=(this.inputsConfig||[]).filter(o=>o.rule===e.id).map(o=>o.name||o.label||o.id);return n`
+                    <tr
+                      class="input-row ${this._draftController.draggedIndex===i?"dragging":""}"
+                      draggable="true"
+                      @dragstart=${o=>this._draftController.onDragStart(o,i)}
+                      @dragover=${o=>this._draftController.onDragOver(o,i)}
+                      @dragend=${()=>this._draftController.onDragEnd()}
+                    >
+                      <td style="text-align: center; padding: 0 4px; vertical-align: middle;">
+                        <div class="drag-handle" title="Drag to reorder">⋮⋮</div>
+                      </td>
+                      <td>
+                        <div style="font-weight: 600;">${e.name||e.id}</div>
+                        ${e.name&&e.id?n`<div style="font-size: 10px; font-family: monospace; opacity: 0.5;">${e.id}</div>`:""}
+                      </td>
+                      <td>
+                        ${a.length>0?a.map(o=>n`<span class="pill">${o}</span>`):n`<span style="opacity: 0.4;">—</span>`}
+                      </td>
+                      <td>
+                        ${(e.applied_activities||[]).length>0?(e.applied_activities||[]).map(o=>n`<span class="pill">${o}</span>`):n`<span class="pill" style="opacity: 0.8;">All</span>`}
+                      </td>
+                      <td>
+                        <span class="status-badge ${e.enabled?"enabled":""}">
+                          ${e.enabled?"Enabled":"Disabled"}
+                        </span>
+                      </td>
+                      <td style="text-align: center;">
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                          <button class="row-action-btn edit" title="Edit rule" @click=${()=>this._openEditRule(i)}>✏️</button>
+                          <button class="row-action-btn remove" title="Remove rule" @click=${()=>this._removeRule(i)}>✕</button>
+                        </div>
+                      </td>
+                    </tr>
+                  `})}
+                ${t.length===0?n`
+                  <tr>
+                    <td colspan="6" style="text-align: center; color: var(--secondary-text-color); font-style: italic; padding: 16px;">
+                      No rules configured
+                    </td>
+                  </tr>
+                `:""}
+              </tbody>
+            </table>
+
+            <div style="display: flex; justify-content: flex-start; margin-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 16px;">
+              <button class="btn-add" @click=${this._openAddRule}>
+                <span>+</span> Add Rule
+              </button>
+            </div>
+          </div>
+
+          <div class="panel-footer">
+            <button class="btn-save-dialog" @click=${this._closeAndSave}>Done</button>
+          </div>
+        </div>
+      </div>
+
+      <twilight-rule-row-editor
+        .open=${this._subEditOpen}
+        .rule=${this._subEditRule}
+        .editIndex=${this._subEditingIndex}
+        .inputsConfig=${this.inputsConfig}
+        .activitiesConfig=${this.activitiesConfig}
+        .channels=${this.channels}
+        .siblings=${t}
+        @save=${this._handleSubEditSave}
+        @cancel=${this._closeSubEdit}
+      ></twilight-rule-row-editor>
+    `}};jt.styles=[ie,Dt,O`
+      :host {
+        display: contents;
+      }
+
+      .panel-body {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 16px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .rule-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .rule-table th {
+        text-align: left;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--secondary-text-color);
+        padding: 6px 8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .rule-table td {
+        padding: 10px 8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        vertical-align: middle;
+        font-size: 13px;
+      }
+      .input-row:hover {
+        background: rgba(255, 255, 255, 0.015);
+      }
+
+      .row-action-btn {
+        background: transparent;
+        border: none;
+        color: var(--secondary-text-color);
+        cursor: pointer;
+        font-size: 14px;
+        padding: 6px 10px;
+        border-radius: 6px;
+        transition: color 0.15s, background-color 0.15s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .row-action-btn.edit:hover {
+        color: var(--primary-text-color);
+        background: rgba(255, 255, 255, 0.08);
+      }
+      .row-action-btn.remove:hover {
+        color: var(--error-color, #db4437);
+        background: rgba(219, 68, 55, 0.1);
+      }
+
+      .drag-handle {
+        cursor: grab;
+        color: var(--secondary-text-color);
+        opacity: 0.4;
+        user-select: none;
+      }
+      .drag-handle:hover {
+        opacity: 1;
+      }
+
+      .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--secondary-text-color);
+      }
+      .status-badge.enabled {
+        background: rgba(76, 175, 80, 0.15);
+        color: #81c784;
+      }
+
+      .pill {
+        display: inline-block;
+        font-size: 11px;
+        padding: 1px 6px;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--secondary-text-color);
+        margin-right: 4px;
+      }
+
+      .btn-add {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: var(--primary-text-color);
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: background 0.15s, border-color 0.15s;
+        width: fit-content;
+      }
+      .btn-add:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.2);
+      }
+    `],Kt([h({type:Boolean})],jt.prototype,"open",2),Kt([h({attribute:!1})],jt.prototype,"config",2),Kt([h({attribute:!1})],jt.prototype,"inputsConfig",2),Kt([h({attribute:!1})],jt.prototype,"activitiesConfig",2),Kt([h({attribute:!1})],jt.prototype,"channels",2),Kt([b()],jt.prototype,"_subEditOpen",2),Kt([b()],jt.prototype,"_subEditingIndex",2),Kt([b()],jt.prototype,"_subEditRule",2),jt=Kt([z("twilight-rules-dialog")],jt);var Yo=Object.defineProperty,Go=Object.getOwnPropertyDescriptor,Zt=(t,e,i,s)=>{for(var a=s>1?void 0:s?Go(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&Yo(e,i,a),a};let Ht=class extends L{constructor(){super(...arguments),this.hass=null,this.rules=[],this.inputsConfig=[],this.activitiesConfig=[],this.runState=null,this.channels={},this.noHeader=!1,this._editOpen=!1}_openEdit(){this._editOpen=!0}render(){var e;const t=((e=this.runState)==null?void 0:e.active_rules)||{};return n`
+      <div class="devices-card">
+        ${this.noHeader?"":n`
+          <div class="devices-card-header">
+            <span class="card-dot" style="--dot-color: #ef4444;"></span>
+            <span class="devices-card-title">Rules</span>
+            <button class="edit-btn" @click=${this._openEdit}>⋮</button>
+          </div>
+        `}
+
+        <div class="entity-list">
+          ${this.rules.map((i,s)=>{const a=!!t[i.id],o=!i.enabled,r=(this.inputsConfig||[]).filter(u=>u.rule===i.id),l=r.length>0?r.map(u=>u.name||u.label||u.id).join(", "):"none",g=`Target: ${(i.applied_activities||[]).length>0?i.applied_activities.join(", "):"All"} · Triggers: ${l} · Status: ${i.enabled?"Enabled":"Disabled"}`;return n`
+              <div class="activity-row ${o?"disabled":""}">
+                <span class="status-indicator ${a?"active":""}" title="${a?"Rule active":o?"Rule disabled":"Rule inactive"}"></span>
+                <span class="activity-badge rule">${i.name||i.id}</span>
+                <div class="activity-desc">
+                  <div style="font-weight: 600;">${i.name||i.id}</div>
+                  <div style="font-size: 11px; color: var(--secondary-text-color); margin-top: 2px;">
+                    ${g}
+                  </div>
+                </div>
+              </div>
+              ${s<this.rules.length-1?n`<div class="divider"></div>`:""}
+            `})}
+
+          ${this.rules.length===0?n`
+            <div class="empty-state">No rules configured. Click edit to configure.</div>
+          `:""}
+        </div>
+      </div>
+
+      <twilight-rules-dialog
+        .open=${this._editOpen}
+        .config=${this.rules}
+        .inputsConfig=${this.inputsConfig}
+        .activitiesConfig=${this.activitiesConfig}
+        .channels=${this.channels}
+        @close=${()=>{this._editOpen=!1}}
+      ></twilight-rules-dialog>
+    `}};Ht.styles=[ie,O`
+      :host {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+        box-sizing: border-box;
+        font-family: var(--font-family, inherit);
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+        overflow: clip;
+      }
+
+      .devices-card {
+        box-sizing: border-box;
+        background: transparent;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+      }
+
+      .devices-card-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 16px 20px 12px;
+      }
+
+      .card-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--dot-color, #ef4444);
+        box-shadow: 0 0 6px var(--dot-color, #ef4444);
+        flex-shrink: 0;
+        display: inline-block;
+      }
+
+      .devices-card-title {
+        flex: 1;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--primary-text-color);
+      }
+
+      .edit-btn {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        color: var(--secondary-text-color);
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0.6;
+        transition: opacity 0.15s, background 0.15s;
+        font-size: 16px;
+        line-height: 1;
+      }
+      .edit-btn:hover {
+        background: color-mix(in srgb, var(--primary-text-color) 8%, transparent);
+        color: var(--primary-text-color);
+        opacity: 1;
+      }
+
+      .entity-list {
+        padding: 0 0 12px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .activity-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 20px;
+      }
+
+      .activity-row.disabled {
+        opacity: 0.45;
+      }
+
+      .status-indicator {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        flex-shrink: 0;
+      }
+      .status-indicator.active {
+        background: var(--success-color, #4caf50);
+        box-shadow: 0 0 8px var(--success-color, #4caf50);
+      }
+
+      .activity-desc {
+        font-size: 13px;
+        color: var(--primary-text-color);
+        flex: 1;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
+      }
+
+      .divider {
+        height: 1px;
+        background: color-mix(in srgb, var(--primary-text-color, #fff) 8%, transparent);
+        margin: 4px 20px;
+      }
+
+      .empty-state {
+        padding: 24px;
+        text-align: center;
+        color: var(--secondary-text-color);
+        font-style: italic;
+        font-size: 13px;
+      }
+    `],Zt([h({attribute:!1})],Ht.prototype,"hass",2),Zt([h({attribute:!1})],Ht.prototype,"rules",2),Zt([h({attribute:!1})],Ht.prototype,"inputsConfig",2),Zt([h({attribute:!1})],Ht.prototype,"activitiesConfig",2),Zt([h({attribute:!1})],Ht.prototype,"runState",2),Zt([h({attribute:!1})],Ht.prototype,"channels",2),Zt([h({type:Boolean})],Ht.prototype,"noHeader",2),Zt([b()],Ht.prototype,"_editOpen",2),Ht=Zt([z("twilight-rules-card")],Ht);var Xo=Object.defineProperty,Ko=Object.getOwnPropertyDescriptor,ve=(t,e,i,s)=>{for(var a=s>1?void 0:s?Ko(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&Xo(e,i,a),a};let Jt=class extends L{constructor(){super(...arguments),this.open=!1,this.title="Reset Settings",this.description="",this.nodes=[],this._selectedNodes={},this._expandedNodes={}}willUpdate(t){if(t.has("open")&&this.open||t.has("nodes")){const e={},i={};this.nodes.forEach(s=>{e[s.id]=!0,i[s.id]=!0,s.children&&s.children.forEach(a=>{e[a.id]=!0})}),this._selectedNodes=e,this._expandedNodes=i}}_isNodeSelected(t){return!!this._selectedNodes[t]}_isNodeIndeterminate(t){if(!t.children||t.children.length===0)return!1;const e=t.children.filter(i=>this._selectedNodes[i.id]).length;return e>0&&e<t.children.length}_onCheckboxChange(t,e){const i={...this._selectedNodes};if(i[t.id]=e,t.children)t.children.forEach(s=>{i[s.id]=e});else{const s=this.nodes.find(a=>{var o;return(o=a.children)==null?void 0:o.some(r=>r.id===t.id)});if(s&&s.children){const a=s.children.every(o=>{const r=o.id;return r===t.id?e:!!i[r]});i[s.id]=a}}this._selectedNodes=i,this.requestUpdate()}_toggleExpanded(t){this._expandedNodes={...this._expandedNodes,[t]:!this._expandedNodes[t]},this.requestUpdate()}_onConfirm(){const t=Object.keys(this._selectedNodes).filter(e=>this._selectedNodes[e]);this.dispatchEvent(new CustomEvent("confirm",{detail:{selectedIds:t},bubbles:!0,composed:!0}))}_onCancel(){this.dispatchEvent(new CustomEvent("cancel",{bubbles:!0,composed:!0}))}render(){return this.open?n`
       <div class="modal-overlay" @click=${this._onCancel}>
         <div
           class="modal-card"
@@ -4544,35 +5241,35 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
           @click=${t=>t.stopPropagation()}
         >
           <h3 class="modal-title" id="reset-dialog-title">${this.title}</h3>
-          ${this.description?r`<p class="modal-desc">${this.description}</p>`:""}
+          ${this.description?n`<p class="modal-desc">${this.description}</p>`:""}
 
           <div class="modal-tree">
-            ${this.nodes.map(t=>{const e=t.children&&t.children.length>0,i=!!this._expandedNodes[t.id];return r`
+            ${this.nodes.map(t=>{const e=t.children&&t.children.length>0,i=!!this._expandedNodes[t.id];return n`
                 <div class="tree-node">
                   <div
                     class="tree-node-header"
-                    @click=${a=>{a.target.tagName!=="INPUT"&&e&&this._toggleExpanded(t.id)}}
+                    @click=${s=>{s.target.tagName!=="INPUT"&&e&&this._toggleExpanded(t.id)}}
                   >
-                    ${e?r`<span class="tree-node-chevron ${i?"expanded":""}">&#9656;</span>`:r`<span class="tree-node-chevron" style="visibility: hidden;">&#9656;</span>`}
+                    ${e?n`<span class="tree-node-chevron ${i?"expanded":""}">&#9656;</span>`:n`<span class="tree-node-chevron" style="visibility: hidden;">&#9656;</span>`}
                     <input
                       type="checkbox"
                       .checked=${this._isNodeSelected(t.id)}
                       .indeterminate=${this._isNodeIndeterminate(t)}
-                      @change=${a=>this._onCheckboxChange(t,a.target.checked)}
+                      @change=${s=>this._onCheckboxChange(t,s.target.checked)}
                     />
                     <span>${t.label}</span>
                   </div>
 
-                  ${e&&i?r`
+                  ${e&&i?n`
                         <div class="tree-node-children">
-                          ${t.children.map(a=>r`
+                          ${t.children.map(s=>n`
                             <div class="tree-leaf">
                               <input
                                 type="checkbox"
-                                .checked=${this._isNodeSelected(a.id)}
-                                @change=${s=>{const o={id:a.id};this._onCheckboxChange(o,s.target.checked)}}
+                                .checked=${this._isNodeSelected(s.id)}
+                                @change=${a=>{const o={id:s.id};this._onCheckboxChange(o,a.target.checked)}}
                               />
-                              <span>${a.label}</span>
+                              <span>${s.label}</span>
                             </div>
                           `)}
                         </div>
@@ -4587,7 +5284,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
           </div>
         </div>
       </div>
-    `:r``}};Gt.styles=z`
+    `:n``}};Jt.styles=O`
     *, *:before, *:after {
       box-sizing: border-box;
     }
@@ -4791,13 +5488,13 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
     .btn-save:hover {
       opacity: 0.85;
     }
-  `,re([h({type:Boolean})],Gt.prototype,"open",2),re([h({type:String})],Gt.prototype,"title",2),re([h({type:String})],Gt.prototype,"description",2),re([h({type:Array})],Gt.prototype,"nodes",2),re([b()],Gt.prototype,"_selectedNodes",2),re([b()],Gt.prototype,"_expandedNodes",2),Gt=re([H("twilight-reset-dialog")],Gt);var Io=Object.defineProperty,zo=Object.getOwnPropertyDescriptor,bt=(t,e,i,a)=>{for(var s=a>1?void 0:a?zo(e,i):e,o=t.length-1,n;o>=0;o--)(n=t[o])&&(s=(a?n(e,i,s):n(s))||s);return a&&s&&Io(e,i,s),s};const La={astro_dawn:"Astro Dawn",nautical_dawn:"Nautical Dawn",civil_dawn:"Civil Dawn",gold_dawn:"Golden Dawn",day:"Day",gold_dusk:"Golden Dusk",civil_dusk:"Civil Dusk",nautical_dusk:"Nautical Dusk",astro_dusk:"Astro Dusk",night:"Night"};let rt=class extends L{constructor(){super(...arguments),this.hass=null,this.slots=[],this.entities=[],this.open=!1,this.highlightSlotId=null,this.areaId="",this.areaName="",this.isPrimaryChannel=!0,this.channelName="",this.transitionOnSeconds=null,this.placeholderDefaults=null,this._draft=null,this._draftTransitionOnSeconds=null,this._transitionDraftInitialized=!1}_isValidHHMM(t){if(!t)return!1;const e=/^(\d{1,2}):(\d{2})$/.exec(t);if(!e)return!1;const i=Number(e[1]),a=Number(e[2]);return i>=0&&i<=23&&a>=0&&a<=59}_hasInvalidSlot(){return(this._draft??this.slots).some(e=>e.startType==="fixed"&&!this._isValidHHMM(e.fixedStartTime))}_closeAndSave(){if(this._hasInvalidSlot())return;const t=this._draftTransitionOnSeconds!==this.transitionOnSeconds;if(this._draft!==null||t){const i=this._draft??this.slots;this.dispatchEvent(new fi(i,this._draftTransitionOnSeconds))}this._draft=null,this._transitionDraftInitialized=!1,this.dispatchEvent(new CustomEvent("close",{bubbles:!0,composed:!0}))}_closeDiscard(){this._draft=null,this._transitionDraftInitialized=!1,this.dispatchEvent(new CustomEvent("close",{bubbles:!0,composed:!0}))}_updateDraft(t){this._draft=t}_clampOffset(t,e,i){var g,p;const a=((g=this.placeholderDefaults)==null?void 0:g.max_offset_minutes)??180,s=((p=this.placeholderDefaults)==null?void 0:p.min_slot_distance_minutes)??oa;let o=Math.max(-a,Math.min(a,e));const n=["astro_dawn","nautical_dawn","civil_dawn","gold_dawn","day","gold_dusk","civil_dusk","nautical_dusk","astro_dusk","night"],l=i.find(d=>d.id===t);if(!l||(l.startType||"fixed")!=="astral")return o;const c=i.filter(d=>(d.startType||"fixed")==="astral").map(d=>{const f=d.startEvent||"civil_dawn",x=n.indexOf(f);return{slot:d,zoneIdx:x!==-1?x:99}}).sort((d,f)=>d.zoneIdx-f.zoneIdx),u=c.findIndex(d=>d.slot.id===t);if(u!==-1){if(u>0){const d=c[u-1].slot.startOffset||0;o<d-s&&(o=d-s)}if(u<c.length-1){const d=c[u+1].slot.startOffset||0;o>d+s&&(o=d+s)}}return o}_addCustomSlot(){const t=this._draft??this.slots;if(t.length>=pi)return;const e=t.filter(a=>a.isCustom).length+1,i={id:`draft_${Date.now()}_${e}`,label:`Custom Slot ${e}`,color:"#8e44ad",from:720,to:780,scene:null,isCustom:!0,startType:"fixed",fixedStartTime:"12:00"};this._updateDraft([...t,i])}_deleteSlot(t){this._updateDraft((this._draft??this.slots).filter(e=>e.id!==t))}_setSlotScene(t,e){this._updateDraft((this._draft??this.slots).map(i=>i.id===t?{...i,scene:e}:i))}willUpdate(t){t.has("open")&&(this.open?(this._draft===null&&(this._draft=this.slots.map(e=>({...e}))),this._transitionDraftInitialized||(this._draftTransitionOnSeconds=this.transitionOnSeconds,this._transitionDraftInitialized=!0),xi()):(this._draft=null,this._transitionDraftInitialized=!1))}render(){var u,g,p;if(!this.open)return r``;const t=this._draft;if(!t)return r``;const e=(this.areaId||"").toLowerCase(),i=(this.areaName||"").toLowerCase(),a=new Set;if(e&&(a.add(e),e==="badezimmer"&&a.add("bad"),e==="kuche"&&a.add("küche"),e==="buro"&&(a.add("büro"),a.add("office"))),i){a.add(i);const d=i.normalize("NFD").replace(/[\u0300-\u036f]/g,"");a.add(d),i==="bad"&&a.add("badezimmer"),i==="büro"&&a.add("office")}const s=(d,f)=>{const x=d.toLowerCase(),w=(f||"").toLowerCase();for(const k of a)if(x.includes(k)||w.includes(k))return!0;return!1},o=new Set(t.map(d=>d.scene).filter(d=>!!d)),n=!!(this.areaId&&this.entities&&this.entities.length>0),l=new Set(n?this.entities.filter(d=>d.domain!=="scene"&&d.domain!=="script"?!1:d.in_area||o.has(d.entity_id)||s(d.entity_id,d.name)).map(d=>d.entity_id):[]),c=t;return r`
+  `,ve([h({type:Boolean})],Jt.prototype,"open",2),ve([h({type:String})],Jt.prototype,"title",2),ve([h({type:String})],Jt.prototype,"description",2),ve([h({type:Array})],Jt.prototype,"nodes",2),ve([b()],Jt.prototype,"_selectedNodes",2),ve([b()],Jt.prototype,"_expandedNodes",2),Jt=ve([z("twilight-reset-dialog")],Jt);var Zo=Object.defineProperty,Jo=Object.getOwnPropertyDescriptor,_t=(t,e,i,s)=>{for(var a=s>1?void 0:s?Jo(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&Zo(e,i,a),a};const Ya={astro_dawn:"Astro Dawn",nautical_dawn:"Nautical Dawn",civil_dawn:"Civil Dawn",gold_dawn:"Golden Dawn",day:"Day",gold_dusk:"Golden Dusk",civil_dusk:"Civil Dusk",nautical_dusk:"Nautical Dusk",astro_dusk:"Astro Dusk",night:"Night"};let rt=class extends L{constructor(){super(...arguments),this.hass=null,this.slots=[],this.entities=[],this.open=!1,this.highlightSlotId=null,this.areaId="",this.areaName="",this.isPrimaryChannel=!0,this.channelName="",this.transitionOnSeconds=null,this.placeholderDefaults=null,this._draft=null,this._draftTransitionOnSeconds=null,this._transitionDraftInitialized=!1}_isValidHHMM(t){if(!t)return!1;const e=/^(\d{1,2}):(\d{2})$/.exec(t);if(!e)return!1;const i=Number(e[1]),s=Number(e[2]);return i>=0&&i<=23&&s>=0&&s<=59}_hasInvalidSlot(){return(this._draft??this.slots).some(e=>e.startType==="fixed"&&!this._isValidHHMM(e.fixedStartTime))}_closeAndSave(){if(this._hasInvalidSlot())return;const t=this._draftTransitionOnSeconds!==this.transitionOnSeconds;if(this._draft!==null||t){const i=this._draft??this.slots;this.dispatchEvent(new $i(i,this._draftTransitionOnSeconds))}this._draft=null,this._transitionDraftInitialized=!1,this.dispatchEvent(new CustomEvent("close",{bubbles:!0,composed:!0}))}_closeDiscard(){this._draft=null,this._transitionDraftInitialized=!1,this.dispatchEvent(new CustomEvent("close",{bubbles:!0,composed:!0}))}_updateDraft(t){this._draft=t}_clampOffset(t,e,i){var u,p;const s=((u=this.placeholderDefaults)==null?void 0:u.max_offset_minutes)??180,a=((p=this.placeholderDefaults)==null?void 0:p.min_slot_distance_minutes)??ga;let o=Math.max(-s,Math.min(s,e));const r=["astro_dawn","nautical_dawn","civil_dawn","gold_dawn","day","gold_dusk","civil_dusk","nautical_dusk","astro_dusk","night"],l=i.find(d=>d.id===t);if(!l||(l.startType||"fixed")!=="astral")return o;const c=i.filter(d=>(d.startType||"fixed")==="astral").map(d=>{const f=d.startEvent||"civil_dawn",v=r.indexOf(f);return{slot:d,zoneIdx:v!==-1?v:99}}).sort((d,f)=>d.zoneIdx-f.zoneIdx),g=c.findIndex(d=>d.slot.id===t);if(g!==-1){if(g>0){const d=c[g-1].slot.startOffset||0;o<d-a&&(o=d-a)}if(g<c.length-1){const d=c[g+1].slot.startOffset||0;o>d+a&&(o=d+a)}}return o}_addCustomSlot(){const t=this._draft??this.slots;if(t.length>=mi)return;const e=t.filter(s=>s.isCustom).length+1,i={id:`draft_${Date.now()}_${e}`,label:`Custom Slot ${e}`,color:"#8e44ad",from:720,to:780,scene:null,isCustom:!0,startType:"fixed",fixedStartTime:"12:00"};this._updateDraft([...t,i])}_deleteSlot(t){this._updateDraft((this._draft??this.slots).filter(e=>e.id!==t))}_setSlotScene(t,e){this._updateDraft((this._draft??this.slots).map(i=>i.id===t?{...i,scene:e}:i))}willUpdate(t){t.has("open")&&(this.open?(this._draft===null&&(this._draft=this.slots.map(e=>({...e}))),this._transitionDraftInitialized||(this._draftTransitionOnSeconds=this.transitionOnSeconds,this._transitionDraftInitialized=!0),Ai()):(this._draft=null,this._transitionDraftInitialized=!1))}render(){var g,u,p;if(!this.open)return n``;const t=this._draft;if(!t)return n``;const e=(this.areaId||"").toLowerCase(),i=(this.areaName||"").toLowerCase(),s=new Set;if(e&&(s.add(e),e==="badezimmer"&&s.add("bad"),e==="kuche"&&s.add("küche"),e==="buro"&&(s.add("büro"),s.add("office"))),i){s.add(i);const d=i.normalize("NFD").replace(/[\u0300-\u036f]/g,"");s.add(d),i==="bad"&&s.add("badezimmer"),i==="büro"&&s.add("office")}const a=(d,f)=>{const v=d.toLowerCase(),y=(f||"").toLowerCase();for(const k of s)if(v.includes(k)||y.includes(k))return!0;return!1},o=new Set(t.map(d=>d.scene).filter(d=>!!d)),r=!!(this.areaId&&this.entities&&this.entities.length>0),l=new Set(r?this.entities.filter(d=>d.domain!=="scene"&&d.domain!=="script"?!1:d.in_area||o.has(d.entity_id)||a(d.entity_id,d.name)).map(d=>d.entity_id):[]),c=t;return n`
       <div class="overlay" @click=${d=>{d.target===d.currentTarget&&this._closeDiscard()}}>
         <div class="edit-panel">
           <div class="panel-header">
-            <span class="panel-header-icon">🌅</span>
+            <span class="card-dot" style="--dot-color: #f97316;"></span>
             <span class="panel-header-title">
-              Slots Configuration${this.channelName?r` · <span style="color:var(--secondary-text-color);font-weight:500">${this.channelName}</span>`:""}
+              Slots Configuration${this.channelName?n` · <span style="color:var(--secondary-text-color);font-weight:500">${this.channelName}</span>`:""}
             </span>
             <button class="panel-close" @click=${this._closeDiscard}>✕</button>
           </div>
@@ -4815,14 +5512,14 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                     min="0"
                     class="sensor-input"
                     .value=${this._draftTransitionOnSeconds!==null?String(this._draftTransitionOnSeconds):""}
-                    placeholder=${String(((u=this.placeholderDefaults)==null?void 0:u.transition_on_seconds)??60)}
-                    @input=${d=>{const f=d.target.value;this._draftTransitionOnSeconds=f.trim()===""?null:parseInt(f,10)}}
+                    placeholder=${String(((g=this.placeholderDefaults)==null?void 0:g.transition_on_seconds)??60)}
+                    @input=${d=>{const f=d.target.value.trim();if(f==="")this._draftTransitionOnSeconds=null;else{const v=parseInt(f,10);this._draftTransitionOnSeconds=isNaN(v)?null:v}}}
                   />
                 </div>
               </div>
               <div class="slots-notice">
                 <span>⏱️</span>
-                <span>A minimum distance of ${((g=this.placeholderDefaults)==null?void 0:g.min_slot_distance_minutes)??oa} minutes between consecutive slots is maintained, with a maximum offset of ±${((p=this.placeholderDefaults)==null?void 0:p.max_offset_minutes)??180} minutes.</span>
+                <span>A minimum distance of ${((u=this.placeholderDefaults)==null?void 0:u.min_slot_distance_minutes)??ga} minutes between consecutive slots is maintained, with a maximum offset of ±${((p=this.placeholderDefaults)==null?void 0:p.max_offset_minutes)??180} minutes.</span>
               </div>
               <div class="slots-header">
                 <div>Slot</div>
@@ -4833,36 +5530,36 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                 <div></div>
               </div>
 
-              ${c.map(d=>{const f=d.id===this.highlightSlotId,x=!this.isPrimaryChannel,w=d.startType==="fixed"&&!this._isValidHHMM(d.fixedStartTime);return r`
-                  <div class="slot-edit-card ${f?"highlighted":""} ${w?"invalid":""}">
+              ${c.map(d=>{const f=d.id===this.highlightSlotId,v=!this.isPrimaryChannel,y=d.startType==="fixed"&&!this._isValidHHMM(d.fixedStartTime);return n`
+                  <div class="slot-edit-card ${f?"highlighted":""} ${y?"invalid":""}">
                     <!-- Col 1: Icon/Dot + Label/Input -->
                     <div style="display:flex; align-items:center; gap:8px; min-width: 0;">
                       <div class="slot-edit-dot" style="background:${d.color}"></div>
                       <div style="flex: 1; min-width: 0;">
-                        ${x?r`
+                        ${v?n`
                             <input
                               type="text"
                               class="sensor-input"
                               .value=${d.label}
-                              @input=${k=>{const v=k.target.value;this._updateDraft(t.map(m=>m.id===d.id?{...m,label:v}:m))}}
+                              @input=${k=>{const x=k.target.value;this._updateDraft(t.map(_=>_.id===d.id?{..._,label:x}:_))}}
                               placeholder="Slot Name"
                             />
-                          `:r`<div class="slot-edit-label" style="font-size:13px; font-weight:600">${d.label}</div>`}
+                          `:n`<div class="slot-edit-label" style="font-size:13px; font-weight:600">${d.label}</div>`}
                       </div>
                     </div>
 
                     <!-- Col 2: Start Type -->
                     <div>
                       <span class="mobile-label">Start Type</span>
-                      ${x?r`
+                      ${v?n`
                           <select
                             class="sensor-input"
-                            @change=${k=>{const v=k.target.value;this._updateDraft(t.map(m=>m.id===d.id?{...m,startType:v,startEvent:v==="astral"?"civil_dawn":void 0,fixedStartTime:v==="fixed"?"12:00":void 0,startOffset:v==="astral"?0:void 0}:m))}}
+                            @change=${k=>{const x=k.target.value;this._updateDraft(t.map(_=>_.id===d.id?{..._,startType:x,startEvent:x==="astral"?"civil_dawn":void 0,fixedStartTime:x==="fixed"?"12:00":void 0,startOffset:x==="astral"?0:void 0}:_))}}
                           >
                             <option value="fixed" ?selected=${(d.startType||"fixed")==="fixed"}>Fixed Time</option>
                             <option value="astral" ?selected=${d.startType==="astral"}>Sun Event</option>
                           </select>
-                        `:r`
+                        `:n`
                           <select class="sensor-input" disabled style="opacity:0.6">
                             <option>Sun Event</option>
                           </select>
@@ -4872,32 +5569,32 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                     <!-- Col 3: Value / Offset -->
                     <div>
                       <span class="mobile-label">Value / Offset</span>
-                      ${d.startType==="fixed"?r`
+                      ${d.startType==="fixed"?n`
                           <input
                             type="time"
                             class="sensor-input"
                             .value=${d.fixedStartTime||"12:00"}
-                            @change=${k=>{const v=k.target.value;this._updateDraft(t.map(m=>m.id===d.id?{...m,fixedStartTime:v}:m))}}
+                            @change=${k=>{const x=k.target.value;this._updateDraft(t.map(_=>_.id===d.id?{..._,fixedStartTime:x}:_))}}
                           />
-                        `:r`
+                        `:n`
                           <div style="display:flex; gap:6px;">
-                            ${x?r`
+                            ${v?n`
                                 <select
                                   class="sensor-input"
                                   style="flex:1"
-                                  @change=${k=>{const v=k.target.value;this._updateDraft(t.map(m=>m.id===d.id?{...m,startEvent:v}:m))}}
+                                  @change=${k=>{const x=k.target.value;this._updateDraft(t.map(_=>_.id===d.id?{..._,startEvent:x}:_))}}
                                 >
-                                  ${Object.entries(La).map(([k,v])=>r`
-                                    <option value=${k} ?selected=${(d.startEvent||"civil_dawn")===k}>${v}</option>
+                                  ${Object.entries(Ya).map(([k,x])=>n`
+                                    <option value=${k} ?selected=${(d.startEvent||"civil_dawn")===k}>${x}</option>
                                   `)}
                                 </select>
-                              `:r`<input class="sensor-input" style="flex:1; opacity:0.6" disabled .value=${La[d.startEvent||""]||d.startEvent||""} />`}
+                              `:n`<input class="sensor-input" style="flex:1; opacity:0.6" disabled .value=${Ya[d.startEvent||""]||d.startEvent||""} />`}
                             <input
                               type="number"
                               class="sensor-input"
                               style="width:64px;"
                               .value=${String(d.startOffset||0)}
-                              @input=${k=>{const v=k.target,m=Number(v.value),C=this._clampOffset(d.id,m,t);C!==m&&(v.value=String(C)),this._updateDraft(t.map(O=>O.id===d.id?{...O,startOffset:C}:O))}}
+                              @input=${k=>{const x=k.target,_=Number(x.value),C=this._clampOffset(d.id,_,t);C!==_&&(x.value=String(C)),this._updateDraft(t.map(A=>A.id===d.id?{...A,startOffset:C}:A))}}
                               placeholder="Offset"
                             />
                           </div>
@@ -4908,7 +5605,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                     <div>
                       <span class="mobile-label">Time</span>
                       <span class="slot-edit-time" style="font-size: 13px; font-family: monospace; font-weight: 500;">
-                        ${ne(d.from)} → ${ne(d.to)}
+                        ${ge(d.from)} → ${ge(d.to)}
                       </span>
                     </div>
 
@@ -4919,15 +5616,15 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                         .hass=${this.hass}
                         .value=${d.scene??""}
                         .includeDomains=${["scene","script"]}
-                        .entityFilter=${n?k=>l.has(k.entity_id):void 0}
+                        .entityFilter=${r?k=>l.has(k.entity_id):void 0}
                         allow-custom-entity
-                        @value-changed=${k=>{const v=k.detail.value||null;v!==d.scene&&this._setSlotScene(d.id,v)}}
+                        @value-changed=${k=>{const x=k.detail.value||null;x!==d.scene&&this._setSlotScene(d.id,x)}}
                       ></ha-entity-picker>
                     </div>
 
                     <!-- Col 6: Delete action -->
                     <div style="display: flex; justify-content: flex-end;">
-                      ${x?r`
+                      ${v?n`
                           <button
                             class="panel-close"
                             style="color: var(--error-color, #db4437); font-size:16px; padding: 4px;"
@@ -4941,12 +5638,12 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                   </div>
                 `})}
 
-              ${this.isPrimaryChannel?"":t.length>=pi?r`<button class="btn-add-slot" disabled>Max ${pi} slots reached</button>`:r`<button class="btn-add-slot" @click=${this._addCustomSlot}>➕ Add Slot</button>`}
+              ${this.isPrimaryChannel?"":t.length>=mi?n`<button class="btn-add-slot" disabled>Max ${mi} slots reached</button>`:n`<button class="btn-add-slot" @click=${this._addCustomSlot}>➕ Add Slot</button>`}
             </div>
           </div>
 
           <div class="panel-footer">
-            ${this._hasInvalidSlot()?r`
+            ${this._hasInvalidSlot()?n`
               <span style="flex:1; color:var(--error-color, #db4437); font-size:13px; align-self:center;">
                 ⚠️ Fix invalid times (HH:MM) before saving
               </span>
@@ -4955,7 +5652,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
           </div>
         </div>
       </div>
-    `}};rt.styles=z`
+    `}};rt.styles=O`
     .overlay {
       position: fixed;
       inset: 0;
@@ -4971,8 +5668,8 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
       background: var(--input-fill-color, var(--mdc-text-field-fill-color, var(--card-background-color, #2d2a3d)));
       border-radius: 16px;
       border: 1px solid var(--divider-color, color-mix(in srgb, var(--primary-text-color) 10%, transparent));
-      width: 90vw;
-      max-width: 1000px;
+      width: 95vw;
+      max-width: 1150px;
       max-height: calc(100vh - 96px);
       display: flex;
       flex-direction: column;
@@ -5042,7 +5739,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
 
     .slots-header {
       display: grid;
-      grid-template-columns: minmax(110px, 1.2fr) minmax(100px, 1fr) minmax(150px, 1.4fr) minmax(90px, 1fr) minmax(200px, 2.5fr) 30px;
+      grid-template-columns: minmax(110px, 1.1fr) minmax(110px, 1fr) minmax(180px, 1.6fr) minmax(100px, 1fr) minmax(220px, 2.5fr) 30px;
       gap: 12px;
       padding: 0 16px 8px;
       font-size: 11px;
@@ -5055,7 +5752,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
 
     .slot-edit-card {
       display: grid;
-      grid-template-columns: minmax(110px, 1.2fr) minmax(100px, 1fr) minmax(150px, 1.4fr) minmax(90px, 1fr) minmax(200px, 2.5fr) 30px;
+      grid-template-columns: minmax(110px, 1.1fr) minmax(110px, 1fr) minmax(180px, 1.6fr) minmax(100px, 1fr) minmax(220px, 2.5fr) 30px;
       gap: 12px;
       align-items: center;
       padding: 4px 16px;
@@ -5202,13 +5899,13 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
         margin-bottom: 4px;
       }
     }
-  `,bt([h({attribute:!1})],rt.prototype,"hass",2),bt([h({type:Array})],rt.prototype,"slots",2),bt([h({type:Array})],rt.prototype,"entities",2),bt([h({type:Boolean})],rt.prototype,"open",2),bt([h({type:String})],rt.prototype,"highlightSlotId",2),bt([h({type:String})],rt.prototype,"areaId",2),bt([h({type:String})],rt.prototype,"areaName",2),bt([h({type:Boolean})],rt.prototype,"isPrimaryChannel",2),bt([h({type:String})],rt.prototype,"channelName",2),bt([h({type:Number})],rt.prototype,"transitionOnSeconds",2),bt([h({attribute:!1})],rt.prototype,"placeholderDefaults",2),bt([b()],rt.prototype,"_draft",2),bt([b()],rt.prototype,"_draftTransitionOnSeconds",2),rt=bt([H("twilight-slot-editor")],rt);function gt(t){return t.channels||{}}function Ra(t){return Object.keys(gt(t)).sort((i,a)=>i===T?-1:a===T?1:0)}function le(t,e){var i;return((i=gt(t)[e])==null?void 0:i.slots)||[]}var Mo=Object.defineProperty,Po=Object.getOwnPropertyDescriptor,G=(t,e,i,a)=>{for(var s=a>1?void 0:a?Po(e,i):e,o=t.length-1,n;o>=0;o--)(n=t[o])&&(s=(a?n(e,i,s):n(s))||s);return a&&s&&Mo(e,i,s),s};let W=class extends L{constructor(){super(...arguments),this.hass=null,this.areaId="",this.areaConfigs=[],this.areas=[],this.todayData=null,this.globalConfig={},this.placeholderDefaults=null,this.areasState={},this._areaPlaceholderDefaults=null,this._isNewArea=!1,this._selectedChannelId=T,this._areaEntities=[],this._extractedEntities={},this._slotEditOpen=!1,this._editingSlotId=null,this._hoveredTime=null,this._hoveredChannelId=T,this._tooltipX=0,this._tooltipY=0,this._resetDialogOpen=!1,this._globalDefaultsTemplate=null,this._resetNodes=[],this._slotTimes=null,this._dialog=new fe(this),this._clock=new Ue(this),this._lastLoadedKey="",this._draftController=new ua(this,{onSave:async t=>{if(!this.hass)return;const e=await Ss(this.hass,t),i=this.areaConfigs.findIndex(s=>s.area_id===e.area_id);let a;return i>=0?a=this.areaConfigs.map((s,o)=>o===i?e:s):a=[...this.areaConfigs,e],this._isNewArea=!1,this.dispatchEvent(new CustomEvent("areas-changed",{detail:a,bubbles:!0,composed:!0})),this.dispatchEvent(new CustomEvent("engines-changed",{bubbles:!0,composed:!0})),e}})}get _effectivePlaceholderDefaults(){return this._areaPlaceholderDefaults??this.placeholderDefaults}async _saveOrUpdateDraft(){this._isNewArea?this.requestUpdate():await this._draftController.save()}connectedCallback(){super.connectedCallback(),this.hass&&this.areaId&&this._loadAreaDetails()}updated(t){if(super.updated(t),(t.has("areaId")||t.has("hass"))&&this.areaId&&this.hass){const e=t.get("areaId"),i=t.get("hass");(this.areaId!==e||this.hass!==i)&&this._loadAreaDetails()}}async _loadAreaDetails(){var s;const t=`${this.areaId}_${(s=this.hass)!=null&&s.states?"has_hass":"no_hass"}`;if(t===this._lastLoadedKey||(this._lastLoadedKey=t,!this.hass||!this.areaId))return;this._draftController.loading=!0,this.requestUpdate(),this._selectedChannelId=T;const e=this.areaConfigs.find(o=>o.area_id===this.areaId),i=this.areas.find(o=>o.area_id===this.areaId);let a;e?(this._isNewArea=!1,a=structuredClone(e)):(this._isNewArea=!0,a=await la(this.hass,this.areaId),i&&(a.name=i.name)),a.activities=Pa(a.activities),this._draftController.init(a);try{const[o,n]=await Promise.all([Ts(this.hass,this.areaId),As(this.hass,this.areaId).catch(l=>(console.warn("Backend extraction not available yet, using empty fallback",l),{}))]);this._extractedEntities=n||{},this._updateAreaEntities(this._draftController.draft,o),await this._fetchSlotTimes()}catch(o){console.error("Error fetching area entities",o)}finally{this._draftController.loading=!1,this.requestUpdate()}}async _fetchSlotTimes(){if(!(!this.hass||!this.areaId||this._isNewArea)){try{this._slotTimes=await ha(this.hass,{area_id:this.areaId})}catch(t){console.warn("Failed to fetch area slot times:",t)}try{this._areaPlaceholderDefaults=await vi(this.hass,this.areaId)}catch(t){console.warn("Failed to fetch area placeholder defaults:",t)}}}_activeChannelId(t){return Ra(t).includes(this._selectedChannelId)?this._selectedChannelId:T}_updateAreaEntities(t,e){const i=new Set;this._extractedEntities&&Object.values(this._extractedEntities).forEach(n=>{(Array.isArray(n)?n:(n==null?void 0:n.extracted)??[]).forEach(c=>i.add(c))});const a=new Set,s=this._activeChannelId(t);le(t,s).forEach(n=>{var l;(l=n.configured_entities)==null||l.forEach(c=>a.add(c))});const o=a.size>0;this._areaEntities=e.map(n=>{const l=i.has(n.entity_id),c=o&&a.has(n.entity_id);return{entity_id:n.entity_id,name:n.name,domain:n.domain,in_area:n.in_area,checked:c||l,isExtracted:l,isManual:c}})}_refreshExtractedEntities(){this._draftController.draft&&this._updateAreaEntities(this._draftController.draft,this._areaEntities)}async _confirmDiscardIfDirty(){return!this._isNewArea&&!this._draftController.isDirty?!0:this._dialog.showConfirm("Discard Changes","You have unsaved changes. Are you sure you want to discard them?")}async _backToOverview(){await this._confirmDiscardIfDirty()&&this.dispatchEvent(new CustomEvent("back",{bubbles:!0,composed:!0}))}_saveStatusText(){if(this._draftController.saving)return"Saving…";const t=this._draftController.saveError;return t?`Save failed: ${t&&typeof t=="object"&&"message"in t?String(t.message):String(t)}`:this._isNewArea?"New Area Setup":this._draftController.isDirty?"Unsaved changes":"All changes saved"}_onSunPathHover(t){this._hoveredTime=t.detail.hoverTime,t.detail.channelId&&(this._hoveredChannelId=t.detail.channelId)}async _onSensorsChanged(t){this._draftController.update({sensors:t.detail}),await this._saveOrUpdateDraft()}_availableActivities(t){const e=(t.activities??[]).map(i=>i.id);return e.length>0?e:["sleep"]}async _onInputsChanged(t){this._draftController.update({inputs:t.detail.inputs}),await this._saveOrUpdateDraft()}async _onActivitiesChanged(t){this._draftController.update({activities:t.detail.activities}),await this._saveOrUpdateDraft()}_onSunPathMove(t){this._tooltipX=t.clientX,this._tooltipY=t.clientY}_onSlotSelected(t){t.detail.channelId&&(this._selectedChannelId=t.detail.channelId),this._editingSlotId=t.detail.slotId,this._slotEditOpen=!0}_onChannelSelected(t){this._selectedChannelId=t.detail.channelId,this._refreshExtractedEntities()}async _onChannelAdded(t){const e=this._draftController.draft;if(!e)return;const i=t.detail.name.trim();if(!i)return;const a=i.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"");if(!a)return;const s={...gt(e)};if(s[a]){await this._dialog.showAlert("Channel already exists",`A channel named "${i}" already exists.`);return}s[a]={name:i,enabled:!0,slots:[]},this._draftController.update({channels:s}),this._selectedChannelId=a,await this._saveOrUpdateDraft()}async _onChannelRenamed(t){const e=this._draftController.draft;if(!e)return;const{channelId:i,name:a}=t.detail,s={...gt(e)},o=s[i];o&&(s[i]={...o,name:a},this._draftController.update({channels:s}),await this._saveOrUpdateDraft())}async _onChannelDeleted(t){const e=this._draftController.draft;if(!e||t.detail.channelId===T)return;const i={...gt(e)};delete i[t.detail.channelId],this._draftController.update({channels:i}),this._selectedChannelId===t.detail.channelId&&(this._selectedChannelId=T),await this._saveOrUpdateDraft()}async _onChannelToggled(t){const e=this._draftController.draft;if(!e||t.detail.channelId===T)return;const i={...gt(e)},a=i[t.detail.channelId];a&&(i[t.detail.channelId]={...a,enabled:t.detail.enabled},this._draftController.update({channels:i}),await this._saveOrUpdateDraft())}_withChannelSlots(t,e,i,a){const s={...gt(t)},o=s[e];return o&&(s[e]={...o,slots:i,...a!==void 0?{transition_on_seconds:a}:{}}),s}async _onSlotsChanged(t){const e=this._draftController.draft;if(!e)return;const i=this._activeChannelId(e),a=le(e,i),s=t.detail.slots.map(o=>{const n=a.find(c=>c.id===o.id),l=o.startType==="fixed";return{id:o.id,name:o.label,start_type:l?"fixed":"astral",zone:l?null:o.startEvent||(n==null?void 0:n.zone)||"civil_dawn",fixed_time:l?o.fixedStartTime||"00:00":null,offset_minutes:o.startOffset||0,scene_entity_id:o.scene,configured_entities:(n==null?void 0:n.configured_entities)||[]}});this._draftController.update({channels:this._withChannelSlots(e,i,s,t.detail.transitionOnSeconds)}),this._refreshExtractedEntities(),await this._saveOrUpdateDraft(),await this._fetchSlotTimes()}async _onLightsChanged(t){const e=this._draftController.draft;if(!e)return;this._areaEntities=t.detail.entities;const i=t.detail.entities.filter(o=>o.isManual).map(o=>o.entity_id),a=this._activeChannelId(e),s=le(e,a).map(o=>({...o,configured_entities:i}));this._draftController.update({channels:this._withChannelSlots(e,a,s)}),this._refreshExtractedEntities(),await this._saveOrUpdateDraft()}async _onLightsModeChanged(t){this._draftController.update({manual_only:t.detail.manualOnly}),await this._saveOrUpdateDraft()}async _onSelectAreaChanged(t){var s;const e=t.target,i=e.value,a=(s=this._draftController.draft)==null?void 0:s.area_id;if(i!==a){if(!await this._confirmDiscardIfDirty()){e.value=a??"";return}this.dispatchEvent(new CustomEvent("select-area",{detail:{areaId:i},bubbles:!0,composed:!0}))}}async _onAreaEnabledToggled(t){const e=t.target.checked;this._draftController.update({enabled:e}),await this._saveOrUpdateDraft()}async _deleteArea(){if(!(!this.areaId||!this.hass||!await this._dialog.showConfirm("Delete Configuration","Are you sure you want to delete the Twilight configuration for this area?")))try{await Ds(this.hass,this.areaId);const e=this.areaConfigs.filter(i=>i.area_id!==this.areaId);this.dispatchEvent(new CustomEvent("areas-changed",{detail:e,bubbles:!0,composed:!0})),this.dispatchEvent(new CustomEvent("engines-changed",{bubbles:!0,composed:!0})),this._backToOverview()}catch(e){console.error("Error deleting area config",e)}}async _resetAreaToGlobalDefaults(){const t=this._draftController.draft;if(!(!t||!this.hass))try{const e=await la(this.hass,t.area_id);this._globalDefaultsTemplate=e;const i=[{id:"inherited",label:"Inherited Defaults (Lux Threshold, Extend Window, etc.)"},{id:"area_inputs",label:"Area Inputs",children:(e.inputs||[]).map(a=>({id:`area_inputs:${a.id}`,label:`${a.type} — ${a.activity}`}))},{id:"area_activities",label:"Area Activities",children:(e.activities||[]).map(a=>({id:`area_activities:${a.id}`,label:a.id}))},{id:"area_channels",label:"Area Custom Channels",children:Object.entries(e.channels||{}).filter(([a])=>a!==T).map(([a,s])=>({id:`area_channels:${a}`,label:s.name||a}))}];this._resetNodes=i,this._resetDialogOpen=!0,this.requestUpdate()}catch(e){console.error("Failed to load area global defaults template:",e)}}async _executeReset(t){if(!this._globalDefaultsTemplate||!this._draftController.draft)return;const e=new Set(t.detail.selectedIds),i=this._globalDefaultsTemplate;this._draftController.update(a=>{e.has("inherited")&&(a.lux_threshold=null,a.lux_watch_window=null);const s=e.has("area_inputs"),o=i.inputs||[];if(s)a.inputs=structuredClone(o);else{const g=[...a.inputs||[]];o.forEach(p=>{if(e.has(`area_inputs:${p.id}`)){const d=g.findIndex(f=>f.id===p.id);d>=0?g[d]=structuredClone(p):g.push(structuredClone(p))}}),a.inputs=g}const n=e.has("area_activities"),l=i.activities||[];if(n)a.activities=structuredClone(l);else{const g=[...a.activities||[]];l.forEach(p=>{if(e.has(`area_activities:${p.id}`)){const d=g.findIndex(f=>f.id===p.id);d>=0?g[d]=structuredClone(p):g.push(structuredClone(p))}}),a.activities=g}const c=e.has("area_channels"),u=i.channels||{};if(c){const g={...a.channels||{}};Object.keys(g).forEach(p=>{p!==T&&delete g[p]}),Object.entries(u).forEach(([p,d])=>{p!==T&&(g[p]=structuredClone(d))}),a.channels=g}else{const g={...a.channels||{}};Object.keys(u).forEach(p=>{p!==T&&e.has(`area_channels:${p}`)&&(g[p]=structuredClone(u[p]))}),a.channels=g}}),this._resetDialogOpen=!1,this.requestUpdate(),await this._saveOrUpdateDraft()}_renderTooltip(t,e){if(this._hoveredTime===null)return r``;const i=this._hoveredTime,s=(t[this._hoveredChannelId]??e).find(n=>ge(n,i));if(!s)return r``;const o=s.scene?mi(this.hass,s.scene):s.label;return r`
+  `,_t([h({attribute:!1})],rt.prototype,"hass",2),_t([h({type:Array})],rt.prototype,"slots",2),_t([h({type:Array})],rt.prototype,"entities",2),_t([h({type:Boolean})],rt.prototype,"open",2),_t([h({type:String})],rt.prototype,"highlightSlotId",2),_t([h({type:String})],rt.prototype,"areaId",2),_t([h({type:String})],rt.prototype,"areaName",2),_t([h({type:Boolean})],rt.prototype,"isPrimaryChannel",2),_t([h({type:String})],rt.prototype,"channelName",2),_t([h({type:Number})],rt.prototype,"transitionOnSeconds",2),_t([h({attribute:!1})],rt.prototype,"placeholderDefaults",2),_t([b()],rt.prototype,"_draft",2),_t([b()],rt.prototype,"_draftTransitionOnSeconds",2),rt=_t([z("twilight-slot-editor")],rt);function nt(t){return t.channels||{}}function Ga(t){return Object.keys(nt(t)).sort((i,s)=>i===I?-1:s===I?1:0)}function be(t,e){var i;return((i=nt(t)[e])==null?void 0:i.slots)||[]}var Qo=Object.defineProperty,tr=Object.getOwnPropertyDescriptor,V=(t,e,i,s)=>{for(var a=s>1?void 0:s?tr(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&Qo(e,i,a),a};let H=class extends L{constructor(){super(...arguments),this.hass=null,this.areaId="",this.areaConfigs=[],this.areas=[],this.todayData=null,this.globalConfig={},this.placeholderDefaults=null,this.areasState={},this._areaPlaceholderDefaults=null,this._isNewArea=!1,this._selectedChannelId=I,this._areaEntities=[],this._extractedEntities={},this._slotEditOpen=!1,this._editingSlotId=null,this._hoveredTime=null,this._hoveredChannelId=I,this._tooltipX=0,this._tooltipY=0,this._resetDialogOpen=!1,this._globalDefaultsTemplate=null,this._resetNodes=[],this._slotTimes=null,this._dialog=new fe(this),this._clock=new Ge(this),this._lastLoadedKey="",this._draftController=new wa(this,{onSave:async t=>{if(!this.hass)return;const e=await Rs(this.hass,t),i=this.areaConfigs.findIndex(a=>a.area_id===e.area_id);let s;return i>=0?s=this.areaConfigs.map((a,o)=>o===i?e:a):s=[...this.areaConfigs,e],this._isNewArea=!1,this.dispatchEvent(new CustomEvent("areas-changed",{detail:s,bubbles:!0,composed:!0})),this.dispatchEvent(new CustomEvent("engines-changed",{bubbles:!0,composed:!0})),e}})}get _effectivePlaceholderDefaults(){return this._areaPlaceholderDefaults??this.placeholderDefaults}async _saveOrUpdateDraft(){this._isNewArea?this.requestUpdate():await this._draftController.save()}connectedCallback(){super.connectedCallback(),this.hass&&this.areaId&&this._loadAreaDetails()}updated(t){if(super.updated(t),(t.has("areaId")||t.has("hass"))&&this.areaId&&this.hass){const e=t.get("areaId"),i=t.get("hass");(this.areaId!==e||this.hass!==i)&&this._loadAreaDetails()}}async _loadAreaDetails(){var a;const t=`${this.areaId}_${(a=this.hass)!=null&&a.states?"has_hass":"no_hass"}`;if(t===this._lastLoadedKey||(this._lastLoadedKey=t,!this.hass||!this.areaId))return;this._draftController.loading=!0,this.requestUpdate(),this._selectedChannelId=I;const e=this.areaConfigs.find(o=>o.area_id===this.areaId),i=this.areas.find(o=>o.area_id===this.areaId);let s;e?(this._isNewArea=!1,s=structuredClone(e)):(this._isNewArea=!0,s=await va(this.hass,this.areaId),i&&(s.name=i.name)),s.activities=qa(s.activities),this._draftController.init(s);try{const[o,r]=await Promise.all([Hs(this.hass,this.areaId),js(this.hass,this.areaId).catch(l=>(console.warn("Backend extraction not available yet, using empty fallback",l),{}))]);this._extractedEntities=r||{},this._updateAreaEntities(this._draftController.draft,o),await this._fetchSlotTimes()}catch(o){console.error("Error fetching area entities",o)}finally{this._draftController.loading=!1,this.requestUpdate()}}async _fetchSlotTimes(){if(!(!this.hass||!this.areaId||this._isNewArea)){try{this._slotTimes=await _a(this.hass,{area_id:this.areaId})}catch(t){console.warn("Failed to fetch area slot times:",t)}try{this._areaPlaceholderDefaults=await Ci(this.hass,this.areaId)}catch(t){console.warn("Failed to fetch area placeholder defaults:",t)}}}_activeChannelId(t){return Ga(t).includes(this._selectedChannelId)?this._selectedChannelId:I}_updateAreaEntities(t,e){const i=new Set;this._extractedEntities&&Object.values(this._extractedEntities).forEach(r=>{(Array.isArray(r)?r:(r==null?void 0:r.extracted)??[]).forEach(c=>i.add(c))});const s=new Set,a=this._activeChannelId(t);be(t,a).forEach(r=>{var l;(l=r.configured_entities)==null||l.forEach(c=>s.add(c))});const o=s.size>0;this._areaEntities=e.map(r=>{const l=i.has(r.entity_id),c=o&&s.has(r.entity_id);return{entity_id:r.entity_id,name:r.name,domain:r.domain,in_area:r.in_area,checked:c||l,isExtracted:l,isManual:c}})}_refreshExtractedEntities(){this._draftController.draft&&this._updateAreaEntities(this._draftController.draft,this._areaEntities)}async _confirmDiscardIfDirty(){return!this._isNewArea&&!this._draftController.isDirty?!0:this._dialog.showConfirm("Discard Changes","You have unsaved changes. Are you sure you want to discard them?")}async _backToOverview(){await this._confirmDiscardIfDirty()&&this.dispatchEvent(new CustomEvent("back",{bubbles:!0,composed:!0}))}_saveStatusText(){if(this._draftController.saving)return"Saving…";const t=this._draftController.saveError;return t?`Save failed: ${t&&typeof t=="object"&&"message"in t?String(t.message):String(t)}`:this._isNewArea?"New Area Setup":this._draftController.isDirty?"Unsaved changes":"All changes saved"}_onSunPathHover(t){this._hoveredTime=t.detail.hoverTime,t.detail.channelId&&(this._hoveredChannelId=t.detail.channelId)}async _onSensorsChanged(t){this._draftController.update({sensors:t.detail}),await this._saveOrUpdateDraft()}_availableActivities(t){const e=(t.activities??[]).map(i=>i.id);return e.length>0?e:["sleep"]}async _onInputsChanged(t){this._draftController.update({inputs:t.detail.inputs}),await this._saveOrUpdateDraft()}async _onActivitiesChanged(t){this._draftController.update({activities:t.detail.activities}),await this._saveOrUpdateDraft()}async _onRulesChanged(t){this._draftController.update({rules:t.detail}),await this._saveOrUpdateDraft()}_onSunPathMove(t){this._tooltipX=t.clientX,this._tooltipY=t.clientY}_onSlotSelected(t){t.detail.channelId&&(this._selectedChannelId=t.detail.channelId),this._editingSlotId=t.detail.slotId,this._slotEditOpen=!0}_onChannelSelected(t){this._selectedChannelId=t.detail.channelId,this._refreshExtractedEntities()}async _onChannelAdded(t){const e=this._draftController.draft;if(!e)return;const i=t.detail.name.trim();if(!i)return;const s=i.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"");if(!s)return;const a={...nt(e)};if(a[s]){await this._dialog.showAlert("Channel already exists",`A channel named "${i}" already exists.`);return}a[s]={name:i,enabled:!0,slots:[]},this._draftController.update({channels:a}),this._selectedChannelId=s,await this._saveOrUpdateDraft()}async _onChannelRenamed(t){const e=this._draftController.draft;if(!e)return;const{channelId:i,name:s}=t.detail,a={...nt(e)},o=a[i];o&&(a[i]={...o,name:s},this._draftController.update({channels:a}),await this._saveOrUpdateDraft())}async _onChannelDeleted(t){const e=this._draftController.draft;if(!e||t.detail.channelId===I)return;const i={...nt(e)};delete i[t.detail.channelId],this._draftController.update({channels:i}),this._selectedChannelId===t.detail.channelId&&(this._selectedChannelId=I),await this._saveOrUpdateDraft()}async _onChannelToggled(t){const e=this._draftController.draft;if(!e||t.detail.channelId===I)return;const i={...nt(e)},s=i[t.detail.channelId];s&&(i[t.detail.channelId]={...s,enabled:t.detail.enabled},this._draftController.update({channels:i}),await this._saveOrUpdateDraft())}_withChannelSlots(t,e,i,s){const a={...nt(t)},o=a[e];return o&&(a[e]={...o,slots:i,...s!==void 0?{transition_on_seconds:s}:{}}),a}async _onSlotsChanged(t){const e=this._draftController.draft;if(!e)return;const i=this._activeChannelId(e),s=be(e,i),a=t.detail.slots.map(o=>{const r=s.find(c=>c.id===o.id),l=o.startType==="fixed";return{id:o.id,name:o.label,start_type:l?"fixed":"astral",zone:l?null:o.startEvent||(r==null?void 0:r.zone)||"civil_dawn",fixed_time:l?o.fixedStartTime||"00:00":null,offset_minutes:o.startOffset||0,scene_entity_id:o.scene,configured_entities:(r==null?void 0:r.configured_entities)||[]}});this._draftController.update({channels:this._withChannelSlots(e,i,a,t.detail.transitionOnSeconds)}),this._refreshExtractedEntities(),await this._saveOrUpdateDraft(),await this._fetchSlotTimes()}async _onLightsChanged(t){const e=this._draftController.draft;if(!e)return;this._areaEntities=t.detail.entities;const i=t.detail.entities.filter(o=>o.isManual).map(o=>o.entity_id),s=this._activeChannelId(e),a=be(e,s).map(o=>({...o,configured_entities:i}));this._draftController.update({channels:this._withChannelSlots(e,s,a)}),this._refreshExtractedEntities(),await this._saveOrUpdateDraft()}async _onLightsModeChanged(t){this._draftController.update({manual_only:t.detail.manualOnly}),await this._saveOrUpdateDraft()}async _onSelectAreaChanged(t){var a;const e=t.target,i=e.value,s=(a=this._draftController.draft)==null?void 0:a.area_id;if(i!==s){if(!await this._confirmDiscardIfDirty()){e.value=s??"";return}this.dispatchEvent(new CustomEvent("select-area",{detail:{areaId:i},bubbles:!0,composed:!0}))}}async _onAreaEnabledToggled(t){const e=t.target.checked;this._draftController.update({enabled:e}),await this._saveOrUpdateDraft()}async _deleteArea(){if(!(!this.areaId||!this.hass||!await this._dialog.showConfirm("Delete Configuration","Are you sure you want to delete the Twilight configuration for this area?")))try{await Ls(this.hass,this.areaId);const e=this.areaConfigs.filter(i=>i.area_id!==this.areaId);this.dispatchEvent(new CustomEvent("areas-changed",{detail:e,bubbles:!0,composed:!0})),this.dispatchEvent(new CustomEvent("engines-changed",{bubbles:!0,composed:!0})),this._backToOverview()}catch(e){console.error("Error deleting area config",e)}}async _resetAreaToGlobalDefaults(){const t=this._draftController.draft;if(!(!t||!this.hass))try{const e=await va(this.hass,t.area_id);this._globalDefaultsTemplate=e;const i=[{id:"inherited",label:"Inherited Defaults (Lux Threshold, Extend Window, etc.)"},{id:"area_inputs",label:"Area Inputs",children:(e.inputs||[]).map(s=>({id:`area_inputs:${s.id}`,label:`${s.type} — ${s.activity}`}))},{id:"area_activities",label:"Area Activities",children:(e.activities||[]).map(s=>({id:`area_activities:${s.id}`,label:s.id}))},{id:"area_channels",label:"Area Custom Channels",children:Object.entries(e.channels||{}).filter(([s])=>s!==I).map(([s,a])=>({id:`area_channels:${s}`,label:a.name||s}))}];this._resetNodes=i,this._resetDialogOpen=!0,this.requestUpdate()}catch(e){console.error("Failed to load area global defaults template:",e)}}async _executeReset(t){if(!this._globalDefaultsTemplate||!this._draftController.draft)return;const e=new Set(t.detail.selectedIds),i=this._globalDefaultsTemplate;this._draftController.update(s=>{e.has("inherited")&&(s.lux_threshold=null,s.lux_watch_window=null);const a=e.has("area_inputs"),o=i.inputs||[];if(a)s.inputs=structuredClone(o);else{const u=[...s.inputs||[]];o.forEach(p=>{if(e.has(`area_inputs:${p.id}`)){const d=u.findIndex(f=>f.id===p.id);d>=0?u[d]=structuredClone(p):u.push(structuredClone(p))}}),s.inputs=u}const r=e.has("area_activities"),l=i.activities||[];if(r)s.activities=structuredClone(l);else{const u=[...s.activities||[]];l.forEach(p=>{if(e.has(`area_activities:${p.id}`)){const d=u.findIndex(f=>f.id===p.id);d>=0?u[d]=structuredClone(p):u.push(structuredClone(p))}}),s.activities=u}const c=e.has("area_channels"),g=i.channels||{};if(c){const u={...s.channels||{}};Object.keys(u).forEach(p=>{p!==I&&delete u[p]}),Object.entries(g).forEach(([p,d])=>{p!==I&&(u[p]=structuredClone(d))}),s.channels=u}else{const u={...s.channels||{}};Object.keys(g).forEach(p=>{p!==I&&e.has(`area_channels:${p}`)&&(u[p]=structuredClone(g[p]))}),s.channels=u}}),this._resetDialogOpen=!1,this.requestUpdate(),await this._saveOrUpdateDraft()}_renderTooltip(t,e){if(this._hoveredTime===null)return n``;const i=this._hoveredTime,a=(t[this._hoveredChannelId]??e).find(r=>$e(r,i));if(!a)return n``;const o=a.scene?Di(this.hass,a.scene):a.label;return n`
       <div class="slot-tooltip" style="left:${this._tooltipX+15}px; top:${this._tooltipY+15}px">
-        <span class="slot-tooltip-badge" style="background:${s.color}; color:#fff; box-shadow:0 0 10px ${s.color}40">
-          ${o} (${ne(i)})
+        <span class="slot-tooltip-badge" style="background:${a.color}; color:#fff; box-shadow:0 0 10px ${a.color}40">
+          ${o} (${ge(i)})
         </span>
       </div>
-    `}_areaToSlots(t,e){var s,o,n;const i=new Date().toISOString().slice(0,10),a=((n=(o=(s=this._slotTimes)==null?void 0:s.channels)==null?void 0:o[t])==null?void 0:n[i])||[];return He(a,e)}_activeSceneName(t){var o,n,l;const e=this.areasState[this.areaId]||null;if(e)return e.active_scene_name??"No Scene Active";const i=this._clock.liveMins,a=t.find(c=>ge(c,i)),s=(a==null?void 0:a.scene)??null;return s?((l=(n=(o=this.hass)==null?void 0:o.states[s])==null?void 0:n.attributes)==null?void 0:l.friendly_name)??s:"No Scene Active"}render(){var p,d;if(this._draftController.loading)return r`<div style="padding:24px;color:var(--secondary-text-color)">Loading Area Details…</div>`;const t=this._draftController.draft;if(!t)return r``;const e=this.areas.find(f=>f.area_id===t.area_id),i=t.name||(e==null?void 0:e.name)||t.area_id,a=new Date().toISOString().slice(0,10),s=this._activeChannelId(t),o=this._areaToSlots(s,le(t,s)),n=this._areaToSlots(T,le(t,T)),l=t.sensors||[],c=this._activeSceneName(o),u=this.areasState[t.area_id]||null,g={};for(const[f,x]of Object.entries(gt(t)))g[f]=this._areaToSlots(f,x.slots||[]);return r`
+    `}_areaToSlots(t,e){var a,o,r;const i=new Date().toISOString().slice(0,10),s=((r=(o=(a=this._slotTimes)==null?void 0:a.channels)==null?void 0:o[t])==null?void 0:r[i])||[];return Ye(s,e)}_activeSceneName(t){var o,r,l;const e=this.areasState[this.areaId]||null;if(e)return e.active_scene_name??"No Scene Active";const i=this._clock.liveMins,s=t.find(c=>$e(c,i)),a=(s==null?void 0:s.scene)??null;return a?((l=(r=(o=this.hass)==null?void 0:o.states[a])==null?void 0:r.attributes)==null?void 0:l.friendly_name)??a:"No Scene Active"}render(){var p,d;if(this._draftController.loading)return n`<div style="padding:24px;color:var(--secondary-text-color)">Loading Area Details…</div>`;const t=this._draftController.draft;if(!t)return n``;const e=this.areas.find(f=>f.area_id===t.area_id),i=t.name||(e==null?void 0:e.name)||t.area_id,s=new Date().toISOString().slice(0,10),a=this._activeChannelId(t),o=this._areaToSlots(a,be(t,a)),r=this._areaToSlots(I,be(t,I)),l=t.sensors||[],c=this._activeSceneName(o),g=this.areasState[t.area_id]||null,u={};for(const[f,v]of Object.entries(nt(t)))u[f]=this._areaToSlots(f,v.slots||[]);return n`
       <div class="view-header-container">
         <div class="view-header-grid detail-header">
           <div class="header-left">
@@ -5220,7 +5917,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
               <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--secondary-text-color)"><path d="M7 10l5 5 5-5H7z"/></svg>
               <select class="group-select"
                 @change=${this._onSelectAreaChanged}>
-                ${this.areaConfigs.map(f=>r`
+                ${this.areaConfigs.map(f=>n`
                   <option value="${f.area_id}" ?selected=${f.area_id===t.area_id}>${f.name||f.area_id}</option>
                 `)}
               </select>
@@ -5241,27 +5938,27 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
           <div class="span-12">
             <twilight-status-card
               .hass=${this.hass}
-              .slots=${n}
-              .channels=${gt(t)}
-              .channelSlotsMap=${g}
+              .slots=${r}
+              .channels=${nt(t)}
+              .channelSlotsMap=${u}
               .sensorConfig=${l}
               .inputs=${t.inputs||[]}
               .entities=${this._areaEntities}
-              .runState=${u}
+              .runState=${g}
               .areaEnabled=${t.enabled}
             ></twilight-status-card>
           </div>
           <div class="span-6">
             <twilight-timetable-card
               .hass=${this.hass}
-              .date=${a}
+              .date=${s}
               .slots=${o}
               .entities=${this._areaEntities}
               .loading=${!1}
               .noHeader=${!1}
-              .channels=${gt(t)}
-              .selectedChannelId=${s}
-              .channelSlotsMap=${g}
+              .channels=${nt(t)}
+              .selectedChannelId=${a}
+              .channelSlotsMap=${u}
               @slots-changed=${this._onSlotsChanged}
               @edit-requested=${()=>{this._slotEditOpen=!0}}
               @channel-selected=${this._onChannelSelected}
@@ -5279,7 +5976,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
               .hass=${this.hass}
               .entities=${this._areaEntities}
               .activeSceneName=${c}
-              .runState=${u}
+              .runState=${g}
               .manualOnly=${t.manual_only??!1}
               @lights-changed=${this._onLightsChanged}
               @mode-changed=${this._onLightsModeChanged}
@@ -5291,8 +5988,9 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
               .config=${t.inputs??[]}
               .activities=${this._availableActivities(t)}
               .activitiesConfig=${t.activities??[]}
+              .rulesConfig=${t.rules??[]}
               .placeholderDefaults=${this.placeholderDefaults}
-              .runState=${u}
+              .runState=${g}
               .areaId=${t.area_id}
               @inputs-changed=${this._onInputsChanged}
             ></twilight-inputs-card>
@@ -5303,7 +6001,8 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
               .config=${t.activities??[]}
               .inputs=${t.inputs??[]}
               .placeholderDefaults=${this.placeholderDefaults}
-              .channels=${gt(t)}
+              .channels=${nt(t)}
+              .heatmapProfiles=${t.heatmap_profiles??[]}
               @activities-changed=${this._onActivitiesChanged}
             ></twilight-activities-card>
           </div>
@@ -5315,13 +6014,24 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
               @sensors-changed=${this._onSensorsChanged}
             ></twilight-sensors-card>
           </div>
+          <div class="span-6">
+            <twilight-rules-card
+              .hass=${this.hass}
+              .rules=${t.rules??[]}
+              .inputsConfig=${t.inputs??[]}
+              .activitiesConfig=${t.activities??[]}
+              .channels=${nt(t)}
+              .runState=${g}
+              @rules-changed=${this._onRulesChanged}
+            ></twilight-rules-card>
+          </div>
         </div>
       </div>
  
       <div class="detail-footer">
         <div>
           <button class="btn-cancel" @click=${this._resetAreaToGlobalDefaults}>Reset to Global Defaults</button>
-          ${this.areaConfigs.some(f=>f.area_id===t.area_id)?r`
+          ${this.areaConfigs.some(f=>f.area_id===t.area_id)?n`
             <button class="btn-cancel" style="border-color: var(--error-color, #db4437); color: var(--error-color, #db4437); margin-left: 12px;" @click=${()=>this._deleteArea()}>
               Remove Area
             </button>
@@ -5329,10 +6039,10 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
         </div>
         <div style="display: flex; align-items: center; gap: 12px;">
           <span class="save-status ${this._draftController.saveError?"error":""}">${this._saveStatusText()}</span>
-          ${this._isNewArea||this._draftController.isDirty&&!this._draftController.saving?r`
-            ${this._isNewArea?r`
+          ${this._isNewArea||this._draftController.isDirty&&!this._draftController.saving?n`
+            ${this._isNewArea?n`
               <button class="btn-cancel" ?disabled=${this._draftController.saving} @click=${()=>this._backToOverview()}>Cancel</button>
-            `:r`
+            `:n`
               <button class="btn-cancel" ?disabled=${this._draftController.saving} @click=${()=>this._draftController.cancel()}>Cancel</button>
             `}
             <button
@@ -5355,14 +6065,14 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
         .highlightSlotId=${this._editingSlotId}
         .areaId=${t.area_id}
         .areaName=${t.name||""}
-        .isPrimaryChannel=${s===T}
-        .channelName=${((p=gt(t)[s])==null?void 0:p.name)||""}
-        .transitionOnSeconds=${((d=gt(t)[s])==null?void 0:d.transition_on_seconds)??null}
+        .isPrimaryChannel=${a===I}
+        .channelName=${((p=nt(t)[a])==null?void 0:p.name)||""}
+        .transitionOnSeconds=${((d=nt(t)[a])==null?void 0:d.transition_on_seconds)??null}
         @slots-changed=${this._onSlotsChanged}
         @close=${()=>{this._slotEditOpen=!1,this._editingSlotId=null}}
       ></twilight-slot-editor>
 
-      ${this._renderTooltip(g,o)}
+      ${this._renderTooltip(u,o)}
 
       <twilight-reset-dialog
         .open=${this._resetDialogOpen}
@@ -5387,7 +6097,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
         @confirm=${this._dialog._onConfirm}
         @cancel=${this._dialog._onCancelConfirm}
       ></twilight-confirm-dialog>
-    `}};W.styles=[yi,wi,ga,z`
+    `}};H.styles=[Ei,Oi,$a,O`
       .view-header-grid {
         display: grid;
         grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -5584,7 +6294,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
         letter-spacing: 0.7px;
         font-family: inherit;
       }
-    `],G([h({type:Object})],W.prototype,"hass",2),G([h({type:String})],W.prototype,"areaId",2),G([h({type:Array})],W.prototype,"areaConfigs",2),G([h({type:Array})],W.prototype,"areas",2),G([h({type:Object})],W.prototype,"todayData",2),G([h({type:Object})],W.prototype,"globalConfig",2),G([h({type:Object})],W.prototype,"placeholderDefaults",2),G([h({type:Object})],W.prototype,"areasState",2),G([b()],W.prototype,"_areaPlaceholderDefaults",2),G([b()],W.prototype,"_isNewArea",2),G([b()],W.prototype,"_selectedChannelId",2),G([b()],W.prototype,"_areaEntities",2),G([b()],W.prototype,"_extractedEntities",2),G([b()],W.prototype,"_slotEditOpen",2),G([b()],W.prototype,"_editingSlotId",2),G([b()],W.prototype,"_hoveredTime",2),G([b()],W.prototype,"_hoveredChannelId",2),G([b()],W.prototype,"_tooltipX",2),G([b()],W.prototype,"_tooltipY",2),G([b()],W.prototype,"_resetDialogOpen",2),G([b()],W.prototype,"_globalDefaultsTemplate",2),G([b()],W.prototype,"_resetNodes",2),G([b()],W.prototype,"_slotTimes",2),W=G([H("twilight-area-detail-view")],W);var No=Object.defineProperty,Lo=Object.getOwnPropertyDescriptor,mt=(t,e,i,a)=>{for(var s=a>1?void 0:a?Lo(e,i):e,o=t.length-1,n;o>=0;o--)(n=t[o])&&(s=(a?n(e,i,s):n(s))||s);return a&&s&&No(e,i,s),s};let lt=class extends L{constructor(){super(...arguments),this.hass=null,this.globalConfigOverride=null,this._areaConfigs=[],this._areas=[],this._todayData=null,this._activeAreaId=null,this._view="overview",this._loading=!1,this._showAddAreaList=!1,this._areasState={},this._unsubAll=null,this._globalConfig={},this._placeholderDefaults=null,this._areaSlotTimesMap={},this._clock=new Ue(this)}firstUpdated(t){super.firstUpdated(t),this._loadData(),this.hass&&this._subscribeAll()}updated(t){super.updated(t),t.has("hass")&&this.hass&&!this._unsubAll&&this._subscribeAll(),t.has("globalConfigOverride")&&this.globalConfigOverride&&(this._globalConfig=this.globalConfigOverride)}disconnectedCallback(){super.disconnectedCallback(),this._unsubscribeAll()}async _loadData(){this._loading=!0;try{if(this.hass){const[t,e,i,a,s]=await Promise.all([ra(this.hass),Cs(this.hass),je(this.hass),da(this.hass).catch(()=>({})),vi(this.hass).catch(()=>null)]);this._areaConfigs=t.map(l=>({...l,activities:Pa(l.activities)})),this._areas=e,this._todayData=i.day_data||null,this._globalConfig=a||{},this._placeholderDefaults=s;const o=new Date().toISOString().slice(0,10),n={};await Promise.all(this._areaConfigs.map(async l=>{try{const c=await ha(this.hass,{area_id:l.area_id,date:o});n[l.area_id]=c}catch{}})),this._areaSlotTimesMap=n}}finally{this._loading=!1}}_selectArea(t){this._activeAreaId=t,this._showAddAreaList=!1,this._view="config"}_subscribeAll(){this._unsubscribeAll(),this.hass&&this.hass.connection.subscribeMessage(t=>{this._areasState=t.full?t.areas||{}:{...this._areasState,...t.areas||{}}},{type:"twilight/subscribe_all"}).then(t=>{this._unsubAll=t},t=>{console.warn("Error subscribing to all areas",t)})}_unsubscribeAll(){this._unsubAll&&(this._unsubAll(),this._unsubAll=null),this._areasState={}}_backToOverview(){this._view="overview",this._activeAreaId=null}_overviewEngineInfo(t,e){if(!e.enabled)return{label:"Disabled",color:"#888",sub:"Engine inactive"};if(!t)return{label:"Standby",color:"var(--secondary-text-color)",sub:"Idle"};const i=t.active_activity;if(i)return{label:i.charAt(0).toUpperCase()+i.slice(1),color:"#9c27b0",sub:`Activity: ${i}`};const a=t.scene_activated_at!==null;return{label:a?"Scene Active":"Idle",color:a?"#4caf50":"#2196f3",sub:a?"Scene switched by engine":"Waiting for input"}}_emitAreasChanged(){this.dispatchEvent(new CustomEvent("areas-changed",{detail:this._areaConfigs,bubbles:!0,composed:!0}))}render(){return this._loading?r`<div style="padding:24px;color:var(--secondary-text-color)">Loading…</div>`:this._view==="config"&&this._activeAreaId?r`
+    `],V([h({type:Object})],H.prototype,"hass",2),V([h({type:String})],H.prototype,"areaId",2),V([h({type:Array})],H.prototype,"areaConfigs",2),V([h({type:Array})],H.prototype,"areas",2),V([h({type:Object})],H.prototype,"todayData",2),V([h({type:Object})],H.prototype,"globalConfig",2),V([h({type:Object})],H.prototype,"placeholderDefaults",2),V([h({type:Object})],H.prototype,"areasState",2),V([b()],H.prototype,"_areaPlaceholderDefaults",2),V([b()],H.prototype,"_isNewArea",2),V([b()],H.prototype,"_selectedChannelId",2),V([b()],H.prototype,"_areaEntities",2),V([b()],H.prototype,"_extractedEntities",2),V([b()],H.prototype,"_slotEditOpen",2),V([b()],H.prototype,"_editingSlotId",2),V([b()],H.prototype,"_hoveredTime",2),V([b()],H.prototype,"_hoveredChannelId",2),V([b()],H.prototype,"_tooltipX",2),V([b()],H.prototype,"_tooltipY",2),V([b()],H.prototype,"_resetDialogOpen",2),V([b()],H.prototype,"_globalDefaultsTemplate",2),V([b()],H.prototype,"_resetNodes",2),V([b()],H.prototype,"_slotTimes",2),H=V([z("twilight-area-detail-view")],H);var er=Object.defineProperty,ir=Object.getOwnPropertyDescriptor,yt=(t,e,i,s)=>{for(var a=s>1?void 0:s?ir(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&er(e,i,a),a};let lt=class extends L{constructor(){super(...arguments),this.hass=null,this.globalConfigOverride=null,this._areaConfigs=[],this._areas=[],this._todayData=null,this._activeAreaId=null,this._view="overview",this._loading=!1,this._showAddAreaList=!1,this._areasState={},this._unsubAll=null,this._globalConfig={},this._placeholderDefaults=null,this._areaSlotTimesMap={},this._subscribedConnection=null,this._clock=new Ge(this)}firstUpdated(t){super.firstUpdated(t),this._loadData(),this.hass&&this._subscribeAll()}updated(t){super.updated(t),t.has("hass")&&this.hass&&this.hass.connection!==this._subscribedConnection&&this._subscribeAll(),t.has("globalConfigOverride")&&this.globalConfigOverride&&(this._globalConfig=this.globalConfigOverride)}disconnectedCallback(){super.disconnectedCallback(),this._unsubscribeAll(),this._areasState={}}async _loadData(){this._loading=!0;try{if(this.hass){const[t,e,i,s,a]=await Promise.all([ki(this.hass),Ns(this.hass),Ve(this.hass),ba(this.hass).catch(()=>({})),Ci(this.hass).catch(()=>null)]);this._areaConfigs=t.map(l=>({...l,activities:qa(l.activities)})),this._areas=e,this._todayData=i.day_data||null,this._globalConfig=s||{},this._placeholderDefaults=a;const o=new Date().toISOString().slice(0,10),r={};await Promise.all(this._areaConfigs.map(async l=>{try{const c=await _a(this.hass,{area_id:l.area_id,date:o});r[l.area_id]=c}catch{}})),this._areaSlotTimesMap=r}}finally{this._loading=!1}}_selectArea(t){this._activeAreaId=t,this._showAddAreaList=!1,this._view="config"}_subscribeAll(){this._unsubscribeAll(),this.hass&&(this._subscribedConnection=this.hass.connection,this.hass.connection.subscribeMessage(t=>{this._areasState=t.full?t.areas||{}:{...this._areasState,...t.areas||{}}},{type:"twilight/subscribe_all"}).then(t=>{this._unsubAll=t},t=>{console.warn("Error subscribing to all areas",t)}))}_unsubscribeAll(){this._subscribedConnection=null,this._unsubAll&&(this._unsubAll(),this._unsubAll=null)}_backToOverview(){this._view="overview",this._activeAreaId=null}_overviewEngineInfo(t,e){if(!e.enabled)return{label:"Disabled",color:"#888",sub:"Engine inactive"};if(!t)return{label:"Standby",color:"var(--secondary-text-color)",sub:"Idle"};const i=t.active_activity;if(i)return{label:i.charAt(0).toUpperCase()+i.slice(1),color:"#9c27b0",sub:`Activity: ${i}`};const s=t.scene_activated_at!==null;return{label:s?"Scene Active":"Idle",color:s?"#4caf50":"#2196f3",sub:s?"Scene switched by engine":"Waiting for input"}}_emitAreasChanged(){this.dispatchEvent(new CustomEvent("areas-changed",{detail:this._areaConfigs,bubbles:!0,composed:!0}))}render(){return this._loading?n`<div style="padding:24px;color:var(--secondary-text-color)">Loading…</div>`:this._view==="config"&&this._activeAreaId?n`
         <twilight-area-detail-view
           .hass=${this.hass}
           .areaId=${this._activeAreaId}
@@ -5599,7 +6309,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
           @areas-changed=${t=>{this._areaConfigs=t.detail,this._emitAreasChanged()}}
           @engines-changed=${()=>this._subscribeAll()}
         ></twilight-area-detail-view>
-      `:this._renderOverview()}_buildAreaCardData(t){var E,y,q,tt,Z;const e=this._areas.find(M=>M.area_id===t.area_id),i=(E=this._areasState)==null?void 0:E[t.area_id],a=this._todayData,s=this._clock.liveMins,o=new Date().toISOString().slice(0,10),n=this._areaSlotTimesMap[t.area_id],l=Ra(t),c=[];for(const M of l){const B=gt(t)[M],ct=((q=(y=n==null?void 0:n.channels)==null?void 0:y[M])==null?void 0:q[o])||[],D=He(ct,le(t,M)),N=Rs(D),nt=t.enabled&&(B==null?void 0:B.enabled)!==!1;c.push({id:M,name:(B==null?void 0:B.name)||(M===T?"Primary":M),slots:D,gradient:N,enabled:nt})}const u=((Z=(tt=n==null?void 0:n.channels)==null?void 0:tt[T])==null?void 0:Z[o])||[],p=He(u,le(t,T)).find(M=>ge(M,s)),d=t.enabled?(p==null?void 0:p.label)??"None":"Disabled",f=t.enabled?(p==null?void 0:p.color)??"rgba(255,255,255,0.15)":"#888",x=(p==null?void 0:p.id)==="day",w=t.enabled?x?"#141926":`color-mix(in srgb, ${f} 25%, #ffffff)`:"var(--secondary-text-color)",k=t.enabled?f:"rgba(255,255,255,0.05)",m=`--badge-border:${t.enabled?"rgba(255,255,255,0.1)":"rgba(255,255,255,0.08)"};--badge-bg:${k};--badge-text:${w}`,C=this._overviewEngineInfo(i,t),O=(i==null?void 0:i.lights_on)??0,A=(i==null?void 0:i.lights_total)??0,U=(s/1440*100).toFixed(2),ot=i==null?void 0:i.active_scene_names,_=[];if(i&&i.scene_activated_at!==null&&ot)for(const M of l){const B=ot[M];if(B){const ct=gt(t)[M],D=(ct==null?void 0:ct.name)||(M===T?"Primary":M);_.push({channelName:D,sceneName:B})}}let I=9,V=9;c.length===1?(I=12,V=10):c.length===2?(I=11,V=10):c.length===3&&(I=10,V=9);const j=I/2,F=I+(I>=16?8:I>=12?6:5),dt=c.length===1?0:I/2,$=`--row-height:${F}px;--bar-height:${I}px;--bar-radius:${j}px;--label-font-size:${V}px;--row-gap:${dt}px;`;return{areaName:t.name||(e==null?void 0:e.name)||t.area_id,slotLabel:d,slotColor:f,badgeStyle:m,sparklineStyle:$,rows:c,liveLeft:U,engineInfo:C,lightsOn:O,lightsTotal:A,activeSceneItems:_,todayData:a}}_renderOverview(){const t=this._areaConfigs.length,e=this._areas.length,i=this._areas.filter(a=>!this._areaConfigs.some(s=>s.area_id===a.area_id));return r`
+      `:this._renderOverview()}_buildAreaCardData(t){var tt,D,ht,ut,at;const e=this._areas.find(B=>B.area_id===t.area_id),i=(tt=this._areasState)==null?void 0:tt[t.area_id],s=this._todayData,a=this._clock.liveMins,o=new Date().toISOString().slice(0,10),r=this._areaSlotTimesMap[t.area_id],l=Ga(t),c=[];for(const B of l){const st=nt(t)[B],Ut=((ht=(D=r==null?void 0:r.channels)==null?void 0:D[B])==null?void 0:ht[o])||[],F=Ye(Ut,be(t,B)),q=Ks(F),gt=t.enabled&&(st==null?void 0:st.enabled)!==!1;c.push({id:B,name:(st==null?void 0:st.name)||(B===I?"Primary":B),slots:F,gradient:q,enabled:gt})}const g=((at=(ut=r==null?void 0:r.channels)==null?void 0:ut[I])==null?void 0:at[o])||[],p=Ye(g,be(t,I)).find(B=>$e(B,a)),d=t.enabled?(p==null?void 0:p.label)??"None":"Disabled",f=t.enabled?(p==null?void 0:p.color)??"rgba(255,255,255,0.15)":"#888",v=(p==null?void 0:p.id)==="day",y=t.enabled?v?"#141926":`color-mix(in srgb, ${f} 25%, #ffffff)`:"var(--secondary-text-color)",k=t.enabled?f:"rgba(255,255,255,0.05)",_=`--badge-border:${t.enabled?"rgba(255,255,255,0.1)":"rgba(255,255,255,0.08)"};--badge-bg:${k};--badge-text:${y}`,C=this._overviewEngineInfo(i,t),A=(i==null?void 0:i.lights_on)??0,$=(i==null?void 0:i.lights_total)??0,w=(a/1440*100).toFixed(2),S=i==null?void 0:i.active_scene_names,m=[];if(i&&i.scene_activated_at!==null&&S)for(const B of l){const st=S[B];if(st){const Ut=nt(t)[B],F=(Ut==null?void 0:Ut.name)||(B===I?"Primary":B);m.push({channelName:F,sceneName:st})}}let E=9,j=9;c.length===1?(E=12,j=10):c.length===2?(E=11,j=10):c.length===3&&(E=10,j=9);const M=E/2,U=E+(E>=16?8:E>=12?6:5),it=c.length===1?0:E/2,P=`--row-height:${U}px;--bar-height:${E}px;--bar-radius:${M}px;--label-font-size:${j}px;--row-gap:${it}px;`;return{areaName:t.name||(e==null?void 0:e.name)||t.area_id,slotLabel:d,slotColor:f,badgeStyle:_,sparklineStyle:P,rows:c,liveLeft:w,engineInfo:C,lightsOn:A,lightsTotal:$,activeSceneItems:m,todayData:s}}_renderOverview(){const t=this._areaConfigs.length,e=this._areas.length,i=this._areas.filter(s=>!this._areaConfigs.some(a=>a.area_id===s.area_id));return n`
       <div class="view-header-container">
         <div class="overview-header">
           <div class="header-left">
@@ -5613,24 +6323,24 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
 
       <div class="rv-content">
         <div class="area-grid">
-          ${this._areaConfigs.map(a=>{const s=this._buildAreaCardData(a);return r`
-              <div class="area-card ${a.enabled?"enabled":""}"
-                   style="--shadow-color:${s.slotColor}"
-                   @click=${()=>this._selectArea(a.area_id)}>
+          ${this._areaConfigs.map(s=>{const a=this._buildAreaCardData(s);return n`
+              <div class="area-card ${s.enabled?"enabled":""}"
+                   style="--shadow-color:${a.slotColor}"
+                   @click=${()=>this._selectArea(s.area_id)}>
                 <div class="card-header">
                   <div class="title-group">
-                    <div class="area-name">${s.areaName}</div>
-                    <div class="area-id-sub">${a.area_id}</div>
+                    <div class="area-name">${a.areaName}</div>
+                    <div class="area-id-sub">${s.area_id}</div>
                   </div>
-                  <div class="slot-badge" style=${s.badgeStyle}>
-                    ${s.slotLabel}
+                  <div class="slot-badge" style=${a.badgeStyle}>
+                    ${a.slotLabel}
                   </div>
                 </div>
 
-                <div class="sparkline-container" style=${s.sparklineStyle}>
-                  ${s.rows.length>0?r`
+                <div class="sparkline-container" style=${a.sparklineStyle}>
+                  ${a.rows.length>0?n`
                     <div class="sparkline-wrapper">
-                      ${s.rows.map(o=>r`
+                      ${a.rows.map(o=>n`
                         <div class="sparkline-row ${o.enabled?"":"disabled"}">
                           <span class="sparkline-label" title="${o.name}">${o.name}</span>
                           <div class="sparkline-bar-wrapper">
@@ -5638,11 +6348,11 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                           </div>
                         </div>
                       `)}
-                      ${a.enabled&&s.todayData?r`
-                        <div class="sparkline-indicator-line" style="left: calc(86px + (100% - 86px) * ${s.liveLeft} / 100)"></div>
+                      ${s.enabled&&a.todayData?n`
+                        <div class="sparkline-indicator-line" style="left: calc(86px + (100% - 86px) * ${a.liveLeft} / 100)"></div>
                       `:""}
                     </div>
-                  `:r`
+                  `:n`
                     <div class="no-scenes" style="text-align: center;">
                       No slots configured
                     </div>
@@ -5652,20 +6362,20 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                 <div class="card-details">
                   <div class="details-column">
                     <div class="detail-row">
-                      <span class="detail-icon" style="background: color-mix(in srgb, ${s.engineInfo.color} 10%, transparent)">
-                        <div class="engine-dot" style="background: ${s.engineInfo.color}; box-shadow: 0 0 6px ${s.engineInfo.color}"></div>
+                      <span class="detail-icon" style="background: color-mix(in srgb, ${a.engineInfo.color} 10%, transparent)">
+                        <div class="engine-dot" style="background: ${a.engineInfo.color}; box-shadow: 0 0 6px ${a.engineInfo.color}"></div>
                       </span>
                       <div class="detail-content">
                         <span class="detail-label">
                           Engine
                         </span>
-                        <span class="detail-value" style="color: ${s.engineInfo.color}">
-                          ${s.engineInfo.label}
+                        <span class="detail-value" style="color: ${a.engineInfo.color}">
+                          ${a.engineInfo.label}
                         </span>
                       </div>
                     </div>
 
-                    ${(()=>{const o=s.lightsOn>0;return r`
+                    ${(()=>{const o=a.lightsOn>0;return n`
                         <div class="detail-row">
                           <span class="detail-icon" style="color: ${o?"#fdd835":"var(--secondary-text-color)"}; background: ${o?"rgba(253, 216, 53, 0.1)":"rgba(255, 255, 255, 0.04)"}; font-size: 10px;">
                             💡
@@ -5675,7 +6385,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                               Lights
                             </span>
                             <span class="detail-value" style="color: ${o?"#fdd835":"var(--primary-text-color)"}">
-                              ${s.lightsTotal>0?`${s.lightsOn}/${s.lightsTotal} On`:"No lights"}
+                              ${a.lightsTotal>0?`${a.lightsOn}/${a.lightsTotal} On`:"No lights"}
                             </span>
                           </div>
                         </div>
@@ -5686,9 +6396,9 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                     <div class="scenes-title" style="margin-bottom: 2px;">
                       Active Scenes
                     </div>
-                    ${s.activeSceneItems.length>0?r`
+                    ${a.activeSceneItems.length>0?n`
                       <div class="scenes-list">
-                        ${s.activeSceneItems.map(o=>r`
+                        ${a.activeSceneItems.map(o=>n`
                           <div class="scene-item" style="flex-direction: column;">
                             <span class="scene-channel">
                               ${o.channelName}
@@ -5699,7 +6409,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                           </div>
                         `)}
                       </div>
-                    `:r`
+                    `:n`
                       <div class="no-scenes" style="display: flex; align-items: center; height: 100%;">
                         None
                       </div>
@@ -5715,25 +6425,25 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
           </div>
         </div>
 
-        ${this._showAddAreaList?r`
+        ${this._showAddAreaList?n`
           <div class="add-area-list" style="margin-top:20px">
             <div class="add-area-list-header">
               <span>Select an area to configure:</span>
-              <button class="close-add-btn" @click=${a=>{a.stopPropagation(),this._showAddAreaList=!1}}>×</button>
+              <button class="close-add-btn" @click=${s=>{s.stopPropagation(),this._showAddAreaList=!1}}>×</button>
             </div>
             <div class="unconfigured-grid">
-              ${i.map(a=>r`
-                <div class="unconfigured-row" @click=${()=>this._selectArea(a.area_id)}>
-                  <span class="unconfigured-name">${a.name}</span>
+              ${i.map(s=>n`
+                <div class="unconfigured-row" @click=${()=>this._selectArea(s.area_id)}>
+                  <span class="unconfigured-name">${s.name}</span>
                   <span class="setup-badge">Setup</span>
                 </div>
               `)}
-              ${i.length===0?r`<div class="no-unconfigured">All areas are already configured!</div>`:""}
+              ${i.length===0?n`<div class="no-unconfigured">All areas are already configured!</div>`:""}
             </div>
           </div>
         `:""}
       </div>
-    `}};lt.styles=[yi,wi,z`
+    `}};lt.styles=[Ei,Oi,O`
     *, *:before, *:after {
       box-sizing: border-box;
     }
@@ -6086,54 +6796,129 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
     .unconfigured-name { font-weight: 600; color: var(--primary-text-color); font-size: 13px; }
     .setup-badge { font-size: 9px; font-weight: 700; text-transform: uppercase; padding: 2px 6px; background: var(--tp-accent, var(--accent-color)); color: #fff; border-radius: 4px; }
     .no-unconfigured { grid-column: 1/-1; text-align: center; font-style: italic; color: var(--secondary-text-color); padding: 20px; }
-    `],mt([h({type:Object})],lt.prototype,"hass",2),mt([h({type:Object})],lt.prototype,"globalConfigOverride",2),mt([b()],lt.prototype,"_areaConfigs",2),mt([b()],lt.prototype,"_areas",2),mt([b()],lt.prototype,"_todayData",2),mt([b()],lt.prototype,"_activeAreaId",2),mt([b()],lt.prototype,"_view",2),mt([b()],lt.prototype,"_loading",2),mt([b()],lt.prototype,"_showAddAreaList",2),mt([b()],lt.prototype,"_areasState",2),mt([b()],lt.prototype,"_globalConfig",2),mt([b()],lt.prototype,"_placeholderDefaults",2),mt([b()],lt.prototype,"_areaSlotTimesMap",2),lt=mt([H("twilight-areas-view")],lt);var Ro=Object.defineProperty,jo=Object.getOwnPropertyDescriptor,Ft=(t,e,i,a)=>{for(var s=a>1?void 0:a?jo(e,i):e,o=t.length-1,n;o>=0;o--)(n=t[o])&&(s=(a?n(e,i,s):n(s))||s);return a&&s&&Ro(e,i,s),s};const ye=60,ja=15,Ri=15,Ha=25,Ua={"1w":"1 Week","2w":"2 Weeks","1m":"1 Month","3m":"3 Months"},Ba={"1m":"1 Min","5m":"5 Min","10m":"10 Min","15m":"15 Min","30m":"30 Min"},Ho={"1m":{count:1440,duration:60},"5m":{count:288,duration:300},"10m":{count:144,duration:600},"15m":{count:96,duration:900},"30m":{count:48,duration:1800}},Fa={"1w":7,"2w":14,"1m":30,"3m":90},Wa=new Map;function Uo(t){let e=Wa.get(t);return e||(e=new Intl.DateTimeFormat("en-US",{timeZone:t,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:!1}),Wa.set(t,e)),e}function qa(t,e){const i=Object.fromEntries(Uo(e).formatToParts(t).map(o=>[o.type,o.value])),a=Number(i.hour)%24,s=Date.UTC(Number(i.year),Number(i.month)-1,Number(i.day),a,Number(i.minute),Number(i.second));return Math.round((s-t.getTime())/1e3)}function Ya(t,e){const i=qa(t,e),a=Math.floor(t.getTime()/1e3)+i,s=Math.floor(a/86400)*86400,o=qa(new Date(s*1e3),e);return s-o}let Et=class extends L{constructor(){super(...arguments),this.hass=null,this.activeAreaId=null,this._activeMode="motion",this._activeRange="1w",this._activeResolution="10m",this._loading=!1,this._motionData=[],this._lightData=[],this._w=0,this._ro=null}disconnectedCallback(){var t;(t=this._ro)==null||t.disconnect(),super.disconnectedCallback()}updated(t){var s;if(!this._ro){const o=(s=this.shadowRoot)==null?void 0:s.querySelector(".canvas-wrap");o&&(this._ro=new ResizeObserver(n=>{const l=n[0].contentRect.width;l>0&&l!==this._w&&(this._w=l,this._draw())}),this._ro.observe(o))}const e=t.has("hass")&&!t.get("hass")&&this.hass,i=t.has("activeAreaId")&&t.get("activeAreaId")!==this.activeAreaId,a=t.has("_activeRange");(e||i||a)&&this._load(),(t.has("_motionData")||t.has("_lightData")||t.has("_activeMode")||t.has("_activeResolution")||t.has("_w"))&&requestAnimationFrame(()=>this._draw())}async _load(){if(!(!this.hass||!this.activeAreaId)){this._loading=!0;try{const t=await Ps(this.hass,{area_id:this.activeAreaId,days:Fa[this._activeRange],binary_only:!0});this._motionData=t.motion??[],this._lightData=t.light_on??[]}catch(t){console.error("Twilight heatmap load error:",t)}finally{this._loading=!1}}}_setMode(t){this._activeMode=t}_setRange(t){this._activeRange=t}_setResolution(t){this._activeResolution=t}_getFillColorRGB(){const t=this._activeMode==="motion"?"--tw-chart-motion":"--tw-chart-light-on",e=this._activeMode==="motion"?"#00e5ff":"#ff9100",i=getComputedStyle(this).getPropertyValue(t).trim()||e;if(i.startsWith("#")){const s=parseInt(i.slice(1,3),16),o=parseInt(i.slice(3,5),16),n=parseInt(i.slice(5,7),16);return`${s}, ${o}, ${n}`}const a=i.match(/rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/);return a?`${a[1]}, ${a[2]}, ${a[3]}`:this._activeMode==="motion"?"0, 176, 255":"255, 145, 0"}_getTextColor(){return getComputedStyle(this).getPropertyValue("--primary-text-color").trim()||"rgba(255,255,255,0.9)"}_getGridColor(){return getComputedStyle(this).getPropertyValue("--divider-color").trim()||"rgba(128,128,128,0.2)"}_getAxisFont(){return`400 11px ${getComputedStyle(this).getPropertyValue("--font-family").trim()||"system-ui, sans-serif"}`}_draw(){var F,dt;const t=(F=this.shadowRoot)==null?void 0:F.querySelector("canvas");if(!t||!this._w||!this.hass)return;const e=this._w,i=t.getBoundingClientRect().height;if(!i)return;const a=_i(t,e,i),s=e-ye-ja,n=(i-Ri-Ha)/7,l=this.hass.config.time_zone||"UTC",c=((dt=this.hass.locale)==null?void 0:dt.language)||navigator.language||"en-US",u=new Date,p=(u.getUTCDay()+6)%7,d=new Date(Date.UTC(u.getUTCFullYear(),u.getUTCMonth(),u.getUTCDate()-p)),f=Array.from({length:7},($,E)=>{const y=new Date(d.getTime()+E*24*60*60*1e3);return new Intl.DateTimeFormat(c,{weekday:"short",timeZone:l}).format(y)}),x=this._activeMode==="motion"?this._motionData:this._lightData;if(!(x&&x.length>0)){a.restore();return}const k=Fa[this._activeRange],v=new Date,{count:m,duration:C}=Ho[this._activeResolution],O=Array.from({length:7},()=>new Array(m).fill(0)),A=new Array(7).fill(0),U=new Intl.DateTimeFormat("en-US",{weekday:"short",timeZone:l}),ot={Mon:0,Tue:1,Wed:2,Thu:3,Fri:4,Sat:5,Sun:6};for(let $=0;$<k;$++){const E=new Date(v.getTime()-$*24*60*60*1e3),y=Ya(E,l),q=Ya(new Date((y+25*3600)*1e3),l),tt=ot[U.format(new Date(y*1e3))]??0;let Z=0;for(const[D,N]of x)if(D<=y)Z=N;else break;const M=[];let B=y,ct=Z;for(const[D,N]of x)if(!(D<=y)){if(D>=q){M.push({start:B,end:q,val:ct}),B=q;break}M.push({start:B,end:D,val:ct}),B=D,ct=N}B<q&&M.push({start:B,end:q,val:ct});for(let D=0;D<m;D++){const N=y+D*C,nt=N+C;let xt=0;for(const St of M){const S=Math.max(St.start,N),P=Math.min(St.end,nt);S<P&&St.val===1&&(xt+=P-S)}const K=xt/C;O[tt][D]+=K}A[tt]++}const _=Array.from({length:7},()=>new Array(m).fill(0));for(let $=0;$<7;$++){const E=A[$];for(let y=0;y<m;y++)_[$][y]=E>0?O[$][y]/E:0}const I=this._getFillColorRGB(),V=this._getTextColor(),j=this._getGridColor();a.font=this._getAxisFont();for(let $=0;$<7;$++){const E=Ri+$*n;a.fillStyle=V,a.textAlign="right",a.fillText(f[$],ye-10,E+n/2+4),$>0&&(a.strokeStyle=j,a.beginPath(),a.moveTo(ye,E),a.lineTo(e-ja,E),a.stroke());for(let y=0;y<m;y++){const q=_[$][y];if(q>0){const tt=ye+y/m*s,Z=s/m+.5,M=n-2;let B=0;this._activeMode==="motion"?B=Math.min(1,Math.sqrt(q)*1.8):B=Math.min(1,q*1.2),a.fillStyle=`rgba(${I}, ${B})`,a.fillRect(tt,E+1,Z,M)}}}a.strokeStyle=j,a.lineWidth=1;for(let $=0;$<=24;$+=2){const E=ye+$/24*s;a.beginPath(),a.moveTo(E,Ri),a.lineTo(E,i-Ha),a.stroke()}a.fillStyle=V,a.textAlign="center";for(let $=0;$<=24;$+=4){const E=ye+$/24*s,y=`${$.toString().padStart(2,"0")}:00`;a.fillText(y,E,i-8)}a.restore()}render(){var e;const t=((e=this._activeMode==="motion"?this._motionData:this._lightData)==null?void 0:e.length)>0;return r`
+    `],yt([h({type:Object})],lt.prototype,"hass",2),yt([h({type:Object})],lt.prototype,"globalConfigOverride",2),yt([b()],lt.prototype,"_areaConfigs",2),yt([b()],lt.prototype,"_areas",2),yt([b()],lt.prototype,"_todayData",2),yt([b()],lt.prototype,"_activeAreaId",2),yt([b()],lt.prototype,"_view",2),yt([b()],lt.prototype,"_loading",2),yt([b()],lt.prototype,"_showAddAreaList",2),yt([b()],lt.prototype,"_areasState",2),yt([b()],lt.prototype,"_globalConfig",2),yt([b()],lt.prototype,"_placeholderDefaults",2),yt([b()],lt.prototype,"_areaSlotTimesMap",2),lt=yt([z("twilight-areas-view")],lt);var ar=Object.defineProperty,sr=Object.getOwnPropertyDescriptor,zt=(t,e,i,s)=>{for(var a=s>1?void 0:s?sr(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&ar(e,i,a),a};const Te=60,Xa=15,Vi=15,Ka=25,Za={"1w":"1 Week","2w":"2 Weeks","1m":"1 Month","3m":"3 Months","6m":"6 Months"},Ja={"1m":"1 Min","5m":"5 Min","10m":"10 Min","15m":"15 Min","30m":"30 Min","60m":"60 Min"},Qa={"1m":{count:1440,duration:60},"5m":{count:288,duration:300},"10m":{count:144,duration:600},"15m":{count:96,duration:900},"30m":{count:48,duration:1800},"60m":{count:24,duration:3600}},ts={"1w":7,"2w":14,"1m":30,"3m":90,"6m":180},Yi=5,es=new Map;function or(t){let e=es.get(t);return e||(e=new Intl.DateTimeFormat("en-US",{timeZone:t,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:!1}),es.set(t,e)),e}function is(t,e){const i=Object.fromEntries(or(e).formatToParts(t).map(o=>[o.type,o.value])),s=Number(i.hour)%24,a=Date.UTC(Number(i.year),Number(i.month)-1,Number(i.day),s,Number(i.minute),Number(i.second));return Math.round((a-t.getTime())/1e3)}function as(t,e){const i=is(t,e),s=Math.floor(t.getTime()/1e3)+i,a=Math.floor(s/86400)*86400,o=is(new Date(a*1e3),e);return a-o}let wt=class extends L{constructor(){super(...arguments),this.hass=null,this.activeAreaId=null,this._activeMode="motion",this._activeRange="1w",this._activeResolution="10m",this._loading=!1,this._motionData=[],this._lightData=[],this._profiles=[],this._activeSource="live",this._w=0,this._dialogs=new fe(this),this._ro=null}get _activeProfile(){return this._activeSource==="live"?null:this._profiles.find(t=>t.id===this._activeSource)??null}disconnectedCallback(){var t;(t=this._ro)==null||t.disconnect(),super.disconnectedCallback()}updated(t){var a;if(!this._ro){const o=(a=this.shadowRoot)==null?void 0:a.querySelector(".canvas-wrap");o&&(this._ro=new ResizeObserver(r=>{const l=r[0].contentRect.width;l>0&&l!==this._w&&(this._w=l,this._draw())}),this._ro.observe(o))}const e=t.has("hass")&&!t.get("hass")&&this.hass,i=t.has("activeAreaId")&&t.get("activeAreaId")!==this.activeAreaId,s=t.has("_activeRange");(e||i||s)&&this._load(),(t.has("_motionData")||t.has("_lightData")||t.has("_activeMode")||t.has("_activeResolution")||t.has("_activeSource")||t.has("_profiles")||t.has("_w"))&&requestAnimationFrame(()=>this._draw())}async _loadProfiles(){if(!(!this.hass||!this.activeAreaId))try{const e=(await ki(this.hass)).find(i=>i.area_id===this.activeAreaId);this._profiles=(e==null?void 0:e.heatmap_profiles)??[]}catch(t){console.error("Twilight heatmap profiles load error:",t)}}async _load(){if(!(!this.hass||!this.activeAreaId)){this._loading=!0;try{const[t]=await Promise.all([Vs(this.hass,{area_id:this.activeAreaId,days:ts[this._activeRange],binary_only:!0}),this._loadProfiles()]);this._motionData=t.motion??[],this._lightData=t.light_on??[]}catch(t){console.error("Twilight heatmap load error:",t)}finally{this._loading=!1}}}async _saveCurrentProfile(){if(!this.hass||!this.activeAreaId)return;if(this._profiles.length>=Yi){await this._dialogs.showAlert("Limit Reached",`Maximum ${Yi} saved heatmap profiles allowed per area.`);return}const t=this._activeResolution==="1m"?"5m":this._activeResolution,e=await this._dialogs.showPrompt("Save Heatmap Profile","Workweek Profile","Profile Name");if(e)try{await ya(this.hass,{area_id:this.activeAreaId,name:e,resolution:t,range:this._activeRange}),await this._loadProfiles()}catch(i){await this._dialogs.showAlert("Error",`Failed to save profile: ${i.message}`)}}async _updateProfile(t){if(!(!this.hass||!this.activeAreaId))try{await ya(this.hass,{area_id:this.activeAreaId,name:t.name,resolution:t.resolution,range:t.range,profile_id:t.id}),await this._loadProfiles(),await this._dialogs.showAlert("Updated",`Profile "${t.name}" recalculated from current recorder history.`)}catch(e){await this._dialogs.showAlert("Error",`Failed to update profile: ${e.message}`)}}async _deleteProfile(t){if(!(!this.hass||!this.activeAreaId||!await this._dialogs.showConfirm("Delete Profile",`Delete profile "${t.name}"?`)))try{await Gs(this.hass,{area_id:this.activeAreaId,profile_id:t.id}),this._activeSource===t.id&&this._setSource("live"),await this._loadProfiles()}catch(i){await this._dialogs.showAlert("Error",`Failed to delete profile: ${i.message}`)}}_setSource(t){this._activeSource=t;const e=t==="live"?null:this._profiles.find(i=>i.id===t);e&&(this._activeMode="motion",this._activeResolution=e.resolution,this._activeRange=e.range)}_setMode(t){this._activeProfile||(this._activeMode=t)}_setRange(t){this._activeProfile||(this._activeRange=t)}_setResolution(t){this._activeProfile||(this._activeResolution=t)}_getFillColorRGB(){const t=this._activeMode==="motion"?"--tw-chart-motion":"--tw-chart-light-on",e=this._activeMode==="motion"?"#00e5ff":"#ff9100",i=getComputedStyle(this).getPropertyValue(t).trim()||e;if(i.startsWith("#")){const a=parseInt(i.slice(1,3),16),o=parseInt(i.slice(3,5),16),r=parseInt(i.slice(5,7),16);return`${a}, ${o}, ${r}`}const s=i.match(/rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/);return s?`${s[1]}, ${s[2]}, ${s[3]}`:this._activeMode==="motion"?"0, 176, 255":"255, 145, 0"}_getTextColor(){return getComputedStyle(this).getPropertyValue("--primary-text-color").trim()||"rgba(255,255,255,0.9)"}_getGridColor(){return getComputedStyle(this).getPropertyValue("--divider-color").trim()||"rgba(128,128,128,0.2)"}_getAxisFont(){return`400 11px ${getComputedStyle(this).getPropertyValue("--font-family").trim()||"system-ui, sans-serif"}`}_profileDensities(t,e){return Array.from({length:7},(i,s)=>{const a=t.motion_buckets[String(s)]??[];return Array.from({length:e},(o,r)=>a[r]??0)})}_computeLiveDensities(t,e,i){const s=ts[this._activeRange],a=new Date,{duration:o}=Qa[this._activeResolution],r=Array.from({length:7},()=>new Array(i).fill(0)),l=new Array(7).fill(0),c=new Intl.DateTimeFormat("en-US",{weekday:"short",timeZone:e}),g={Mon:0,Tue:1,Wed:2,Thu:3,Fri:4,Sat:5,Sun:6};for(let p=0;p<s;p++){const d=new Date(a.getTime()-p*24*60*60*1e3),f=as(d,e),v=as(new Date((f+25*3600)*1e3),e),y=g[c.format(new Date(f*1e3))]??0;let k=0;for(const[A,$]of t)if(A<=f)k=$;else break;const x=[];let _=f,C=k;for(const[A,$]of t)if(!(A<=f)){if(A>=v){x.push({start:_,end:v,val:C}),_=v;break}x.push({start:_,end:A,val:C}),_=A,C=$}_<v&&x.push({start:_,end:v,val:C});for(let A=0;A<i;A++){const $=f+A*o,w=$+o;let S=0;for(const E of x){const j=Math.max(E.start,$),M=Math.min(E.end,w);j<M&&E.val===1&&(S+=M-j)}const m=S/o;r[y][A]+=m}l[y]++}const u=Array.from({length:7},()=>new Array(i).fill(0));for(let p=0;p<7;p++){const d=l[p];for(let f=0;f<i;f++)u[p][f]=d>0?r[p][f]/d:0}return u}_draw(){var A,$;const t=(A=this.shadowRoot)==null?void 0:A.querySelector("canvas");if(!t||!this._w||!this.hass)return;const e=this._w,i=t.getBoundingClientRect().height;if(!i)return;const s=Ti(t,e,i),a=e-Te-Xa,r=(i-Vi-Ka)/7,l=this.hass.config.time_zone||"UTC",c=(($=this.hass.locale)==null?void 0:$.language)||navigator.language||"en-US",g=new Date,p=(g.getUTCDay()+6)%7,d=new Date(Date.UTC(g.getUTCFullYear(),g.getUTCMonth(),g.getUTCDate()-p)),f=Array.from({length:7},(w,S)=>{const m=new Date(d.getTime()+S*24*60*60*1e3);return new Intl.DateTimeFormat(c,{weekday:"short",timeZone:l}).format(m)}),v=this._activeProfile,{count:y}=Qa[this._activeResolution];let k;if(v)k=this._profileDensities(v,y);else{const w=this._activeMode==="motion"?this._motionData:this._lightData;if(!w||w.length===0){s.restore();return}k=this._computeLiveDensities(w,l,y)}if(!k){s.restore();return}const x=this._getFillColorRGB(),_=this._getTextColor(),C=this._getGridColor();s.font=this._getAxisFont();for(let w=0;w<7;w++){const S=Vi+w*r;s.fillStyle=_,s.textAlign="right",s.fillText(f[w],Te-10,S+r/2+4),w>0&&(s.strokeStyle=C,s.beginPath(),s.moveTo(Te,S),s.lineTo(e-Xa,S),s.stroke());for(let m=0;m<y;m++){const E=k[w][m];if(E>0){const j=Te+m/y*a,M=a/y+.5,U=r-2;let it=0;this._activeMode==="motion"?it=Math.min(1,Math.sqrt(E)*1.8):it=Math.min(1,E*1.2),s.fillStyle=`rgba(${x}, ${it})`,s.fillRect(j,S+1,M,U)}}}s.strokeStyle=C,s.lineWidth=1;for(let w=0;w<=24;w+=2){const S=Te+w/24*a;s.beginPath(),s.moveTo(S,Vi),s.lineTo(S,i-Ka),s.stroke()}s.fillStyle=_,s.textAlign="center";for(let w=0;w<=24;w+=4){const S=Te+w/24*a,m=`${w.toString().padStart(2,"0")}:00`;s.fillText(m,S,i-8)}s.restore()}render(){var s;const t=this._activeProfile,e=t!==null,i=e?Object.keys(t.motion_buckets).length>0:((s=this._activeMode==="motion"?this._motionData:this._lightData)==null?void 0:s.length)>0;return n`
       <div class="card-header">
         <div class="header-left">
-          <span class="card-icon">⚡</span>
+          <span class="card-dot" style="--dot-color: #8b5cf6;"></span>
           <span class="card-title">Activity Profile (Heatmap)</span>
         </div>
         <div class="header-controls">
+          <select
+            class="source-select"
+            .value=${this._activeSource}
+            @change=${a=>this._setSource(a.target.value)}
+            title="Data source"
+          >
+            <option value="live" ?selected=${this._activeSource==="live"}>Live (Recorder)</option>
+            ${this._profiles.map(a=>n`
+              <option value=${a.id} ?selected=${a.id===this._activeSource}>${a.name}</option>
+            `)}
+          </select>
           <div class="toggle-group">
             <button
               class="toggle-btn ${this._activeMode==="motion"?"active":""}"
+              ?disabled=${e}
               @click=${()=>this._setMode("motion")}
             >
               Motion
             </button>
             <button
               class="toggle-btn ${this._activeMode==="light"?"active":""}"
+              ?disabled=${e}
               @click=${()=>this._setMode("light")}
             >
               Light
             </button>
           </div>
           <div class="toggle-group">
-            ${Object.keys(Ba).map(i=>r`
+            ${Object.keys(Ja).map(a=>n`
               <button
-                class="toggle-btn ${this._activeResolution===i?"active":""}"
-                @click=${()=>this._setResolution(i)}
+                class="toggle-btn ${this._activeResolution===a?"active":""}"
+                ?disabled=${e}
+                @click=${()=>this._setResolution(a)}
               >
-                ${Ba[i]}
+                ${Ja[a]}
               </button>
             `)}
           </div>
           <div class="toggle-group">
-            ${Object.keys(Ua).map(i=>r`
+            ${Object.keys(Za).map(a=>n`
               <button
-                class="toggle-btn ${this._activeRange===i?"active":""}"
-                @click=${()=>this._setRange(i)}
+                class="toggle-btn ${this._activeRange===a?"active":""}"
+                ?disabled=${e}
+                @click=${()=>this._setRange(a)}
               >
-                ${Ua[i]}
+                ${Za[a]}
               </button>
             `)}
           </div>
         </div>
       </div>
-      <div class="canvas-wrap">
-        ${!t&&!this._loading?r`<div class="no-data">No activity data available for the selected period</div>`:r`<canvas></canvas>`}
-        ${this._loading?r`<div class="loading-overlay">Loading heatmap data…</div>`:""}
+      <div class="profiles-bar">
+        <div class="profiles-label">
+          <span>Saved Profiles:</span>
+        </div>
+        <div class="profiles-list">
+          ${this._profiles.map(a=>n`
+              <div class="profile-chip ${this._activeSource===a.id?"active":""}">
+                <span style="cursor:pointer" @click=${()=>this._setSource(a.id)} title="Click to view this profile">
+                  ${a.name}
+                </span>
+                <span class="badge">${a.resolution} / ${a.range}</span>
+                <button
+                  class="chip-action"
+                  title="Update profile from current recorder data"
+                  @click=${()=>this._updateProfile(a)}
+                >
+                  🔄
+                </button>
+                <button
+                  class="chip-action"
+                  title="Delete profile"
+                  @click=${()=>this._deleteProfile(a)}
+                >
+                  ✕
+                </button>
+              </div>
+            `)}
+          ${this._profiles.length<Yi?n`
+                <button class="save-profile-btn" @click=${this._saveCurrentProfile}>
+                  + Save Profile
+                </button>
+              `:""}
+        </div>
       </div>
-    `}};Et.styles=z`
+
+      <div class="canvas-wrap">
+        ${!i&&!this._loading?n`<div class="no-data">No activity data available for the selected period</div>`:n`<canvas></canvas>`}
+        ${this._loading?n`<div class="loading-overlay">Loading heatmap data…</div>`:""}
+      </div>
+
+      <twilight-alert-dialog
+        .open=${this._dialogs.alertOpen}
+        .dialogTitle=${this._dialogs.alertTitle}
+        .message=${this._dialogs.alertMessage}
+        @close=${this._dialogs._onCloseAlert}
+      ></twilight-alert-dialog>
+
+      <twilight-confirm-dialog
+        .open=${this._dialogs.confirmOpen}
+        .dialogTitle=${this._dialogs.confirmTitle}
+        .message=${this._dialogs.confirmMessage}
+        @confirm=${this._dialogs._onConfirm}
+        @cancel=${this._dialogs._onCancelConfirm}
+      ></twilight-confirm-dialog>
+
+      <twilight-prompt-dialog
+        .open=${this._dialogs.promptOpen}
+        .dialogTitle=${this._dialogs.promptTitle}
+        .message=${this._dialogs.promptMessage}
+        .placeholder=${this._dialogs.promptPlaceholder}
+        .value=${this._dialogs.promptValue}
+        @submit=${this._dialogs._onSubmitPrompt}
+        @cancel=${this._dialogs._onCancelPrompt}
+      ></twilight-prompt-dialog>
+    `}};wt.styles=O`
     :host {
       display: flex;
       flex-direction: column;
@@ -6163,9 +6948,14 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
       align-items: center;
       gap: 10px;
     }
-    .card-icon {
-      font-size: 18px;
-      opacity: 0.7;
+    .card-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--dot-color, #8b5cf6);
+      box-shadow: 0 0 6px var(--dot-color, #8b5cf6);
+      flex-shrink: 0;
+      display: inline-block;
     }
     .card-title {
       font-size: 14px;
@@ -6202,6 +6992,24 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
     .toggle-btn.active {
       background: var(--tp-accent, var(--accent-color));
       color: white;
+    }
+    .toggle-btn:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+    .toggle-btn:disabled:hover {
+      color: var(--secondary-text-color);
+    }
+    .source-select {
+      background: color-mix(in srgb, var(--primary-text-color) 4%, transparent);
+      color: var(--primary-text-color);
+      border: 1px solid var(--divider-color);
+      border-radius: 8px;
+      padding: 5px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      outline: none;
     }
     .canvas-wrap {
       position: relative;
@@ -6240,12 +7048,90 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
       backdrop-filter: blur(1px);
       z-index: 5;
     }
-  `,Ft([h({attribute:!1})],Et.prototype,"hass",2),Ft([h({type:String})],Et.prototype,"activeAreaId",2),Ft([b()],Et.prototype,"_activeMode",2),Ft([b()],Et.prototype,"_activeRange",2),Ft([b()],Et.prototype,"_activeResolution",2),Ft([b()],Et.prototype,"_loading",2),Ft([b()],Et.prototype,"_motionData",2),Ft([b()],Et.prototype,"_lightData",2),Ft([b()],Et.prototype,"_w",2),Et=Ft([H("twilight-heatmap-card")],Et);var Bo=Object.defineProperty,Fo=Object.getOwnPropertyDescriptor,Me=(t,e,i,a)=>{for(var s=a>1?void 0:a?Fo(e,i):e,o=t.length-1,n;o>=0;o--)(n=t[o])&&(s=(a?n(e,i,s):n(s))||s);return a&&s&&Bo(e,i,s),s};let de=class extends L{constructor(){super(...arguments),this.hass=null,this._areaConfigs=[],this._activeAreaId=null,this._loading=!0}firstUpdated(t){super.firstUpdated(t),this._loadAreas()}updated(t){super.updated(t),t.has("hass")&&this.hass&&this._areaConfigs.length===0&&this._loadAreas()}async _loadAreas(){if(this.hass)try{const t=await ra(this.hass);this._areaConfigs=t,t.length>0&&!this._activeAreaId&&(this._activeAreaId=t[0].area_id)}catch(t){console.error("Failed to load areaConfigs for analytics",t)}finally{this._loading=!1}}render(){var t;return this._loading?r`<div class="loading-state" style="padding: 24px; color: var(--secondary-text-color);">Loading areaConfigs…</div>`:r`
+    .profiles-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 20px;
+      background: color-mix(in srgb, var(--primary-text-color) 2%, transparent);
+      border-bottom: 1px solid var(--divider-color);
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .profiles-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--secondary-text-color);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .profiles-list {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .profile-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: color-mix(in srgb, var(--primary-text-color) 6%, transparent);
+      border: 1px solid var(--divider-color);
+      font-size: 12px;
+      color: var(--primary-text-color);
+    }
+    .profile-chip.active {
+      border-color: var(--tp-accent, var(--accent-color));
+      background: color-mix(in srgb, var(--tp-accent, var(--accent-color)) 14%, transparent);
+    }
+    .profile-chip .badge {
+      font-size: 10px;
+      opacity: 0.75;
+      background: color-mix(in srgb, var(--primary-text-color) 12%, transparent);
+      padding: 1px 4px;
+      border-radius: 4px;
+    }
+    .chip-action {
+      background: transparent;
+      border: none;
+      color: var(--secondary-text-color);
+      cursor: pointer;
+      padding: 2px;
+      font-size: 12px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s, background 0.15s;
+    }
+    .chip-action:hover {
+      color: var(--primary-text-color);
+      background: color-mix(in srgb, var(--primary-text-color) 10%, transparent);
+    }
+    .save-profile-btn {
+      background: color-mix(in srgb, var(--tp-accent, var(--accent-color)) 15%, transparent);
+      color: var(--tp-accent, var(--accent-color));
+      border: 1px solid color-mix(in srgb, var(--tp-accent, var(--accent-color)) 30%, transparent);
+      border-radius: 6px;
+      padding: 3px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .save-profile-btn:hover {
+      background: var(--tp-accent, var(--accent-color));
+      color: white;
+    }
+  `,zt([h({attribute:!1})],wt.prototype,"hass",2),zt([h({type:String})],wt.prototype,"activeAreaId",2),zt([b()],wt.prototype,"_activeMode",2),zt([b()],wt.prototype,"_activeRange",2),zt([b()],wt.prototype,"_activeResolution",2),zt([b()],wt.prototype,"_loading",2),zt([b()],wt.prototype,"_motionData",2),zt([b()],wt.prototype,"_lightData",2),zt([b()],wt.prototype,"_profiles",2),zt([b()],wt.prototype,"_activeSource",2),zt([b()],wt.prototype,"_w",2),wt=zt([z("twilight-heatmap-card")],wt);var rr=Object.defineProperty,nr=Object.getOwnPropertyDescriptor,Ue=(t,e,i,s)=>{for(var a=s>1?void 0:s?nr(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&rr(e,i,a),a};let me=class extends L{constructor(){super(...arguments),this.hass=null,this._areaConfigs=[],this._activeAreaId=null,this._loading=!0}firstUpdated(t){super.firstUpdated(t),this._loadAreas()}updated(t){super.updated(t),t.has("hass")&&this.hass&&this._areaConfigs.length===0&&this._loadAreas()}async _loadAreas(){if(this.hass)try{const t=await ki(this.hass);this._areaConfigs=t,t.length>0&&!this._activeAreaId&&(this._activeAreaId=t[0].area_id)}catch(t){console.error("Failed to load areaConfigs for analytics",t)}finally{this._loading=!1}}render(){var t;return this._loading?n`<div class="loading-state" style="padding: 24px; color: var(--secondary-text-color);">Loading areaConfigs…</div>`:n`
       <!-- Header Grid (1 Row, 12 columns, max 6 items) -->
       <div class="view-header-container">
         <div class="view-header-grid">
           <div class="span-3" style="display: flex; align-items: center; gap: 8px;">
-            ${this._areaConfigs.length>0?r`
+            ${this._areaConfigs.length>0?n`
               <div class="group-select-wrap">
                 <h2>${((t=this._areaConfigs.find(e=>e.area_id===this._activeAreaId))==null?void 0:t.name)||this._activeAreaId}</h2>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--secondary-text-color)"><path d="M7 10l5 5 5-5H7z"/></svg>
@@ -6253,12 +7139,12 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                   class="group-select"
                   @change=${e=>this._activeAreaId=e.target.value}
                 >
-                  ${this._areaConfigs.map(e=>r`
+                  ${this._areaConfigs.map(e=>n`
                     <option value="${e.area_id}" ?selected=${this._activeAreaId===e.area_id}>${e.name||e.area_id}</option>
                   `)}
                 </select>
               </div>
-            `:r`<span style="color:var(--secondary-text-color);font-size:13px">No areaConfigs configured</span>`}
+            `:n`<span style="color:var(--secondary-text-color);font-size:13px">No areaConfigs configured</span>`}
           </div>
           <div class="span-9" style="text-align: right; font-size: 13px; color: var(--secondary-text-color);">
             Area: <code>${this._activeAreaId||"none"}</code> · weekday presence density & lux history
@@ -6269,7 +7155,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
       <!-- Main Content Grid (12 columns) -->
       <div class="view-content-container">
         <div class="view-content-grid">
-          ${this._areaConfigs.length===0?r`<div class="span-12 no-areaConfigs">No areaConfigs configured. Go to "Areas" tab to configure an area.</div>`:r`
+          ${this._areaConfigs.length===0?n`<div class="span-12 no-areaConfigs">No areaConfigs configured. Go to "Areas" tab to configure an area.</div>`:n`
               <div class="span-12">
                 <twilight-heatmap-card
                   .hass=${this.hass}
@@ -6279,7 +7165,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
             `}
         </div>
       </div>
-    `}};de.styles=z`
+    `}};me.styles=O`
     :host {
       --dev-border: 1px dashed color-mix(in srgb, var(--primary-text-color, #fff) 25%, transparent);
       display: flex;
@@ -6393,33 +7279,33 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
       color: var(--secondary-text-color);
       font-size: 14px;
     }
-  `,Me([h({attribute:!1})],de.prototype,"hass",2),Me([b()],de.prototype,"_areaConfigs",2),Me([b()],de.prototype,"_activeAreaId",2),Me([b()],de.prototype,"_loading",2),de=Me([H("twilight-analytics-view")],de);var Wo=Object.defineProperty,qo=Object.getOwnPropertyDescriptor,at=(t,e,i,a)=>{for(var s=a>1?void 0:a?qo(e,i):e,o=t.length-1,n;o>=0;o--)(n=t[o])&&(s=(a?n(e,i,s):n(s))||s);return a&&s&&Wo(e,i,s),s};const Xe=50,Ke=20,Va=0,Ga=30,ji=300;let Q=class extends L{constructor(){super(...arguments),this.hass=null,this.year=new Date().getFullYear(),this.selectedDate=new Date().toISOString().slice(0,10),this.clamped=!1,this.noHeader=!1,this.noAxisLabels=!1,this.showSlots=!1,this.noSolarNoonMidnight=!1,this.scatterMode=!1,this.sunData=null,this.hoverTime=null,this.hoverIdx=null,this.days=[],this.slotCurves=null,this.liveTime=null,this._loading=!1,this._w=0,this._ro=null,this._interval=null}connectedCallback(){super.connectedCallback(),this._interval=window.setInterval(()=>this._draw(),1e3)}disconnectedCallback(){var t;this._interval&&clearInterval(this._interval),(t=this._ro)==null||t.disconnect(),super.disconnectedCallback()}updated(t){var i;if(!this._ro){const a=(i=this.shadowRoot)==null?void 0:i.querySelector(".wrap");a&&(this._ro=new ResizeObserver(s=>{const o=s[0].contentRect.width;o>0&&o!==this._w&&(this._w=o,this._draw())}),this._ro.observe(a))}(t.has("hass")||t.has("year"))&&this.hass&&!this.days.length&&!this._loading&&this._load(),(t.has("days")||t.has("selectedDate")||t.has("clamped")||t.has("showSlots")||t.has("noSolarNoonMidnight")||t.has("scatterMode")||t.has("sunData")||t.has("hoverIdx")||t.has("liveTime"))&&requestAnimationFrame(()=>this._draw())}async _load(){if(this.hass){this._loading=!0;try{const t=await pa(this.hass,{year:this.year});this.days=t.days}catch(t){console.error("Year load failed",t)}finally{this._loading=!1}}}_getLiveTime(){const t=new Date;return t.getHours()*60+t.getMinutes()+t.getSeconds()/60}_todayIdx(){return this.days.findIndex(t=>t.date===new Date().toISOString().slice(0,10))}_interpolateEl(t){var e;return ba(((e=this.sunData)==null?void 0:e.points)??[],t)}_draw(){var ot;const t=(ot=this.shadowRoot)==null?void 0:ot.querySelector("canvas");if(!t)return;const e=this.days,i=e.length;if(!i||!this._w)return;const a=this._w,s=t.getBoundingClientRect().height||ji,o=_i(t,a,s),n=this.noAxisLabels?10:Xe,l=this.noAxisLabels?10:Ke,c=this.noAxisLabels?10:Va,u=this.noAxisLabels?10:Ga,g=a-n-l,p=s-c-u,d=c,f=c+p,x=n,w=n+g,k=1440,v=_=>d+p-Math.max(0,Math.min(k,_))/k*p;if(o.save(),o.shadowColor="rgba(0, 0, 0, 0.2)",o.shadowBlur=36,o.shadowOffsetX=0,o.shadowOffsetY=0,o.beginPath(),o.roundRect(x,d,g,p,8),o.fillStyle=yt,o.fill(),o.restore(),o.save(),o.beginPath(),o.roundRect(x,d,g,p,8),o.clip(),this.scatterMode){const _=(I,V,j)=>{const F=e.map(y=>y[V]),dt=e.map(y=>y[j]);o.strokeStyle=I,o.lineWidth=1;let $=[];const E=y=>{if(!y.length)return;o.beginPath();let q=!1,tt=0,Z=0,M=0;const B=(D,N)=>{o.moveTo(D,N),q=!0,tt=(N-d)/p*k|0,Z=D,M=N},ct=(D,N,nt,xt)=>{const K=Math.abs(nt-tt),St=P=>P>0&&P<i&&e[P].tz_offset!==e[P-1].tz_offset,S=St(xt)||St(xt-1)||St(xt+1);if(K>120)B(D,N);else if(S&&K>30){const P=(Z+D)/2;o.lineTo(P,M),o.moveTo(P,N),o.lineTo(D,N),tt=nt,Z=D,M=N}else o.lineTo(D,N),tt=nt,Z=D,M=N};for(const D of y){const N=F[D];if(N===null)continue;const nt=x+D/(i-1)*g,xt=(N%1440+1440)%1440,K=v(xt);q?ct(nt,K,xt,D):B(nt,K)}for(let D=y.length-1;D>=0;D--){const N=y[D],nt=dt[N];if(nt===null)continue;const xt=x+N/(i-1)*g,K=(nt%1440+1440)%1440,St=v(K);q?ct(xt,St,K,N):B(xt,St)}o.stroke()};for(let y=0;y<i;y++)F[y]!==null&&dt[y]!==null?$.push(y):$.length&&(E($),$=[]);$.length&&E($)};_(Ot,"astro_dawn","astro_dusk"),_(It,"nautical_dawn","nautical_dusk"),_(zt,"dawn","dusk"),_(qt,"sunrise","sunset")}else{const _=this.clamped;for(let I=0;I<i;I++){const V=e[I],j=I>0?e[I-1]:null,F=I===0?x:x+(I-.5)/(i-1)*g,$=(I===i-1?w:x+(I+.5)/(i-1)*g)-F+.5,E=_?Si(V):Ci(V);if(E.length===0){o.fillStyle=$i(V.midnight_el),o.fillRect(F,d,$,p);continue}const y=[...E];j&&Ai(y,j,V,_),y.sort((q,tt)=>q.t-tt.t),Ws(o,F,$,y,Di(j,V,_),v,k)}}const m=(_,I,V=1.5,j)=>{o.save(),o.strokeStyle=_,o.lineWidth=V,j&&(o.shadowColor=j,o.shadowBlur=8),o.beginPath();const F=$=>$===0?x:x+($-.5)/(i-1)*g,dt=$=>$===i-1?w:x+($+.5)/(i-1)*g;for(let $=0;$<i;$++){const E=I[$];if(E===null)continue;const y=v((E%k+k)%k);o.moveTo(F($),y),o.lineTo(dt($),y)}o.stroke(),o.restore()};if(this.noSolarNoonMidnight||(m("rgba(255,214,0,1)",e.map(_=>_.solar_noon),1.5,"rgba(255, 214, 0, 0.6)"),m("rgba(60,100,200,1)",e.map(_=>_.solar_midnight))),this.showSlots)if(this.slotCurves){const _=this.slotCurves;m("rgba(255,255,255,0.75)",_.civil_dusk??[]),m("rgba(255,255,255,0.60)",_.nautical_dusk??[]),m("rgba(255,255,255,0.45)",_.astro_dusk??[]),m("rgba(255,255,255,0.30)",_.night??[]),m("rgba(255,255,255,0.30)",_.astro_dawn??[]),m("rgba(255,255,255,0.45)",_.nautical_dawn??[]),m("rgba(255,255,255,0.60)",_.civil_dawn??[]),m("rgba(255,255,255,0.75)",_.gold_dawn??[]),m("rgba(255,255,255,0.75)",_.day??[]),m("rgba(255,255,255,0.75)",_.gold_dusk??[])}else m("rgba(255,255,255,0.75)",e.map(_=>_.slot_sunset)),m("rgba(255,255,255,0.60)",e.map(_=>_.slot_nautical_dusk)),m("rgba(255,255,255,0.45)",e.map(_=>_.slot_astro_dusk)),m("rgba(255,255,255,0.30)",e.map(_=>_.slot_night)),m("rgba(255,255,255,0.30)",e.map(_=>_.slot_astro_dawn)),m("rgba(255,255,255,0.45)",e.map(_=>_.slot_nautical_dawn)),m("rgba(255,255,255,0.60)",e.map(_=>_.slot_civil_dawn)),m("rgba(255,255,255,0.75)",e.map(_=>_.slot_sunrise)),m("rgba(255,255,255,0.75)",e.map(_=>_.slot_gold_dawn)),m("rgba(255,255,255,0.75)",e.map(_=>_.slot_day)),m("rgba(255,255,255,0.75)",e.map(_=>_.slot_gold_dusk));const C=this._todayIdx();if(C>=0){const _=x+C/(i-1)*g;o.save(),o.strokeStyle="rgba(255,255,255,0.55)",o.lineWidth=1.5,o.setLineDash([4,3]),o.beginPath(),o.moveTo(_,d),o.lineTo(_,f),o.stroke(),o.restore()}const O=this.days.findIndex(_=>_.date===this.selectedDate);if(O>=0&&O!==C){const _=x+O/(i-1)*g;o.save(),o.strokeStyle="rgba(255,255,255,0.4)",o.lineWidth=1,o.setLineDash([2,2]),o.beginPath(),o.moveTo(_,d),o.lineTo(_,f),o.stroke(),o.restore()}o.restore(),o.save(),o.beginPath(),o.roundRect(x,d,g,p,8),o.strokeStyle=va(this),o.lineWidth=1,o.stroke(),o.restore();const A=this.liveTime??this._getLiveTime();let U=O;if(U===-1&&(U=C),U>=0&&U<i){const _=x+U/(i-1)*g,I=v(A),V=this._interpolateEl(A);V>=0?ma(o,_,I):V>=-6?_a(o,_,I):xa(o,_,I)}o.restore()}_renderAxis(){var O;const t=this._w;if(!t)return _t``;const e=(O=this.shadowRoot)==null?void 0:O.querySelector("canvas"),i=e&&e.getBoundingClientRect().height||ji,a=this.noAxisLabels?10:Xe,s=this.noAxisLabels?10:Ke,o=this.noAxisLabels?10:Va,n=this.noAxisLabels?10:Ga,l=t-a-s,c=i-o-n,u=o,g=o+c,p=A=>u+c-A/1440*c,d=this.days.length||365,f=Array.from({length:13},(A,U)=>U*2).map(A=>{const U=p(A*60),ot=A%6===0&&A!==0&&A!==24,_=A!==0&&A!==24;return _t`
-        ${ot&&!this.noAxisLabels?_t`<text x=${a-6} y=${U} text-anchor="end" dominant-baseline="middle" class="axis-label" style="font: ${Fe(this)}">${String(A).padStart(1,"0")}:00</text>`:_t``}
-        ${_?_t`<line x1=${a} y1=${U} x2=${a+l} y2=${U} class="grid-line" stroke-width="0.5" clip-path="url(#rect-clip)"/>`:_t``}
-      `}),x=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],w=[0,31,59,90,120,151,181,212,243,273,304,334],k=[15,45,74,105,135,166,196,227,258,288,319,349],v=x.map((A,U)=>{const ot=a+Math.min(w[U],d-1)/(d-1)*l,_=a+Math.min(k[U],d-1)/(d-1)*l;return _t`
-        ${U>0?_t`<line x1=${ot} y1=${u} x2=${ot} y2=${g} class="grid-line" stroke-width="0.5" clip-path="url(#rect-clip)"/>`:_t``}
-        ${this.noAxisLabels?_t``:_t`<text x=${_} y=${g+20} text-anchor="middle" class="axis-label" style="font: ${Fe(this)}">${A}</text>`}`}),m=this.hoverIdx!==null?this.days[this.hoverIdx]:null,C=m?a+this.hoverIdx/(d-1)*l:null;return _t`
+  `,Ue([h({attribute:!1})],me.prototype,"hass",2),Ue([b()],me.prototype,"_areaConfigs",2),Ue([b()],me.prototype,"_activeAreaId",2),Ue([b()],me.prototype,"_loading",2),me=Ue([z("twilight-analytics-view")],me);var lr=Object.defineProperty,dr=Object.getOwnPropertyDescriptor,Q=(t,e,i,s)=>{for(var a=s>1?void 0:s?dr(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&lr(e,i,a),a};const ei=50,ii=20,ss=0,os=30,Gi=300;let K=class extends L{constructor(){super(...arguments),this.hass=null,this.year=new Date().getFullYear(),this.selectedDate=new Date().toISOString().slice(0,10),this.clamped=!1,this.noHeader=!1,this.noAxisLabels=!1,this.showSlots=!1,this.noSolarNoonMidnight=!1,this.scatterMode=!1,this.sunData=null,this.hoverTime=null,this.hoverIdx=null,this.days=[],this.slotCurves=null,this.liveTime=null,this._loading=!1,this._w=0,this._ro=null}connectedCallback(){super.connectedCallback()}disconnectedCallback(){var t;(t=this._ro)==null||t.disconnect(),super.disconnectedCallback()}updated(t){var i;if(!this._ro){const s=(i=this.shadowRoot)==null?void 0:i.querySelector(".wrap");s&&(this._ro=new ResizeObserver(a=>{const o=a[0].contentRect.width;o>0&&o!==this._w&&(this._w=o,this._draw())}),this._ro.observe(s))}(t.has("hass")||t.has("year"))&&this.hass&&!this.days.length&&!this._loading&&this._load(),(t.has("days")||t.has("selectedDate")||t.has("clamped")||t.has("showSlots")||t.has("noSolarNoonMidnight")||t.has("scatterMode")||t.has("sunData")||t.has("hoverIdx")||t.has("liveTime"))&&requestAnimationFrame(()=>this._draw())}async _load(){if(this.hass){this._loading=!0;try{const t=await xa(this.hass,{year:this.year});this.days=t.days}catch(t){console.error("Year load failed",t)}finally{this._loading=!1}}}_getLiveTime(){const t=new Date;return t.getHours()*60+t.getMinutes()+t.getSeconds()/60}_todayIdx(){return this.days.findIndex(t=>t.date===new Date().toISOString().slice(0,10))}_interpolateEl(t){var e;return Sa(((e=this.sunData)==null?void 0:e.points)??[],t)}_draw(){var S;const t=(S=this.shadowRoot)==null?void 0:S.querySelector("canvas");if(!t)return;const e=this.days,i=e.length;if(!i||!this._w)return;const s=this._w,a=t.getBoundingClientRect().height||Gi,o=Ti(t,s,a),r=this.noAxisLabels?10:ei,l=this.noAxisLabels?10:ii,c=this.noAxisLabels?10:ss,g=this.noAxisLabels?10:os,u=s-r-l,p=a-c-g,d=c,f=c+p,v=r,y=r+u,k=1440,x=m=>d+p-Math.max(0,Math.min(k,m))/k*p;if(o.save(),o.shadowColor="rgba(0, 0, 0, 0.2)",o.shadowBlur=36,o.shadowOffsetX=0,o.shadowOffsetY=0,o.beginPath(),o.roundRect(v,d,u,p,8),o.fillStyle=kt,o.fill(),o.restore(),o.save(),o.beginPath(),o.roundRect(v,d,u,p,8),o.clip(),this.scatterMode){const m=(E,j,M)=>{const U=e.map(D=>D[j]),it=e.map(D=>D[M]);o.strokeStyle=E,o.lineWidth=1;let P=[];const tt=D=>{if(!D.length)return;o.beginPath();let ht=!1,ut=0,at=0,B=0;const st=(F,q)=>{o.moveTo(F,q),ht=!0,ut=(q-d)/p*k|0,at=F,B=q},Ut=(F,q,gt,Bt)=>{const X=Math.abs(gt-ut),Qt=R=>R>0&&R<i&&e[R].tz_offset!==e[R-1].tz_offset,T=Qt(Bt)||Qt(Bt-1)||Qt(Bt+1);if(X>120)st(F,q);else if(T&&X>30){const R=(at+F)/2;o.lineTo(R,B),o.moveTo(R,q),o.lineTo(F,q),ut=gt,at=F,B=q}else o.lineTo(F,q),ut=gt,at=F,B=q};for(const F of D){const q=U[F];if(q===null)continue;const gt=v+F/(i-1)*u,Bt=(q%1440+1440)%1440,X=x(Bt);ht?Ut(gt,X,Bt,F):st(gt,X)}for(let F=D.length-1;F>=0;F--){const q=D[F],gt=it[q];if(gt===null)continue;const Bt=v+q/(i-1)*u,X=(gt%1440+1440)%1440,Qt=x(X);ht?Ut(Bt,Qt,X,q):st(Bt,Qt)}o.stroke()};for(let D=0;D<i;D++)U[D]!==null&&it[D]!==null?P.push(D):P.length&&(tt(P),P=[]);P.length&&tt(P)};m(Mt,"astro_dawn","astro_dusk"),m(Pt,"nautical_dawn","nautical_dusk"),m(Nt,"dawn","dusk"),m(Gt,"sunrise","sunset")}else{const m=this.clamped;for(let E=0;E<i;E++){const j=e[E],M=E>0?e[E-1]:null,U=E===0?v:v+(E-.5)/(i-1)*u,P=(E===i-1?y:v+(E+.5)/(i-1)*u)-U+.5,tt=m?Pi(j):Mi(j);if(tt.length===0){o.fillStyle=Ii(j.midnight_el),o.fillRect(U,d,P,p);continue}const D=[...tt];M&&Ri(D,M,j,m),D.sort((ht,ut)=>ht.t-ut.t),io(o,U,P,D,Ni(M,j,m),x,k)}}const _=(m,E,j=1.5,M)=>{o.save(),o.strokeStyle=m,o.lineWidth=j,M&&(o.shadowColor=M,o.shadowBlur=8),o.beginPath();const U=P=>P===0?v:v+(P-.5)/(i-1)*u,it=P=>P===i-1?y:v+(P+.5)/(i-1)*u;for(let P=0;P<i;P++){const tt=E[P];if(tt===null)continue;const D=x((tt%k+k)%k);o.moveTo(U(P),D),o.lineTo(it(P),D)}o.stroke(),o.restore()};if(this.noSolarNoonMidnight||(_("rgba(255,214,0,1)",e.map(m=>m.solar_noon),1.5,"rgba(255, 214, 0, 0.6)"),_("rgba(60,100,200,1)",e.map(m=>m.solar_midnight))),this.showSlots)if(this.slotCurves){const m=this.slotCurves;_("rgba(255,255,255,0.75)",m.civil_dusk??[]),_("rgba(255,255,255,0.60)",m.nautical_dusk??[]),_("rgba(255,255,255,0.45)",m.astro_dusk??[]),_("rgba(255,255,255,0.30)",m.night??[]),_("rgba(255,255,255,0.30)",m.astro_dawn??[]),_("rgba(255,255,255,0.45)",m.nautical_dawn??[]),_("rgba(255,255,255,0.60)",m.civil_dawn??[]),_("rgba(255,255,255,0.75)",m.gold_dawn??[]),_("rgba(255,255,255,0.75)",m.day??[]),_("rgba(255,255,255,0.75)",m.gold_dusk??[])}else _("rgba(255,255,255,0.75)",e.map(m=>m.slot_sunset)),_("rgba(255,255,255,0.60)",e.map(m=>m.slot_nautical_dusk)),_("rgba(255,255,255,0.45)",e.map(m=>m.slot_astro_dusk)),_("rgba(255,255,255,0.30)",e.map(m=>m.slot_night)),_("rgba(255,255,255,0.30)",e.map(m=>m.slot_astro_dawn)),_("rgba(255,255,255,0.45)",e.map(m=>m.slot_nautical_dawn)),_("rgba(255,255,255,0.60)",e.map(m=>m.slot_civil_dawn)),_("rgba(255,255,255,0.75)",e.map(m=>m.slot_sunrise)),_("rgba(255,255,255,0.75)",e.map(m=>m.slot_gold_dawn)),_("rgba(255,255,255,0.75)",e.map(m=>m.slot_day)),_("rgba(255,255,255,0.75)",e.map(m=>m.slot_gold_dusk));const C=this._todayIdx();if(C>=0){const m=v+C/(i-1)*u;o.save(),o.strokeStyle="rgba(255,255,255,0.55)",o.lineWidth=1.5,o.setLineDash([4,3]),o.beginPath(),o.moveTo(m,d),o.lineTo(m,f),o.stroke(),o.restore()}const A=this.days.findIndex(m=>m.date===this.selectedDate);if(A>=0&&A!==C){const m=v+A/(i-1)*u;o.save(),o.strokeStyle="rgba(255,255,255,0.4)",o.lineWidth=1,o.setLineDash([2,2]),o.beginPath(),o.moveTo(m,d),o.lineTo(m,f),o.stroke(),o.restore()}o.restore(),o.save(),o.beginPath(),o.roundRect(v,d,u,p,8),o.strokeStyle=Ca(this),o.lineWidth=1,o.stroke(),o.restore();const $=this.liveTime??this._getLiveTime();let w=A;if(w===-1&&(w=C),w>=0&&w<i){const m=v+w/(i-1)*u,E=x($),j=this._interpolateEl($);j>=0?Da(o,m,E):j>=-6?Ta(o,m,E):Aa(o,m,E)}o.restore()}_renderAxis(){var A;const t=this._w;if(!t)return $t``;const e=(A=this.shadowRoot)==null?void 0:A.querySelector("canvas"),i=e&&e.getBoundingClientRect().height||Gi,s=this.noAxisLabels?10:ei,a=this.noAxisLabels?10:ii,o=this.noAxisLabels?10:ss,r=this.noAxisLabels?10:os,l=t-s-a,c=i-o-r,g=o,u=o+c,p=$=>g+c-$/1440*c,d=this.days.length||365,f=Array.from({length:13},($,w)=>w*2).map($=>{const w=p($*60),S=$%6===0&&$!==0&&$!==24,m=$!==0&&$!==24;return $t`
+        ${S&&!this.noAxisLabels?$t`<text x=${s-6} y=${w} text-anchor="end" dominant-baseline="middle" class="axis-label" style="font: ${Xe(this)}">${String($).padStart(1,"0")}:00</text>`:$t``}
+        ${m?$t`<line x1=${s} y1=${w} x2=${s+l} y2=${w} class="grid-line" stroke-width="0.5" clip-path="url(#rect-clip)"/>`:$t``}
+      `}),v=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],y=[0,31,59,90,120,151,181,212,243,273,304,334],k=[15,45,74,105,135,166,196,227,258,288,319,349],x=v.map(($,w)=>{const S=s+Math.min(y[w],d-1)/(d-1)*l,m=s+Math.min(k[w],d-1)/(d-1)*l;return $t`
+        ${w>0?$t`<line x1=${S} y1=${g} x2=${S} y2=${u} class="grid-line" stroke-width="0.5" clip-path="url(#rect-clip)"/>`:$t``}
+        ${this.noAxisLabels?$t``:$t`<text x=${m} y=${u+20} text-anchor="middle" class="axis-label" style="font: ${Xe(this)}">${$}</text>`}`}),_=this.hoverIdx!==null?this.days[this.hoverIdx]:null,C=_?s+this.hoverIdx/(d-1)*l:null;return $t`
       <svg class="overlay" width="100%" height="100%">
         <defs>
           <clipPath id="rect-clip">
-            <rect x=${a} y=${u} width=${l} height=${c} rx="8" ry="8" />
+            <rect x=${s} y=${g} width=${l} height=${c} rx="8" ry="8" />
           </clipPath>
         </defs>
         ${f}
-        ${v}
-        ${C!==null&&m?_t`
-          <line x1=${C} y1=${u} x2=${C} y2=${g} stroke="rgba(255,255,255,0.28)" stroke-width="1" clip-path="url(#rect-clip)"/>
+        ${x}
+        ${C!==null&&_?$t`
+          <line x1=${C} y1=${g} x2=${C} y2=${u} stroke="rgba(255,255,255,0.28)" stroke-width="1" clip-path="url(#rect-clip)"/>
         `:""}
       </svg>
-    `}_onMove(t){if(!this._w)return;const e=t.currentTarget.getBoundingClientRect(),i=this.noAxisLabels?10:Xe,a=this.noAxisLabels?10:Ke,s=this._w-i-a,o=t.clientX-e.left;this.hoverIdx=Math.round(Math.max(0,Math.min(1,(o-i)/s))*(this.days.length-1));const n=this.days[this.hoverIdx];this.dispatchEvent(new CustomEvent("year-hover-changed",{detail:{index:this.hoverIdx,date:n?n.date:null},bubbles:!0,composed:!0}))}_onLeave(){this.hoverIdx=null,this.dispatchEvent(new CustomEvent("year-hover-changed",{detail:{index:null,date:null},bubbles:!0,composed:!0}))}_onClick(){if(this.hoverIdx!==null&&this.days[this.hoverIdx]){const t=this.days[this.hoverIdx].date;this.dispatchEvent(new CustomEvent("date-selected",{detail:t,bubbles:!0,composed:!0}))}}_onTouchMove(t){if(!this._w)return;const e=t.touches[0],i=t.currentTarget.getBoundingClientRect(),a=this.noAxisLabels?10:Xe,s=this.noAxisLabels?10:Ke,o=this._w-a-s,n=e.clientX-i.left;this.hoverIdx=Math.round(Math.max(0,Math.min(1,(n-a)/o))*(this.days.length-1));const l=this.days[this.hoverIdx];this.dispatchEvent(new CustomEvent("year-hover-changed",{detail:{index:this.hoverIdx,date:l?l.date:null},bubbles:!0,composed:!0}))}_onTouchEnd(){this.hoverIdx=null,this.dispatchEvent(new CustomEvent("year-hover-changed",{detail:{index:null,date:null},bubbles:!0,composed:!0}))}render(){return r`
-      ${this.noHeader?"":r`
+    `}_onMove(t){if(!this._w)return;const e=t.currentTarget.getBoundingClientRect(),i=this.noAxisLabels?10:ei,s=this.noAxisLabels?10:ii,a=this._w-i-s,o=t.clientX-e.left;this.hoverIdx=Math.round(Math.max(0,Math.min(1,(o-i)/a))*(this.days.length-1));const r=this.days[this.hoverIdx];this.dispatchEvent(new CustomEvent("year-hover-changed",{detail:{index:this.hoverIdx,date:r?r.date:null},bubbles:!0,composed:!0}))}_onLeave(){this.hoverIdx=null,this.dispatchEvent(new CustomEvent("year-hover-changed",{detail:{index:null,date:null},bubbles:!0,composed:!0}))}_onClick(){if(this.hoverIdx!==null&&this.days[this.hoverIdx]){const t=this.days[this.hoverIdx].date;this.dispatchEvent(new CustomEvent("date-selected",{detail:t,bubbles:!0,composed:!0}))}}_onTouchMove(t){if(!this._w)return;const e=t.touches[0],i=t.currentTarget.getBoundingClientRect(),s=this.noAxisLabels?10:ei,a=this.noAxisLabels?10:ii,o=this._w-s-a,r=e.clientX-i.left;this.hoverIdx=Math.round(Math.max(0,Math.min(1,(r-s)/o))*(this.days.length-1));const l=this.days[this.hoverIdx];this.dispatchEvent(new CustomEvent("year-hover-changed",{detail:{index:this.hoverIdx,date:l?l.date:null},bubbles:!0,composed:!0}))}_onTouchEnd(){this.hoverIdx=null,this.dispatchEvent(new CustomEvent("year-hover-changed",{detail:{index:null,date:null},bubbles:!0,composed:!0}))}render(){return n`
+      ${this.noHeader?"":n`
         <div class="card-header">
-          <span class="card-icon">☀️</span>
+          <span class="card-dot" style="--dot-color: #f59e0b;"></span>
           <span class="card-title">Year overview</span>
         </div>
       `}
       <div class="wrap">
-        ${this._loading?r`<div class="loading"><ha-circular-progress active size="small"></ha-circular-progress></div>`:r`
+        ${this._loading?n`<div class="loading"><ha-circular-progress active size="small"></ha-circular-progress></div>`:n`
             <canvas></canvas>
             ${this._renderAxis()}
             <div class="hit-area"
@@ -6432,7 +7318,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
             ></div>
           `}
       </div>
-    `}};Q.styles=z`
+    `}};K.styles=O`
     :host {
       display: flex;
       flex-direction: column;
@@ -6454,9 +7340,14 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
       gap: 10px;
       padding: 16px 20px 12px;
     }
-    .card-icon {
-      font-size: 18px;
-      opacity: 0.7;
+    .card-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--dot-color, #f59e0b);
+      box-shadow: 0 0 6px var(--dot-color, #f59e0b);
+      flex-shrink: 0;
+      display: inline-block;
       margin-left: 3px;
     }
     .card-title {
@@ -6509,7 +7400,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
       font-size: 13px;
       color: rgba(255,255,255,0.4);
     }
-  `,at([h({attribute:!1})],Q.prototype,"hass",2),at([h({type:Number})],Q.prototype,"year",2),at([h({type:String})],Q.prototype,"selectedDate",2),at([h({type:Boolean})],Q.prototype,"clamped",2),at([h({type:Boolean})],Q.prototype,"noHeader",2),at([h({type:Boolean})],Q.prototype,"noAxisLabels",2),at([h({type:Boolean})],Q.prototype,"showSlots",2),at([h({type:Boolean})],Q.prototype,"noSolarNoonMidnight",2),at([h({type:Boolean})],Q.prototype,"scatterMode",2),at([h({attribute:!1})],Q.prototype,"sunData",2),at([h({attribute:!1})],Q.prototype,"hoverTime",2),at([h({type:Number})],Q.prototype,"hoverIdx",2),at([h({attribute:!1})],Q.prototype,"days",2),at([h({attribute:!1})],Q.prototype,"slotCurves",2),at([h({type:Number})],Q.prototype,"liveTime",2),at([b()],Q.prototype,"_loading",2),at([b()],Q.prototype,"_w",2),Q=at([H("twilight-sun-year-card")],Q);var Yo=Object.defineProperty,Vo=Object.getOwnPropertyDescriptor,et=(t,e,i,a)=>{for(var s=a>1?void 0:a?Vo(e,i):e,o=t.length-1,n;o>=0;o--)(n=t[o])&&(s=(a?n(e,i,s):n(s))||s);return a&&s&&Yo(e,i,s),s};const Hi=[{name:"North Pole",lat:90,lon:0,tz:"UTC"},{name:"Qaanaaq",lat:77.47,lon:-69.23,tz:"America/Thule"},{name:"Reykjavík",lat:64.13,lon:-21.9,tz:"Atlantic/Reykjavik"},{name:"Helsinki",lat:60.17,lon:24.94,tz:"Europe/Helsinki"},{name:"Hamburg",lat:53.55,lon:9.99,tz:"Europe/Berlin"},{name:"New York",lat:40.71,lon:-74.01,tz:"America/New_York"},{name:"Tokyo",lat:35.68,lon:139.69,tz:"Asia/Tokyo"},{name:"Cairo",lat:30.05,lon:31.24,tz:"Africa/Cairo"},{name:"Honolulu",lat:21.31,lon:-157.86,tz:"Pacific/Honolulu"},{name:"Equator",lat:0,lon:0,tz:"UTC"},{name:"Nairobi",lat:-1.29,lon:36.82,tz:"Africa/Nairobi"},{name:"Santiago",lat:-33.45,lon:-70.67,tz:"America/Santiago"},{name:"Cape Town",lat:-33.93,lon:18.42,tz:"Africa/Johannesburg"},{name:"Auckland",lat:-36.85,lon:174.76,tz:"Pacific/Auckland"},{name:"Ushuaia",lat:-54.8,lon:-68.3,tz:"America/Argentina/Ushuaia"},{name:"McMurdo Station",lat:-77.85,lon:166.67,tz:"Pacific/Auckland"},{name:"South Pole",lat:-90,lon:0,tz:"UTC"}],Xa=[10,25,50,100,250];let J=class extends L{constructor(){super(...arguments),this.hass=null,this._days=[],this._year=new Date().getFullYear(),this._loading=!1,this._error="",this._hoverIdx=null,this._selectedDate=new Date().toISOString().slice(0,10),this._sunData=null,this._hoverTime=null,this._scrubbing=!1,this._isDark=!1,this._demoLocationIdx=-1,this._demoPlaying=!1,this._demoDayIdx=0,this._demoSpeed=Xa[2]||50,this._clamped=!1,this._showSlots=!1,this._slotCurves=null,this._updateInterval=null,this._demoInterval=null,this._dayCache=new Map,this._lastLoadDayTime=0,this._loadDayTimeout=null}connectedCallback(){super.connectedCallback(),this._updateInterval=window.setInterval(()=>{this._scrubbing||this.requestUpdate()},1e3)}disconnectedCallback(){this._updateInterval&&clearInterval(this._updateInterval),this._stopDemo(),this._loadDayTimeout&&(clearTimeout(this._loadDayTimeout),this._loadDayTimeout=null),super.disconnectedCallback()}updated(t){if(t.has("hass")&&this.hass){const e=Ca(this.hass,this);e!==this._isDark&&(this._isDark=e,this.toggleAttribute("dark",e))}t.has("hass")&&this.hass&&!this._days.length&&!this._loading&&this._loadYear(),t.has("_selectedDate")&&this.hass&&this._selectedDate&&this._loadDay()}_locParams(){const t=Hi[this._demoLocationIdx];return t?{lat:t.lat,lon:t.lon,tz:t.tz}:{}}async _loadYear(){var t;if(this.hass){this._loading=!0,this._error="";try{const[e,i]=await Promise.all([pa(this.hass,{year:this._year,...this._locParams()}),Ms(this.hass,{year:this._year,...this._locParams()}).catch(()=>null)]);this._days=e.days,this._year=e.year,this._slotCurves=(i==null?void 0:i.curves)??null;const a=new Date().toISOString().slice(0,10);this._selectedDate=this._days.some(s=>s.date===a)?a:((t=this._days[0])==null?void 0:t.date)??a}catch(e){this._error=e instanceof Error?e.message:String(e)}finally{this._loading=!1}}}_loadDay(){this._loadDayTimeout&&(clearTimeout(this._loadDayTimeout),this._loadDayTimeout=null);const t=`${this._demoLocationIdx}_${this._selectedDate}`;if(this._demoPlaying&&this._dayCache.has(t)){this._sunData=this._dayCache.get(t);return}if(this._dayCache.has(t)){this._sunData=this._dayCache.get(t);return}const i=Date.now()-this._lastLoadDayTime,a=10;i>=a?this._executeLoadDay():this._loadDayTimeout=window.setTimeout(()=>{this._executeLoadDay()},a-i)}async _executeLoadDay(){if(!this.hass||!this._selectedDate)return;this._lastLoadDayTime=Date.now();const t=this._selectedDate,e=`${this._demoLocationIdx}_${t}`;try{const i=await je(this.hass,{date:t,...this._locParams()});this._dayCache.set(e,i),this._selectedDate===t&&(this._sunData=i)}catch{this._selectedDate===t&&(this._sunData=null)}}_stopDemo(){this._demoInterval&&(clearInterval(this._demoInterval),this._demoInterval=null),this._demoPlaying=!1}_toggleDemo(){if(this._demoPlaying){this._stopDemo();return}this._demoPlaying=!0,this._demoDayIdx=0,this._advanceDemoDay(),this._demoInterval=window.setInterval(()=>this._advanceDemoDay(),this._demoSpeed)}_changeDemoSpeed(t){this._demoSpeed=t,this._demoPlaying&&(this._demoInterval&&clearInterval(this._demoInterval),this._demoInterval=window.setInterval(()=>this._advanceDemoDay(),this._demoSpeed))}_advanceDemoDay(){if(!this._days.length)return;const t=Math.min(this._demoDayIdx,this._days.length-1);this._selectedDate=this._days[t].date,this._demoDayIdx++,this._demoDayIdx>=this._days.length&&this._stopDemo()}async _selectLocation(t){this._stopDemo(),this._demoLocationIdx=t,this._days=[],this._sunData=null,await this._loadYear(),await this._loadDay()}_toggleClamped(){this._clamped=!this._clamped}_toggleSlots(){this._showSlots=!this._showSlots}_fmt(t){if(t===null)return"—";const e=Math.round((t%1440+1440)%1440),i=Math.floor(e/60)%24,a=e%60;return`${String(i).padStart(2,"0")}:${String(a).padStart(2,"0")}`}_fmtDur(t){if(t===null||t<0)return"—";const e=Math.floor(t/60),i=Math.round(t%60);return e>0&&i>0?`${e}h ${i}min`:e>0?`${e}h`:`${i}min`}_todayIdx(){return this._days.findIndex(t=>t.date===new Date().toISOString().slice(0,10))}_getLiveTime(){var a,s,o;const t=Hi[this._demoLocationIdx],e=(t==null?void 0:t.tz)??void 0,i=new Date;if(e){const n=new Intl.DateTimeFormat("en-GB",{timeZone:e,hour:"numeric",minute:"numeric",second:"numeric",hour12:!1}).formatToParts(i),l=Number(((a=n.find(g=>g.type==="hour"))==null?void 0:a.value)??0),c=Number(((s=n.find(g=>g.type==="minute"))==null?void 0:s.value)??0),u=Number(((o=n.find(g=>g.type==="second"))==null?void 0:o.value)??0);return l*60+c+u/60}return i.getHours()*60+i.getMinutes()}_interpolateSun(t){var g;if(!((g=this._sunData)!=null&&g.points.length))return{elevation:0,azimuth:0};const e=this._sunData.points;let i=0,a=e.length-1;for(;i<a-1;){const p=i+a>>1;e[p].time<=t?i=p:a=p}const s=e[i],o=e[a];if(!s)return{elevation:0,azimuth:0};if(s===o||o.time===s.time)return{elevation:s.elevation,azimuth:s.azimuth};const n=(t-s.time)/(o.time-s.time),l=s.elevation+(o.elevation-s.elevation)*n;let c=s.azimuth,u=o.azimuth;return Math.abs(u-c)>180&&(u<c?u+=360:c+=360),{elevation:l,azimuth:(c+(u-c)*n)%360}}_phaseName(t){return t>=0?"Day":t>=-6?"Civil twilight":t>=-12?"Nautical twilight":t>=-18?"Astronomical twilight":"Night"}_phaseClass(t){return t>=0?"phase-day":t>=-6?"phase-civil":t>=-12?"phase-naut":t>=-18?"phase-astro":"phase-night"}render(){const t=new Date().toISOString().slice(0,10),e=this._hoverIdx!==null?this._days[this._hoverIdx]:null,i=this._days.findIndex(p=>p.date===this._selectedDate),a=i>=0?this._days[i]:this._days.length?this._days[0]:null,s=e??a,o=e?e.date:this._selectedDate,n=this._hoverTime??this._getLiveTime(),{elevation:l,azimuth:c}=this._interpolateSun(n),u=Math.round(n),g=`${String(Math.floor(u/60)%24).padStart(2,"0")}:${String(u%60).padStart(2,"0")}`;return r`
+  `,Q([h({attribute:!1})],K.prototype,"hass",2),Q([h({type:Number})],K.prototype,"year",2),Q([h({type:String})],K.prototype,"selectedDate",2),Q([h({type:Boolean})],K.prototype,"clamped",2),Q([h({type:Boolean})],K.prototype,"noHeader",2),Q([h({type:Boolean})],K.prototype,"noAxisLabels",2),Q([h({type:Boolean})],K.prototype,"showSlots",2),Q([h({type:Boolean})],K.prototype,"noSolarNoonMidnight",2),Q([h({type:Boolean})],K.prototype,"scatterMode",2),Q([h({attribute:!1})],K.prototype,"sunData",2),Q([h({attribute:!1})],K.prototype,"hoverTime",2),Q([h({type:Number})],K.prototype,"hoverIdx",2),Q([h({attribute:!1})],K.prototype,"days",2),Q([h({attribute:!1})],K.prototype,"slotCurves",2),Q([h({type:Number})],K.prototype,"liveTime",2),Q([b()],K.prototype,"_loading",2),Q([b()],K.prototype,"_w",2),K=Q([z("twilight-sun-year-card")],K);var cr=Object.defineProperty,pr=Object.getOwnPropertyDescriptor,Z=(t,e,i,s)=>{for(var a=s>1?void 0:s?pr(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&cr(e,i,a),a};const Xi=[{name:"North Pole",lat:90,lon:0,tz:"UTC"},{name:"Qaanaaq",lat:77.47,lon:-69.23,tz:"America/Thule"},{name:"Reykjavík",lat:64.13,lon:-21.9,tz:"Atlantic/Reykjavik"},{name:"Helsinki",lat:60.17,lon:24.94,tz:"Europe/Helsinki"},{name:"Hamburg",lat:53.55,lon:9.99,tz:"Europe/Berlin"},{name:"New York",lat:40.71,lon:-74.01,tz:"America/New_York"},{name:"Tokyo",lat:35.68,lon:139.69,tz:"Asia/Tokyo"},{name:"Cairo",lat:30.05,lon:31.24,tz:"Africa/Cairo"},{name:"Honolulu",lat:21.31,lon:-157.86,tz:"Pacific/Honolulu"},{name:"Equator",lat:0,lon:0,tz:"UTC"},{name:"Nairobi",lat:-1.29,lon:36.82,tz:"Africa/Nairobi"},{name:"Santiago",lat:-33.45,lon:-70.67,tz:"America/Santiago"},{name:"Cape Town",lat:-33.93,lon:18.42,tz:"Africa/Johannesburg"},{name:"Auckland",lat:-36.85,lon:174.76,tz:"Pacific/Auckland"},{name:"Ushuaia",lat:-54.8,lon:-68.3,tz:"America/Argentina/Ushuaia"},{name:"McMurdo Station",lat:-77.85,lon:166.67,tz:"Pacific/Auckland"},{name:"South Pole",lat:-90,lon:0,tz:"UTC"}],rs=[10,25,50,100,250];let G=class extends L{constructor(){super(...arguments),this.hass=null,this._days=[],this._year=new Date().getFullYear(),this._loading=!1,this._error="",this._hoverIdx=null,this._selectedDate=new Date().toISOString().slice(0,10),this._sunData=null,this._hoverTime=null,this._scrubbing=!1,this._isDark=!1,this._demoLocationIdx=-1,this._demoPlaying=!1,this._demoDayIdx=0,this._demoSpeed=rs[2]||50,this._clamped=!1,this._showSlots=!1,this._slotCurves=null,this._updateInterval=null,this._demoInterval=null,this._dayCache=new Map,this._lastLoadDayTime=0,this._loadDayTimeout=null}connectedCallback(){super.connectedCallback(),this._updateInterval=window.setInterval(()=>{this._scrubbing||this.requestUpdate()},1e3)}disconnectedCallback(){this._updateInterval&&clearInterval(this._updateInterval),this._stopDemo(),this._loadDayTimeout&&(clearTimeout(this._loadDayTimeout),this._loadDayTimeout=null),super.disconnectedCallback()}updated(t){if(t.has("hass")&&this.hass){const e=Ma(this.hass,this);e!==this._isDark&&(this._isDark=e,this.toggleAttribute("dark",e))}t.has("hass")&&this.hass&&!this._days.length&&!this._loading&&this._loadYear(),t.has("_selectedDate")&&this.hass&&this._selectedDate&&this._loadDay()}_locParams(){const t=Xi[this._demoLocationIdx];return t?{lat:t.lat,lon:t.lon,tz:t.tz}:{}}async _loadYear(){var t;if(this.hass){this._loading=!0,this._error="";try{const[e,i]=await Promise.all([xa(this.hass,{year:this._year,...this._locParams()}),qs(this.hass,{year:this._year,...this._locParams()}).catch(()=>null)]);this._days=e.days,this._year=e.year,this._slotCurves=(i==null?void 0:i.curves)??null;const s=new Date().toISOString().slice(0,10);this._selectedDate=this._days.some(a=>a.date===s)?s:((t=this._days[0])==null?void 0:t.date)??s}catch(e){this._error=e instanceof Error?e.message:String(e)}finally{this._loading=!1}}}_loadDay(){this._loadDayTimeout&&(clearTimeout(this._loadDayTimeout),this._loadDayTimeout=null);const t=`${this._demoLocationIdx}_${this._selectedDate}`;if(this._demoPlaying&&this._dayCache.has(t)){this._sunData=this._dayCache.get(t);return}if(this._dayCache.has(t)){this._sunData=this._dayCache.get(t);return}const i=Date.now()-this._lastLoadDayTime,s=10;i>=s?this._executeLoadDay():this._loadDayTimeout=window.setTimeout(()=>{this._executeLoadDay()},s-i)}async _executeLoadDay(){if(!this.hass||!this._selectedDate)return;this._lastLoadDayTime=Date.now();const t=this._selectedDate,e=`${this._demoLocationIdx}_${t}`;try{const i=await Ve(this.hass,{date:t,...this._locParams()});this._dayCache.set(e,i),this._selectedDate===t&&(this._sunData=i)}catch{this._selectedDate===t&&(this._sunData=null)}}_stopDemo(){this._demoInterval&&(clearInterval(this._demoInterval),this._demoInterval=null),this._demoPlaying=!1}_toggleDemo(){if(this._demoPlaying){this._stopDemo();return}this._demoPlaying=!0,this._demoDayIdx=0,this._advanceDemoDay(),this._demoInterval=window.setInterval(()=>this._advanceDemoDay(),this._demoSpeed)}_changeDemoSpeed(t){this._demoSpeed=t,this._demoPlaying&&(this._demoInterval&&clearInterval(this._demoInterval),this._demoInterval=window.setInterval(()=>this._advanceDemoDay(),this._demoSpeed))}_advanceDemoDay(){if(!this._days.length)return;const t=Math.min(this._demoDayIdx,this._days.length-1);this._selectedDate=this._days[t].date,this._demoDayIdx++,this._demoDayIdx>=this._days.length&&this._stopDemo()}async _selectLocation(t){this._stopDemo(),this._demoLocationIdx=t,this._days=[],this._sunData=null,await this._loadYear(),await this._loadDay()}_toggleClamped(){this._clamped=!this._clamped}_toggleSlots(){this._showSlots=!this._showSlots}_fmt(t){if(t===null)return"—";const e=Math.round((t%1440+1440)%1440),i=Math.floor(e/60)%24,s=e%60;return`${String(i).padStart(2,"0")}:${String(s).padStart(2,"0")}`}_fmtDur(t){if(t===null||t<0)return"—";const e=Math.floor(t/60),i=Math.round(t%60);return e>0&&i>0?`${e}h ${i}min`:e>0?`${e}h`:`${i}min`}_todayIdx(){return this._days.findIndex(t=>t.date===new Date().toISOString().slice(0,10))}_getLiveTime(){var s,a,o;const t=Xi[this._demoLocationIdx],e=(t==null?void 0:t.tz)??void 0,i=new Date;if(e){const r=new Intl.DateTimeFormat("en-GB",{timeZone:e,hour:"numeric",minute:"numeric",second:"numeric",hour12:!1}).formatToParts(i),l=Number(((s=r.find(u=>u.type==="hour"))==null?void 0:s.value)??0),c=Number(((a=r.find(u=>u.type==="minute"))==null?void 0:a.value)??0),g=Number(((o=r.find(u=>u.type==="second"))==null?void 0:o.value)??0);return l*60+c+g/60}return i.getHours()*60+i.getMinutes()}_interpolateSun(t){var u;if(!((u=this._sunData)!=null&&u.points.length))return{elevation:0,azimuth:0};const e=this._sunData.points;let i=0,s=e.length-1;for(;i<s-1;){const p=i+s>>1;e[p].time<=t?i=p:s=p}const a=e[i],o=e[s];if(!a)return{elevation:0,azimuth:0};if(a===o||o.time===a.time)return{elevation:a.elevation,azimuth:a.azimuth};const r=(t-a.time)/(o.time-a.time),l=a.elevation+(o.elevation-a.elevation)*r;let c=a.azimuth,g=o.azimuth;return Math.abs(g-c)>180&&(g<c?g+=360:c+=360),{elevation:l,azimuth:(c+(g-c)*r)%360}}_phaseName(t){return t>=0?"Day":t>=-6?"Civil twilight":t>=-12?"Nautical twilight":t>=-18?"Astronomical twilight":"Night"}_phaseClass(t){return t>=0?"phase-day":t>=-6?"phase-civil":t>=-12?"phase-naut":t>=-18?"phase-astro":"phase-night"}render(){const t=new Date().toISOString().slice(0,10),e=this._hoverIdx!==null?this._days[this._hoverIdx]:null,i=this._days.findIndex(p=>p.date===this._selectedDate),s=i>=0?this._days[i]:this._days.length?this._days[0]:null,a=e??s,o=e?e.date:this._selectedDate,r=this._hoverTime??this._getLiveTime(),{elevation:l,azimuth:c}=this._interpolateSun(r),g=Math.round(r),u=`${String(Math.floor(g/60)%24).padStart(2,"0")}:${String(g%60).padStart(2,"0")}`;return n`
     <!-- Header Grid (1 Row, 12 columns, max 6 items) -->
     <div class="view-header-container">
       <div class="view-header-grid">
@@ -6530,7 +7421,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
           <select class="demo-select" style="width: auto;"
             @change=${p=>this._selectLocation(Number(p.target.value))}>
             <option value="-1" ?selected=${this._demoLocationIdx===-1}>HA Home</option>
-            ${Hi.map((p,d)=>r`
+            ${Xi.map((p,d)=>n`
               <option value=${d} ?selected=${this._demoLocationIdx===d}>${p.name} (${p.lat>0?"+":""}${p.lat}°)</option>
             `)}
           </select>
@@ -6543,16 +7434,16 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
 
           <select class="demo-select" style="width: 80px;"
             @change=${p=>this._changeDemoSpeed(Number(p.target.value))}>
-            ${Xa.map(p=>r`
+            ${rs.map(p=>n`
               <option value=${String(p)} ?selected=${this._demoSpeed===p}>${p} ms</option>
             `)}
           </select>
         </div>
-        ${this._error?r`<div class="span-12 error">${this._error}</div>`:""}
+        ${this._error?n`<div class="span-12 error">${this._error}</div>`:""}
       </div>
     </div>
 
-    ${!this._loading&&this._days.length?r`
+    ${!this._loading&&this._days.length?n`
       <!-- Main Content Grid (12 columns) -->
       <div class="view-content-container">
         <div class="view-content-grid">
@@ -6596,7 +7487,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
           </div>
 
           <!-- Right: info panel (span-3) -->
-          ${s?r`
+          ${a?n`
             <div class="span-3">
               <div class="info-panel">
                 <div class="info-date">
@@ -6604,11 +7495,11 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
                   <span>${o}</span>
                 </div>
 
-                ${this._sunData?r`
+                ${this._sunData?n`
                   <div class="info-section">Live</div>
                   <div class="info-row">
                     <span class="info-label">Time</span>
-                    <span class="info-value">${g}</span>
+                    <span class="info-value">${u}</span>
                   </div>
                   <div class="info-row">
                     <span class="info-label">Phase</span>
@@ -6626,40 +7517,40 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
 
                 <div class="info-section">Sun times</div>
                 <div class="info-row"><span class="info-label">Solar Noon</span>
-                  <span class="info-value noon">${this._fmt(s.solar_noon)}</span></div>
+                  <span class="info-value noon">${this._fmt(a.solar_noon)}</span></div>
                 <div class="info-row"><span class="info-label">Solar Midnight</span>
-                  <span class="info-value midnight">${this._fmt(s.solar_midnight)}</span></div>
+                  <span class="info-value midnight">${this._fmt(a.solar_midnight)}</span></div>
                 <div class="info-row"><span class="info-label">Sunrise / Sunset</span>
-                  <span class="info-value">${this._fmt(s.sunrise)} / ${this._fmt(s.sunset)}</span></div>
-                ${(()=>{const p=w=>w!==null?(w%1440+1440)%1440:null,f=((w,k)=>{const v=p(w),m=p(k);if(v===null||m===null)return null;let C=m-v;return C<0&&(C+=1440),C})(s.sunrise,s.sunset),x=f!==null?1440-f:null;return r`
+                  <span class="info-value">${this._fmt(a.sunrise)} / ${this._fmt(a.sunset)}</span></div>
+                ${(()=>{const p=y=>y!==null?(y%1440+1440)%1440:null,f=((y,k)=>{const x=p(y),_=p(k);if(x===null||_===null)return null;let C=_-x;return C<0&&(C+=1440),C})(a.sunrise,a.sunset),v=f!==null?1440-f:null;return n`
                   <div class="info-row"><span class="info-label">Day length</span>
                     <span class="info-value">${this._fmtDur(f)}</span></div>
                   <div class="info-row"><span class="info-label">Night length</span>
-                    <span class="info-value" style="color:var(--secondary-text-color)">${this._fmtDur(x)}</span></div>`})()}
+                    <span class="info-value" style="color:var(--secondary-text-color)">${this._fmtDur(v)}</span></div>`})()}
 
                 <div class="info-section">Twilight</div>
                 <div class="info-row"><span class="info-label">Day</span>
                   <span class="info-value">
-                    ${(()=>{const p=s.slot_day??s.sunrise,d=s.slot_gold_dusk??s.sunset;return p!==null&&d!==null?`${this._fmt(p)}–${this._fmt(d)}`:"—"})()}
+                    ${(()=>{const p=a.slot_day??a.sunrise,d=a.slot_gold_dusk??a.sunset;return p!==null&&d!==null?`${this._fmt(p)}–${this._fmt(d)}`:"—"})()}
                   </span></div>
                 <div class="info-row"><span class="info-label">Civil</span>
-                  <span class="info-value">${this._fmt(s.sunrise)} / ${this._fmt(s.sunset)}</span></div>
+                  <span class="info-value">${this._fmt(a.sunrise)} / ${this._fmt(a.sunset)}</span></div>
                 <div class="info-row"><span class="info-label">Nautical</span>
-                  <span class="info-value">${this._fmt(s.dawn)} / ${this._fmt(s.dusk)}</span></div>
+                  <span class="info-value">${this._fmt(a.dawn)} / ${this._fmt(a.dusk)}</span></div>
                 <div class="info-row"><span class="info-label">Astronomical</span>
-                  <span class="info-value">${this._fmt(s.nautical_dawn)} / ${this._fmt(s.nautical_dusk)}</span></div>
+                  <span class="info-value">${this._fmt(a.nautical_dawn)} / ${this._fmt(a.nautical_dusk)}</span></div>
                 <div class="info-row"><span class="info-label">Night</span>
-                  <span class="info-value">${this._fmt(s.astro_dusk)} / ${this._fmt(s.astro_dawn)}</span></div>
+                  <span class="info-value">${this._fmt(a.astro_dusk)} / ${this._fmt(a.astro_dawn)}</span></div>
                 <div class="info-row"><span class="info-label">Golden hour</span>
-                  <span class="info-value">${this._fmt(s.slot_gold_dawn)} / ${this._fmt(s.slot_gold_dusk)}</span></div>
+                  <span class="info-value">${this._fmt(a.slot_gold_dawn)} / ${this._fmt(a.slot_gold_dusk)}</span></div>
 
                 <div class="info-section legend-section">Legend</div>
-                ${[[yt,"Night"],[Ot,"Astronomical twilight"],[It,"Nautical twilight"],[zt,"Civil twilight"],[ze,"Golden hour"],[qt,"Daylight"]].map(([p,d])=>r`
+                ${[[kt,"Night"],[Mt,"Astronomical twilight"],[Pt,"Nautical twilight"],[Nt,"Civil twilight"],[He,"Golden hour"],[Gt,"Daylight"]].map(([p,d])=>n`
                   <div class="legend-item">
                     <div class="legend-swatch" style="background:${p}"></div>
                     ${d}
                   </div>`)}
-                ${[["#d2dce8","Civil dusk / Daylight"],["#aeb9c9","Nautical dusk / Civil dawn"],["#8792a2","Astro dusk / Nautical dawn"],["#5e6572","Night / Astro dawn"]].map(([p,d])=>r`
+                ${[["#d2dce8","Civil dusk / Daylight"],["#aeb9c9","Nautical dusk / Civil dawn"],["#8792a2","Astro dusk / Nautical dawn"],["#5e6572","Night / Astro dawn"]].map(([p,d])=>n`
                   <div class="legend-item">
                     <div class="legend-swatch" style="background:${p}; height:5px; border-radius:1.5px; border:1px solid color-mix(in srgb, var(--primary-text-color, #fff) 15%, transparent); box-sizing:border-box;"></div>
                     ${d}
@@ -6670,7 +7561,7 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
         </div>
       </div>
     `:""}
-    `}};J.styles=z`
+    `}};G.styles=O`
     :host {
       --dev-border: 0px dashed color-mix(in srgb, var(--primary-text-color, #fff) 25%, transparent);
       display: flex;
@@ -6966,11 +7857,11 @@ var TwilightPanel=function($e){"use strict";var Ka;const Za=customElements.defin
     }
 
     .error { color: var(--error-color, #f44336); font-size: 13px; }
-  `,et([h({attribute:!1})],J.prototype,"hass",2),et([b()],J.prototype,"_days",2),et([b()],J.prototype,"_year",2),et([b()],J.prototype,"_loading",2),et([b()],J.prototype,"_error",2),et([b()],J.prototype,"_hoverIdx",2),et([b()],J.prototype,"_selectedDate",2),et([b()],J.prototype,"_sunData",2),et([b()],J.prototype,"_hoverTime",2),et([b()],J.prototype,"_scrubbing",2),et([b()],J.prototype,"_isDark",2),et([b()],J.prototype,"_demoLocationIdx",2),et([b()],J.prototype,"_demoPlaying",2),et([b()],J.prototype,"_demoDayIdx",2),et([b()],J.prototype,"_demoSpeed",2),et([b()],J.prototype,"_clamped",2),et([b()],J.prototype,"_showSlots",2),et([b()],J.prototype,"_slotCurves",2),J=et([H("twilight-timeline-view")],J);var Go=Object.defineProperty,Xo=Object.getOwnPropertyDescriptor,we=(t,e,i,a)=>{for(var s=a>1?void 0:a?Xo(e,i):e,o=t.length-1,n;o>=0;o--)(n=t[o])&&(s=(a?n(e,i,s):n(s))||s);return a&&s&&Go(e,i,s),s};let te=class extends Be{constructor(){super(...arguments),this.open=!1,this.isDraftDirty=!1,this._loading=!1,this._error="",this.dialog=new fe(this),this._onClose=()=>{this._error="",this.dispatchEvent(new CustomEvent("close",{bubbles:!0,composed:!0}))},this._onTriggerFileInput=()=>{var e;if(this.isDraftDirty){this.dialog.showAlert("Unsaved Changes","Please save or discard your unsaved settings changes before restoring from a backup.");return}const t=(e=this.shadowRoot)==null?void 0:e.querySelector("#restoreFileInput");t==null||t.click()}}async _onDownloadBackup(){if(this.hass)try{this._loading=!0,this._error="";const t=await Os(this.hass),e=new Date,i=`twilight-backup-${e.getFullYear()}-${String(e.getMonth()+1).padStart(2,"0")}-${String(e.getDate()).padStart(2,"0")}.json`,a=new Blob([JSON.stringify(t,null,2)],{type:"application/json"}),s=URL.createObjectURL(a),o=document.createElement("a");o.href=s,o.download=i,document.body.appendChild(o),o.click(),document.body.removeChild(o),URL.revokeObjectURL(s)}catch(t){this._error=t instanceof Error?t.message:"Failed to export backup"}finally{this._loading=!1}}async _onFileSelected(t){var a;const e=t.target,i=(a=e.files)==null?void 0:a[0];if(!(!i||!this.hass)){e.value="";try{this._loading=!0,this._error="";const s=await i.text();let o;try{o=JSON.parse(s)}catch{await this.dialog.showAlert("Invalid Backup File","The selected file is not valid JSON.");return}if(!o||typeof o!="object"||!o.areas||typeof o.areas!="object"){await this.dialog.showAlert("Invalid Backup File","This file does not appear to be a valid Twilight backup structure.");return}const n=Object.keys(o.areas).length;if(!await this.dialog.showConfirm("Restore Backup",`This will replace ALL areas and global settings with the contents of this backup file (${n} area(s)). Areas not included in this file will be deleted. This action cannot be undone.
+  `,Z([h({attribute:!1})],G.prototype,"hass",2),Z([b()],G.prototype,"_days",2),Z([b()],G.prototype,"_year",2),Z([b()],G.prototype,"_loading",2),Z([b()],G.prototype,"_error",2),Z([b()],G.prototype,"_hoverIdx",2),Z([b()],G.prototype,"_selectedDate",2),Z([b()],G.prototype,"_sunData",2),Z([b()],G.prototype,"_hoverTime",2),Z([b()],G.prototype,"_scrubbing",2),Z([b()],G.prototype,"_isDark",2),Z([b()],G.prototype,"_demoLocationIdx",2),Z([b()],G.prototype,"_demoPlaying",2),Z([b()],G.prototype,"_demoDayIdx",2),Z([b()],G.prototype,"_demoSpeed",2),Z([b()],G.prototype,"_clamped",2),Z([b()],G.prototype,"_showSlots",2),Z([b()],G.prototype,"_slotCurves",2),G=Z([z("twilight-timeline-view")],G);var hr=Object.defineProperty,ur=Object.getOwnPropertyDescriptor,Ee=(t,e,i,s)=>{for(var a=s>1?void 0:s?ur(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&hr(e,i,a),a};let le=class extends ae{constructor(){super(...arguments),this.open=!1,this.isDraftDirty=!1,this._loading=!1,this._error="",this.dialog=new fe(this),this._onClose=()=>{this._error="",this.dispatchEvent(new CustomEvent("close",{bubbles:!0,composed:!0}))},this._onTriggerFileInput=()=>{var e;if(this.isDraftDirty){this.dialog.showAlert("Unsaved Changes","Please save or discard your unsaved settings changes before restoring from a backup.");return}const t=(e=this.shadowRoot)==null?void 0:e.querySelector("#restoreFileInput");t==null||t.click()}}async _onDownloadBackup(){if(this.hass)try{this._loading=!0,this._error="";const t=await Bs(this.hass),e=new Date,i=`twilight-backup-${e.getFullYear()}-${String(e.getMonth()+1).padStart(2,"0")}-${String(e.getDate()).padStart(2,"0")}.json`,s=new Blob([JSON.stringify(t,null,2)],{type:"application/json"}),a=URL.createObjectURL(s),o=document.createElement("a");o.href=a,o.download=i,document.body.appendChild(o),o.click(),document.body.removeChild(o),URL.revokeObjectURL(a)}catch(t){this._error=t instanceof Error?t.message:"Failed to export backup"}finally{this._loading=!1}}async _onFileSelected(t){var s;const e=t.target,i=(s=e.files)==null?void 0:s[0];if(!(!i||!this.hass)){e.value="";try{this._loading=!0,this._error="";const a=await i.text();let o;try{o=JSON.parse(a)}catch{await this.dialog.showAlert("Invalid Backup File","The selected file is not valid JSON.");return}if(!o||typeof o!="object"||!o.areas||typeof o.areas!="object"){await this.dialog.showAlert("Invalid Backup File","This file does not appear to be a valid Twilight backup structure.");return}const r=Object.keys(o.areas).length;if(!await this.dialog.showConfirm("Restore Backup",`This will replace ALL areas and global settings with the contents of this backup file (${r} area(s)). Areas not included in this file will be deleted. This action cannot be undone.
 
-Are you sure you want to proceed?`))return;await ca(this.hass,o),await this.dialog.showAlert("Restore Complete","Backup restored successfully. The panel will now reload."),window.location.reload()}catch(s){this._error=s instanceof Error?s.message:"Failed to restore backup"}finally{this._loading=!1}}}async _onFactoryReset(){if(!this.hass)return;if(this.isDraftDirty){await this.dialog.showAlert("Unsaved Changes","Please save or discard your unsaved settings changes before performing a factory reset.");return}if(await this.dialog.showConfirm("Factory Reset Configuration",`⚠️ DANGER: This will delete ALL areas and reset all settings to system defaults.
+Are you sure you want to proceed?`))return;await ma(this.hass,o),await this.dialog.showAlert("Restore Complete","Backup restored successfully. The panel will now reload."),window.location.reload()}catch(a){this._error=a instanceof Error?a.message:"Failed to restore backup"}finally{this._loading=!1}}}async _onFactoryReset(){if(!this.hass)return;if(this.isDraftDirty){await this.dialog.showAlert("Unsaved Changes","Please save or discard your unsaved settings changes before performing a factory reset.");return}if(await this.dialog.showConfirm("Factory Reset Configuration",`⚠️ DANGER: This will delete ALL areas and reset all settings to system defaults.
 
-This action cannot be undone. Are you sure you want to delete all areas and reset Twilight?`))try{this._loading=!0,this._error="",await ca(this.hass,{twilight_backup_version:1,areas:{},global:{}}),await this.dialog.showAlert("Factory Reset Complete","All areas and settings have been reset to factory defaults. The panel will now reload."),window.location.reload()}catch(e){this._error=e instanceof Error?e.message:"Failed to reset configuration"}finally{this._loading=!1}}render(){return this.open?r`
+This action cannot be undone. Are you sure you want to delete all areas and reset Twilight?`))try{this._loading=!0,this._error="",await ma(this.hass,{twilight_backup_version:1,areas:{},global:{}}),await this.dialog.showAlert("Factory Reset Complete","All areas and settings have been reset to factory defaults. The panel will now reload."),window.location.reload()}catch(e){this._error=e instanceof Error?e.message:"Failed to reset configuration"}finally{this._loading=!1}}render(){return this.open?n`
       <div class="overlay" @click=${this._onClose}>
         <div class="modal-card" @click=${t=>t.stopPropagation()}>
           <div class="modal-header">
@@ -6983,12 +7874,12 @@ This action cannot be undone. Are you sure you want to delete all areas and rese
               Export a full snapshot of all area configurations, restore from a backup file, or reset all data to factory defaults.
             </p>
 
-            ${this.isDraftDirty?r`
+            ${this.isDraftDirty?n`
                   <div class="warning-banner">
                     ⚠️ You have unsaved settings changes. Please save or discard them before restoring or resetting.
                   </div>
                 `:""}
-            ${this._error?r`<div class="error-banner">❌ ${this._error}</div>`:""}
+            ${this._error?n`<div class="error-banner">❌ ${this._error}</div>`:""}
 
             <div class="actions-container">
               <div class="action-card" @click=${this._onDownloadBackup}>
@@ -7060,7 +7951,7 @@ This action cannot be undone. Are you sure you want to delete all areas and rese
         @confirm=${this.dialog._onConfirm}
         @cancel=${this.dialog._onCancelConfirm}
       ></twilight-confirm-dialog>
-    `:r``}};te.styles=[jt,z`
+    `:n``}};le.styles=[Dt,O`
       .modal-card {
         max-width: 520px;
       }
@@ -7151,7 +8042,7 @@ This action cannot be undone. Are you sure you want to delete all areas and rese
       input[type='file'] {
         display: none;
       }
-    `],we([h({type:Object})],te.prototype,"hass",2),we([h({type:Boolean})],te.prototype,"open",2),we([h({type:Boolean})],te.prototype,"isDraftDirty",2),we([b()],te.prototype,"_loading",2),we([b()],te.prototype,"_error",2),te=we([H("twilight-backup-restore-dialog")],te);var Ko=Object.defineProperty,Zo=Object.getOwnPropertyDescriptor,Ct=(t,e,i,a)=>{for(var s=a>1?void 0:a?Zo(e,i):e,o=t.length-1,n;o>=0;o--)(n=t[o])&&(s=(a?n(e,i,s):n(s))||s);return a&&s&&Ko(e,i,s),s};let ft=class extends L{constructor(){super(...arguments),this.hass=null,this._hasLoaded=!1,this._todayData=null,this._selectedChannelId="",this._slotEditOpen=!1,this._editingSlotId=null,this._resetDialogOpen=!1,this._backupDialogOpen=!1,this._systemDefaults=null,this._placeholderDefaults=null,this._resetNodes=[],this._calculatedSlotTimes=[],this._slotTimesRequestId=0,this._dialog=new fe(this),this._draftController=new ua(this,{onSave:async t=>{this.hass&&(await Es(this.hass,t),this.dispatchEvent(new CustomEvent("global-changed",{detail:t,bubbles:!0,composed:!0})))}})}updated(t){t.has("hass")&&this.hass&&!this._hasLoaded&&(this._hasLoaded=!0,this._loadData())}async _loadData(){if(this.hass){this._draftController.loading=!0,this.requestUpdate();try{const[t,e,i]=await Promise.all([da(this.hass),je(this.hass).catch(()=>null),vi(this.hass).catch(()=>null)]);this._draftController.init(t||{}),this._todayData=(e==null?void 0:e.day_data)||null,this._placeholderDefaults=i,this._selectFirstChannel(),await this._loadCalculatedSlotTimes()}catch(t){console.error("Failed to load global config:",t)}finally{this._draftController.loading=!1,this.requestUpdate()}}}async _loadCalculatedSlotTimes(){var s,o;if(!this.hass)return;const e=(((o=(s=this._draftController.draft)==null?void 0:s.area_template)==null?void 0:o.custom_channels)||{})[this._selectedChannelId],i=(e==null?void 0:e.slots)||[];if(i.length===0){this._calculatedSlotTimes=[];return}const a=++this._slotTimesRequestId;try{const n=await zs(this.hass,{slots:i});if(a!==this._slotTimesRequestId)return;this._calculatedSlotTimes=n.slots}catch(n){console.warn("Failed to load slot time preview:",n),a===this._slotTimesRequestId&&(this._calculatedSlotTimes=[])}}_selectFirstChannel(){var i,a;const t=((a=(i=this._draftController.draft)==null?void 0:i.area_template)==null?void 0:a.custom_channels)||{},e=Object.keys(t).sort();e.length>0?(!this._selectedChannelId||!t[this._selectedChannelId])&&(this._selectedChannelId=e[0]):this._selectedChannelId=""}async _saveSettings(){await this._draftController.save()}_cancelChanges(){this._draftController.cancel()}async _resetToSystemDefaults(){var t,e,i;if(this.hass)try{const a=await Is(this.hass);this._systemDefaults=a;const s=[{id:"template_inputs",label:"Area Template: Inputs",children:(((t=a.area_template)==null?void 0:t.inputs)||[]).map(o=>({id:`template_inputs:${o.id}`,label:`${o.type} — ${o.activity}`}))},{id:"template_activities",label:"Area Template: Activities",children:(((e=a.area_template)==null?void 0:e.activities)||[]).map(o=>({id:`template_activities:${o.id}`,label:o.id}))},{id:"template_channels",label:"Area Template: Custom Channels",children:Object.entries(((i=a.area_template)==null?void 0:i.custom_channels)||{}).map(([o,n])=>({id:`template_channels:${o}`,label:n.name||o}))}];this._resetNodes=s,this._resetDialogOpen=!0,this.requestUpdate()}catch(a){console.error("Failed to load system defaults:",a)}}_executeReset(t){if(!this._systemDefaults||!this._draftController.draft)return;const e=new Set(t.detail.selectedIds),i=this._systemDefaults;this._draftController.update(a=>{var g,p,d,f,x,w,k;const s=e.has("template_inputs"),o=((g=i.area_template)==null?void 0:g.inputs)||[];if(s)a.area_template||(a.area_template={}),a.area_template.inputs=structuredClone(o);else{const v=[...((p=a.area_template)==null?void 0:p.inputs)||[]];o.forEach(m=>{if(e.has(`template_inputs:${m.id}`)){const C=v.findIndex(O=>O.id===m.id);C>=0?v[C]=structuredClone(m):v.push(structuredClone(m))}}),a.area_template||(a.area_template={}),a.area_template.inputs=v}const n=e.has("template_activities"),l=((d=i.area_template)==null?void 0:d.activities)||[];if(n)a.area_template||(a.area_template={}),a.area_template.activities=structuredClone(l);else{const v=[...((f=a.area_template)==null?void 0:f.activities)||[]];l.forEach(m=>{if(e.has(`template_activities:${m.id}`)){const C=v.findIndex(O=>O.id===m.id);C>=0?v[C]=structuredClone(m):v.push(structuredClone(m))}}),a.area_template||(a.area_template={}),a.area_template.activities=v}const c=e.has("template_channels"),u=((x=i.area_template)==null?void 0:x.custom_channels)||{};if(c){const v={...((w=a.area_template)==null?void 0:w.custom_channels)||{}};Object.keys(v).forEach(m=>{delete v[m]}),Object.entries(u).forEach(([m,C])=>{v[m]=structuredClone(C)}),a.area_template||(a.area_template={}),a.area_template.custom_channels=v}else{const v={...((k=a.area_template)==null?void 0:k.custom_channels)||{}};Object.keys(u).forEach(m=>{e.has(`template_channels:${m}`)&&(v[m]=structuredClone(u[m]))}),a.area_template||(a.area_template={}),a.area_template.custom_channels=v}}),this._resetDialogOpen=!1,this._selectFirstChannel(),this.requestUpdate()}_onTemplateInputsChanged(t){this._draftController.update(e=>{e.area_template||(e.area_template={}),e.area_template.inputs=t.detail.inputs})}_onTemplateActivitiesChanged(t){this._draftController.update(e=>{e.area_template||(e.area_template={}),e.area_template.activities=t.detail.activities})}_onTemplateSensorsChanged(t){this._draftController.update(e=>{e.area_template||(e.area_template={}),e.area_template.sensors=t.detail})}_onTemplateChannelSelected(t){this._selectedChannelId=t.detail.channelId,this._loadCalculatedSlotTimes()}async _onTemplateChannelAdded(t){var o;const e=this._draftController.draft;if(!e)return;const i=t.detail.name.trim();if(!i)return;const a=i.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"");if(!a)return;const s={...((o=e.area_template)==null?void 0:o.custom_channels)||{}};if(s[a]){await this._dialog.showAlert("Channel already exists",`A channel named "${i}" already exists.`);return}s[a]={name:i,enabled:!0,slots:[]},this._draftController.update(n=>{n.area_template||(n.area_template={}),n.area_template.custom_channels=s}),this._selectedChannelId=a,this._loadCalculatedSlotTimes()}_onTemplateChannelRenamed(t){var n;const e=this._draftController.draft;if(!e)return;const{channelId:i,name:a}=t.detail,s={...((n=e.area_template)==null?void 0:n.custom_channels)||{}},o=s[i];o&&(s[i]={...o,name:a},this._draftController.update(l=>{l.area_template||(l.area_template={}),l.area_template.custom_channels=s}))}_onTemplateChannelDeleted(t){var s;const e=this._draftController.draft;if(!e)return;const{channelId:i}=t.detail,a={...((s=e.area_template)==null?void 0:s.custom_channels)||{}};delete a[i],this._draftController.update(o=>{o.area_template||(o.area_template={}),o.area_template.custom_channels=a}),this._selectFirstChannel(),this._loadCalculatedSlotTimes()}_onTemplateChannelToggled(t){var n;const e=this._draftController.draft;if(!e)return;const{channelId:i,enabled:a}=t.detail,s={...((n=e.area_template)==null?void 0:n.custom_channels)||{}},o=s[i];o&&(s[i]={...o,enabled:a},this._draftController.update(l=>{l.area_template||(l.area_template={}),l.area_template.custom_channels=s}))}_onTemplateSlotsChanged(t){var l;const e=this._draftController.draft;if(!e)return;let i=this._selectedChannelId;const a={...((l=e.area_template)==null?void 0:l.custom_channels)||{}};if(!i||!a[i]){const c=Object.keys(a);c.length>0&&(i=c[0],this._selectedChannelId=i)}const s=a[i];if(!s)return;const o=s.slots||[],n=t.detail.slots.map(c=>{const u=o.find(p=>p.id===c.id),g=c.startType==="fixed";return{id:c.id,name:c.label,start_type:g?"fixed":"astral",zone:g?null:Ls(c),fixed_time:g?c.fixedStartTime||"00:00":null,offset_minutes:c.startOffset||0,scene_entity_id:c.scene,configured_entities:(u==null?void 0:u.configured_entities)||[]}});a[i]={...s,slots:n,...t.detail.transitionOnSeconds!==void 0?{transition_on_seconds:t.detail.transitionOnSeconds}:{}},this._draftController.update(c=>{c.area_template||(c.area_template={}),c.area_template.custom_channels=a}),this._loadCalculatedSlotTimes()}render(){var o,n,l,c,u,g,p,d,f,x,w,k;const t=((n=(o=this._draftController.draft)==null?void 0:o.area_template)==null?void 0:n.custom_channels)||{};let e=this._selectedChannelId;(!e||!t[e])&&Object.keys(t).length>0&&(e=Object.keys(t).sort()[0]);const i=t[e],a=(i==null?void 0:i.slots)||[],s=this._calculatedSlotTimes.length>0?He(this._calculatedSlotTimes,a).map(v=>({...v,color:"#8e44ad",isCustom:!0})):a.map(v=>{const m=v.start_type==="fixed";return{id:v.id,label:v.name||v.id,color:"#8e44ad",from:0,to:0,scene:v.scene_entity_id||null,isCustom:!0,startType:m?"fixed":"astral",startEvent:m?void 0:v.zone||void 0,startOffset:v.offset_minutes||0,fixedStartTime:m&&v.fixed_time||void 0}});return r`
+    `],Ee([h({type:Object})],le.prototype,"hass",2),Ee([h({type:Boolean})],le.prototype,"open",2),Ee([h({type:Boolean})],le.prototype,"isDraftDirty",2),Ee([b()],le.prototype,"_loading",2),Ee([b()],le.prototype,"_error",2),le=Ee([z("twilight-backup-restore-dialog")],le);var gr=Object.defineProperty,fr=Object.getOwnPropertyDescriptor,St=(t,e,i,s)=>{for(var a=s>1?void 0:s?fr(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=(s?r(e,i,a):r(a))||a);return s&&a&&gr(e,i,a),a};let pt=class extends L{constructor(){super(...arguments),this.hass=null,this._hasLoaded=!1,this._todayData=null,this._selectedChannelId="",this._slotEditOpen=!1,this._editingSlotId=null,this._resetDialogOpen=!1,this._backupDialogOpen=!1,this._systemDefaults=null,this._placeholderDefaults=null,this._resetNodes=[],this._calculatedSlotTimes=[],this._slotTimesRequestId=0,this._dialog=new fe(this),this._draftController=new wa(this,{onSave:async t=>{this.hass&&(await Us(this.hass,t),this.dispatchEvent(new CustomEvent("global-changed",{detail:t,bubbles:!0,composed:!0})))}})}updated(t){t.has("hass")&&this.hass&&!this._hasLoaded&&(this._hasLoaded=!0,this._loadData())}async _loadData(){if(this.hass){this._draftController.loading=!0,this.requestUpdate();try{const[t,e,i]=await Promise.all([ba(this.hass),Ve(this.hass).catch(()=>null),Ci(this.hass).catch(()=>null)]);this._draftController.init(t||{}),this._todayData=(e==null?void 0:e.day_data)||null,this._placeholderDefaults=i,this._selectFirstChannel(),await this._loadCalculatedSlotTimes()}catch(t){console.error("Failed to load global config:",t)}finally{this._draftController.loading=!1,this.requestUpdate()}}}async _loadCalculatedSlotTimes(){var a,o;if(!this.hass)return;const e=(((o=(a=this._draftController.draft)==null?void 0:a.area_template)==null?void 0:o.custom_channels)||{})[this._selectedChannelId],i=(e==null?void 0:e.slots)||[];if(i.length===0){this._calculatedSlotTimes=[];return}const s=++this._slotTimesRequestId;try{const r=await Ws(this.hass,{slots:i});if(s!==this._slotTimesRequestId)return;this._calculatedSlotTimes=r.slots}catch(r){console.warn("Failed to load slot time preview:",r),s===this._slotTimesRequestId&&(this._calculatedSlotTimes=[])}}_selectFirstChannel(){var i,s;const t=((s=(i=this._draftController.draft)==null?void 0:i.area_template)==null?void 0:s.custom_channels)||{},e=Object.keys(t).sort();e.length>0?(!this._selectedChannelId||!t[this._selectedChannelId])&&(this._selectedChannelId=e[0]):this._selectedChannelId=""}async _saveSettings(){await this._draftController.save()}_cancelChanges(){this._draftController.cancel()}async _resetToSystemDefaults(){var t,e,i,s;if(this.hass)try{const a=await Fs(this.hass);this._systemDefaults=a;const o=[{id:"template_inputs",label:"Area Template: Inputs",children:(((t=a.area_template)==null?void 0:t.inputs)||[]).map(r=>({id:`template_inputs:${r.id}`,label:`${r.type} — ${r.activity}`}))},{id:"template_activities",label:"Area Template: Activities",children:(((e=a.area_template)==null?void 0:e.activities)||[]).map(r=>({id:`template_activities:${r.id}`,label:r.id}))},{id:"template_channels",label:"Area Template: Custom Channels",children:Object.entries(((i=a.area_template)==null?void 0:i.custom_channels)||{}).map(([r,l])=>({id:`template_channels:${r}`,label:l.name||r}))},{id:"template_rules",label:"Area Template: Rules",children:(((s=a.area_template)==null?void 0:s.rules)||[]).map(r=>({id:`template_rules:${r.id}`,label:r.name||r.id}))}];this._resetNodes=o,this._resetDialogOpen=!0,this.requestUpdate()}catch(a){console.error("Failed to load system defaults:",a)}}_executeReset(t){if(!this._systemDefaults||!this._draftController.draft)return;const e=new Set(t.detail.selectedIds),i=this._systemDefaults;this._draftController.update(s=>{var d,f,v,y,k,x,_,C,A;const a=e.has("template_inputs"),o=((d=i.area_template)==null?void 0:d.inputs)||[];if(a)s.area_template||(s.area_template={}),s.area_template.inputs=structuredClone(o);else{const $=[...((f=s.area_template)==null?void 0:f.inputs)||[]];o.forEach(w=>{if(e.has(`template_inputs:${w.id}`)){const S=$.findIndex(m=>m.id===w.id);S>=0?$[S]=structuredClone(w):$.push(structuredClone(w))}}),s.area_template||(s.area_template={}),s.area_template.inputs=$}const r=e.has("template_activities"),l=((v=i.area_template)==null?void 0:v.activities)||[];if(r)s.area_template||(s.area_template={}),s.area_template.activities=structuredClone(l);else{const $=[...((y=s.area_template)==null?void 0:y.activities)||[]];l.forEach(w=>{if(e.has(`template_activities:${w.id}`)){const S=$.findIndex(m=>m.id===w.id);S>=0?$[S]=structuredClone(w):$.push(structuredClone(w))}}),s.area_template||(s.area_template={}),s.area_template.activities=$}const c=e.has("template_channels"),g=((k=i.area_template)==null?void 0:k.custom_channels)||{};if(c){const $={...((x=s.area_template)==null?void 0:x.custom_channels)||{}};Object.keys($).forEach(w=>{delete $[w]}),Object.entries(g).forEach(([w,S])=>{$[w]=structuredClone(S)}),s.area_template||(s.area_template={}),s.area_template.custom_channels=$}else{const $={...((_=s.area_template)==null?void 0:_.custom_channels)||{}};Object.keys(g).forEach(w=>{e.has(`template_channels:${w}`)&&($[w]=structuredClone(g[w]))}),s.area_template||(s.area_template={}),s.area_template.custom_channels=$}const u=e.has("template_rules"),p=((C=i.area_template)==null?void 0:C.rules)||[];if(u)s.area_template||(s.area_template={}),s.area_template.rules=structuredClone(p);else{const $=[...((A=s.area_template)==null?void 0:A.rules)||[]];p.forEach(w=>{if(e.has(`template_rules:${w.id}`)){const S=$.findIndex(m=>m.id===w.id);S>=0?$[S]=structuredClone(w):$.push(structuredClone(w))}}),s.area_template||(s.area_template={}),s.area_template.rules=$}}),this._resetDialogOpen=!1,this._selectFirstChannel(),this.requestUpdate()}_onTemplateInputsChanged(t){this._draftController.update(e=>{e.area_template||(e.area_template={}),e.area_template.inputs=t.detail.inputs})}_onTemplateActivitiesChanged(t){this._draftController.update(e=>{e.area_template||(e.area_template={}),e.area_template.activities=t.detail.activities})}_onTemplateSensorsChanged(t){this._draftController.update(e=>{e.area_template||(e.area_template={}),e.area_template.sensors=t.detail})}_onTemplateRulesChanged(t){this._draftController.update(e=>{e.area_template||(e.area_template={}),e.area_template.rules=t.detail})}_onTemplateChannelSelected(t){this._selectedChannelId=t.detail.channelId,this._loadCalculatedSlotTimes()}async _onTemplateChannelAdded(t){var o;const e=this._draftController.draft;if(!e)return;const i=t.detail.name.trim();if(!i)return;const s=i.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"");if(!s)return;const a={...((o=e.area_template)==null?void 0:o.custom_channels)||{}};if(a[s]){await this._dialog.showAlert("Channel already exists",`A channel named "${i}" already exists.`);return}a[s]={name:i,enabled:!0,slots:[]},this._draftController.update(r=>{r.area_template||(r.area_template={}),r.area_template.custom_channels=a}),this._selectedChannelId=s,this._loadCalculatedSlotTimes()}_onTemplateChannelRenamed(t){var r;const e=this._draftController.draft;if(!e)return;const{channelId:i,name:s}=t.detail,a={...((r=e.area_template)==null?void 0:r.custom_channels)||{}},o=a[i];o&&(a[i]={...o,name:s},this._draftController.update(l=>{l.area_template||(l.area_template={}),l.area_template.custom_channels=a}))}_onTemplateChannelDeleted(t){var a;const e=this._draftController.draft;if(!e)return;const{channelId:i}=t.detail,s={...((a=e.area_template)==null?void 0:a.custom_channels)||{}};delete s[i],this._draftController.update(o=>{o.area_template||(o.area_template={}),o.area_template.custom_channels=s}),this._selectFirstChannel(),this._loadCalculatedSlotTimes()}_onTemplateChannelToggled(t){var r;const e=this._draftController.draft;if(!e)return;const{channelId:i,enabled:s}=t.detail,a={...((r=e.area_template)==null?void 0:r.custom_channels)||{}},o=a[i];o&&(a[i]={...o,enabled:s},this._draftController.update(l=>{l.area_template||(l.area_template={}),l.area_template.custom_channels=a}))}_onTemplateSlotsChanged(t){var l;const e=this._draftController.draft;if(!e)return;let i=this._selectedChannelId;const s={...((l=e.area_template)==null?void 0:l.custom_channels)||{}};if(!i||!s[i]){const c=Object.keys(s);c.length>0&&(i=c[0],this._selectedChannelId=i)}const a=s[i];if(!a)return;const o=a.slots||[],r=t.detail.slots.map(c=>{const g=o.find(p=>p.id===c.id),u=c.startType==="fixed";return{id:c.id,name:c.label,start_type:u?"fixed":"astral",zone:u?null:Xs(c),fixed_time:u?c.fixedStartTime||"00:00":null,offset_minutes:c.startOffset||0,scene_entity_id:c.scene,configured_entities:(g==null?void 0:g.configured_entities)||[]}});s[i]={...a,slots:r,...t.detail.transitionOnSeconds!==void 0?{transition_on_seconds:t.detail.transitionOnSeconds}:{}},this._draftController.update(c=>{c.area_template||(c.area_template={}),c.area_template.custom_channels=s}),this._loadCalculatedSlotTimes()}render(){var o,r,l,c,g,u,p,d,f,v,y,k,x,_,C,A,$,w;const t=((r=(o=this._draftController.draft)==null?void 0:o.area_template)==null?void 0:r.custom_channels)||{};let e=this._selectedChannelId;(!e||!t[e])&&Object.keys(t).length>0&&(e=Object.keys(t).sort()[0]);const i=t[e],s=(i==null?void 0:i.slots)||[],a=this._calculatedSlotTimes.length>0?Ye(this._calculatedSlotTimes,s).map(S=>({...S,color:"#8e44ad",isCustom:!0})):s.map(S=>{const m=S.start_type==="fixed";return{id:S.id,label:S.name||S.id,color:"#8e44ad",from:0,to:0,scene:S.scene_entity_id||null,isCustom:!0,startType:m?"fixed":"astral",startEvent:m?void 0:S.zone||void 0,startOffset:S.offset_minutes||0,fixedStartTime:m&&S.fixed_time||void 0}});return n`
       <div class="view-header-container">
         <div class="settings-header">
           <div class="header-left">
@@ -7164,12 +8055,12 @@ This action cannot be undone. Are you sure you want to delete all areas and rese
       </div>
 
       <div class="view-content-container">
-        ${this._draftController.loading?r`
+        ${this._draftController.loading?n`
           <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 64px 0; gap: 16px; color: var(--secondary-text-color);">
             <div class="spinner"></div>
             <div>Loading settings…</div>
           </div>
-        `:r`
+        `:n`
           <div class="view-content-grid">
             <!-- Card 2: General Settings -->
             <div class="span-12">
@@ -7199,7 +8090,7 @@ This action cannot be undone. Are you sure you want to delete all areas and rese
               <twilight-inputs-card
                 .hass=${this.hass}
                 .config=${((c=(l=this._draftController.draft)==null?void 0:l.area_template)==null?void 0:c.inputs)??[]}
-                .activities=${(((g=(u=this._draftController.draft)==null?void 0:u.area_template)==null?void 0:g.activities)??[]).map(v=>v.id)}
+                .activities=${(((u=(g=this._draftController.draft)==null?void 0:g.area_template)==null?void 0:u.activities)??[]).map(S=>S.id)}
                 .placeholderDefaults=${this._placeholderDefaults}
                 .templateMode=${!0}
                 @inputs-changed=${this._onTemplateInputsChanged}
@@ -7211,7 +8102,7 @@ This action cannot be undone. Are you sure you want to delete all areas and rese
               <twilight-activities-card
                 .hass=${this.hass}
                 .config=${((d=(p=this._draftController.draft)==null?void 0:p.area_template)==null?void 0:d.activities)??[]}
-                .inputs=${((x=(f=this._draftController.draft)==null?void 0:f.area_template)==null?void 0:x.inputs)??[]}
+                .inputs=${((v=(f=this._draftController.draft)==null?void 0:f.area_template)==null?void 0:v.inputs)??[]}
                 .placeholderDefaults=${this._placeholderDefaults}
                 .templateMode=${!0}
                 @activities-changed=${this._onTemplateActivitiesChanged}
@@ -7222,17 +8113,31 @@ This action cannot be undone. Are you sure you want to delete all areas and rese
             <div class="span-6">
               <twilight-sensors-card
                 .hass=${this.hass}
-                .config=${((k=(w=this._draftController.draft)==null?void 0:w.area_template)==null?void 0:k.sensors)??[]}
+                .config=${((k=(y=this._draftController.draft)==null?void 0:y.area_template)==null?void 0:k.sensors)??[]}
                 .templateMode=${!0}
                 @sensors-changed=${this._onTemplateSensorsChanged}
               ></twilight-sensors-card>
+            </div>
+
+            <!-- Template: Rules -->
+            <div class="span-6">
+              <twilight-rules-card
+                .hass=${this.hass}
+                .rules=${((_=(x=this._draftController.draft)==null?void 0:x.area_template)==null?void 0:_.rules)??[]}
+                .inputsConfig=${((A=(C=this._draftController.draft)==null?void 0:C.area_template)==null?void 0:A.inputs)??[]}
+                .activitiesConfig=${((w=($=this._draftController.draft)==null?void 0:$.area_template)==null?void 0:w.activities)??[]}
+                .channels=${t}
+                .placeholderDefaults=${this._placeholderDefaults}
+                .templateMode=${!0}
+                @rules-changed=${this._onTemplateRulesChanged}
+              ></twilight-rules-card>
             </div>
 
             <!-- Template: Custom Channels -->
             <div class="span-6">
               <twilight-timetable-card
                 .hass=${this.hass}
-                .slots=${s}
+                .slots=${a}
                 .entities=${[]}
                 .loading=${!1}
                 .noHeader=${!1}
@@ -7258,7 +8163,7 @@ This action cannot be undone. Are you sure you want to delete all areas and rese
           <button class="btn-cancel" @click=${()=>{this._backupDialogOpen=!0}}>Backup & Restore</button>
         </div>
         <div style="display: flex; align-items: center; gap: 12px;">
-          ${this._draftController.isDirty?r`
+          ${this._draftController.isDirty?n`
             <button class="btn-cancel" @click=${this._cancelChanges}>Cancel</button>
             <span class="save-status">
               ${this._draftController.saving?"Saving…":"Unsaved changes"}
@@ -7276,7 +8181,7 @@ This action cannot be undone. Are you sure you want to delete all areas and rese
 
       <twilight-slot-editor
         .hass=${this.hass}
-        .slots=${s}
+        .slots=${a}
         .entities=${[]}
         .placeholderDefaults=${this._placeholderDefaults}
         .open=${this._slotEditOpen}
@@ -7312,7 +8217,7 @@ This action cannot be undone. Are you sure you want to delete all areas and rese
         .message=${this._dialog.alertMessage}
         @close=${this._dialog._onCloseAlert}
       ></twilight-alert-dialog>
-    `}};ft.styles=[yi,wi,ga,z`
+    `}};pt.styles=[Ei,Oi,$a,O`
       *, *:before, *:after {
         box-sizing: border-box;
       }
@@ -7500,4 +8405,4 @@ This action cannot be undone. Are you sure you want to delete all areas and rese
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
-  `],Ct([h({attribute:!1})],ft.prototype,"hass",2),Ct([b()],ft.prototype,"_hasLoaded",2),Ct([b()],ft.prototype,"_todayData",2),Ct([b()],ft.prototype,"_selectedChannelId",2),Ct([b()],ft.prototype,"_slotEditOpen",2),Ct([b()],ft.prototype,"_editingSlotId",2),Ct([b()],ft.prototype,"_resetDialogOpen",2),Ct([b()],ft.prototype,"_backupDialogOpen",2),Ct([b()],ft.prototype,"_systemDefaults",2),Ct([b()],ft.prototype,"_placeholderDefaults",2),Ct([b()],ft.prototype,"_resetNodes",2),Ct([b()],ft.prototype,"_calculatedSlotTimes",2),ft=Ct([H("twilight-settings-view")],ft);var Jo=Object.getOwnPropertyDescriptor,Qo=(t,e,i,a)=>{for(var s=a>1?void 0:a?Jo(e,i):e,o=t.length-1,n;o>=0;o--)(n=t[o])&&(s=n(s)||s);return s};const tn=[{id:"areas",label:"Areas",icon:"⌂"},{id:"timeline",label:"Timeline",icon:"☀"},{id:"analytics",label:"Analytics",icon:"◈"},{id:"settings",label:"Settings",icon:"⚙"}];return $e.TwilightPanel=class extends oe{constructor(){super(),this.tabs=tn}},$e.TwilightPanel=Qo([H("twilight-panel")],$e.TwilightPanel),Object.defineProperty($e,Symbol.toStringTag,{value:"Module"}),$e}({});
+  `],St([h({attribute:!1})],pt.prototype,"hass",2),St([b()],pt.prototype,"_hasLoaded",2),St([b()],pt.prototype,"_todayData",2),St([b()],pt.prototype,"_selectedChannelId",2),St([b()],pt.prototype,"_slotEditOpen",2),St([b()],pt.prototype,"_editingSlotId",2),St([b()],pt.prototype,"_resetDialogOpen",2),St([b()],pt.prototype,"_backupDialogOpen",2),St([b()],pt.prototype,"_systemDefaults",2),St([b()],pt.prototype,"_placeholderDefaults",2),St([b()],pt.prototype,"_resetNodes",2),St([b()],pt.prototype,"_calculatedSlotTimes",2),pt=St([z("twilight-settings-view")],pt);var vr=Object.getOwnPropertyDescriptor,br=(t,e,i,s)=>{for(var a=s>1?void 0:s?vr(e,i):e,o=t.length-1,r;o>=0;o--)(r=t[o])&&(a=r(a)||a);return a};const mr=[{id:"areas",label:"Areas",icon:"⌂"},{id:"timeline",label:"Timeline",icon:"☀"},{id:"analytics",label:"Analytics",icon:"◈"},{id:"settings",label:"Settings",icon:"⚙"}];return Oe.TwilightPanel=class extends ue{constructor(){super(),this.tabs=mr}},Oe.TwilightPanel=br([z("twilight-panel")],Oe.TwilightPanel),Object.defineProperty(Oe,Symbol.toStringTag,{value:"Module"}),Oe})({});

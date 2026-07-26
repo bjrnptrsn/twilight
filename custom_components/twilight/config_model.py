@@ -178,7 +178,7 @@ _SENSOR_CONFIG_TYPES: dict[str, type[SensorConfig]] = {
 
 @dataclass(frozen=True)
 class InputConfig(_RawGetMixin):
-    """One input mapping (motion/binary/event/timer/button → activity).
+    """One input mapping (motion/binary/event/timer/button → activity or rule).
 
     `enabled` keeps three states on purpose: `False` means explicitly disabled
     by the user (adds the "user" disabler), `True`/`None` mean enabled —
@@ -190,6 +190,7 @@ class InputConfig(_RawGetMixin):
     entity_ids: tuple[str, ...]
     activity: str | None
     enabled: bool | None
+    rule: str | None = None
     name: str | None = None
     raw: dict[str, Any] = field(repr=False, compare=False, default_factory=dict)
 
@@ -208,6 +209,7 @@ class InputConfig(_RawGetMixin):
             type=raw.get("type") or "",
             entity_ids=entity_ids,
             activity=raw.get("activity"),
+            rule=raw.get("rule"),
             enabled=raw.get("enabled"),
             name=raw.get("name"),
             raw=raw,
@@ -278,7 +280,9 @@ class TimerInputConfig(InputConfig):
     def from_dict(cls, raw: dict[str, Any] | None) -> TimerInputConfig:
         if not raw:
             raw = {}
-        return cls(**InputConfig._base_kwargs(raw), trigger_time=raw.get("trigger_time"))
+        return cls(
+            **InputConfig._base_kwargs(raw), trigger_time=raw.get("trigger_time")
+        )
 
 
 @dataclass(frozen=True)
@@ -432,7 +436,30 @@ class TurnOffActionConfig(ActionConfig):
 
 @dataclass(frozen=True)
 class SimulationActionConfig(ActionConfig):
-    """Action for presence simulation."""
+    """Action for presence simulation.
+
+    `mode` is the umbrella dispatch key (only `presence_heatmap` in v1).
+    `template_activity` names the light-switching activity whose start/release
+    action is played back heatmap-timed. `lux_mode` gates the "on" step.
+    `heatmap_profile_id` picks a saved snapshot; empty = dynamic recorder window.
+    """
+
+    mode: str | None = None
+    template_activity: str | None = None
+    lux_mode: str | None = None
+    heatmap_profile_id: str | None = None
+
+    @classmethod
+    def from_dict(cls, raw: dict[str, Any] | None) -> SimulationActionConfig:
+        if not raw:
+            raw = {}
+        return cls(
+            **ActionConfig._base_kwargs(raw),
+            mode=raw.get("mode"),
+            template_activity=raw.get("template_activity"),
+            lux_mode=raw.get("lux_mode"),
+            heatmap_profile_id=raw.get("heatmap_profile_id"),
+        )
 
 
 @dataclass(frozen=True)
@@ -487,6 +514,7 @@ class ActivityConfig(_RawGetMixin):
     """
 
     id: str
+    name: str | None
     suppress_inputs: tuple[str, ...]
     auto_expire: str | None
     expire_check_mode: str | None
@@ -500,8 +528,10 @@ class ActivityConfig(_RawGetMixin):
         """Parse an activity dict (store-normalized or test-provided)."""
         action = raw.get("action")
         release = raw.get("release_action")
+        act_id = raw.get("id") or ""
         return cls(
-            id=raw.get("id") or "",
+            id=act_id,
+            name=raw.get("name") or act_id.capitalize(),
             suppress_inputs=tuple(raw.get("suppress_inputs") or ()),
             auto_expire=raw.get("auto_expire"),
             expire_check_mode=raw.get("expire_check_mode"),
@@ -511,6 +541,84 @@ class ActivityConfig(_RawGetMixin):
             else None,
             transition_off_seconds=raw.get("transition_off_seconds"),
             raw=raw,
+        )
+
+
+@dataclass(frozen=True)
+class HeatmapProfileConfig(_RawGetMixin):
+    """Saved heatmap snapshot profile configuration."""
+
+    id: str
+    name: str
+    resolution: str
+    range: str
+    created_at: str
+    updated_at: str
+    motion_buckets: dict[str, list[float]]
+    raw: dict[str, Any] = field(repr=False, compare=False, default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert the heatmap profile config to a dictionary representation."""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "resolution": self.resolution,
+            "range": self.range,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+            "motion_buckets": self.motion_buckets,
+        }
+
+    @classmethod
+    def from_dict(cls, raw: dict[str, Any]) -> HeatmapProfileConfig:
+        """Parse a heatmap profile dict."""
+        return cls(
+            id=raw.get("id") or "",
+            name=raw.get("name") or "",
+            resolution=raw.get("resolution") or "15m",
+            range=raw.get("range") or "2w",
+            created_at=raw.get("created_at") or "",
+            updated_at=raw.get("updated_at") or "",
+            motion_buckets=raw.get("motion_buckets") or {},
+            raw=raw,
+        )
+
+
+@dataclass(frozen=True)
+class RuleConfig:
+    """Configuration for a parallel Rule (v1: slot schedule override)."""
+
+    id: str
+    name: str
+    enabled: bool = True
+    applied_activities: tuple[str, ...] = ()
+    slot_overrides: dict[str, dict[str, tuple[str, ...]]] = field(default_factory=dict)
+
+    @classmethod
+    def from_dict(cls, raw: dict[str, Any] | None) -> RuleConfig:
+        if not raw:
+            raw = {}
+        applied_activities = raw.get("applied_activities")
+        raw_overrides = raw.get("slot_overrides")
+
+        slot_overrides: dict[str, dict[str, tuple[str, ...]]] = {}
+        if isinstance(raw_overrides, dict):
+            for act_id, ch_dict in raw_overrides.items():
+                if isinstance(ch_dict, dict):
+                    ch_map: dict[str, tuple[str, ...]] = {}
+                    for ch_id, slot_list in ch_dict.items():
+                        if isinstance(slot_list, (list, tuple)):
+                            ch_map[ch_id] = tuple(slot_list)
+                    slot_overrides[act_id] = ch_map
+
+        return cls(
+            id=raw.get("id") or "",
+            name=raw.get("name") or "",
+            enabled=raw.get("enabled", True),
+            applied_activities=tuple(applied_activities)
+            if isinstance(applied_activities, (list, tuple))
+            else (),
+            slot_overrides=slot_overrides,
         )
 
 
@@ -531,6 +639,8 @@ class AreaConfig(_RawGetMixin):
     channels: dict[str, ChannelConfig]
     inputs: tuple[InputConfig, ...]
     activities: tuple[ActivityConfig, ...]
+    rules: tuple[RuleConfig, ...] = ()
+    heatmap_profiles: tuple[HeatmapProfileConfig, ...] = ()
     raw: dict[str, Any] = field(repr=False, compare=False, default_factory=dict)
 
     # ── Structural lookups ──
@@ -572,6 +682,26 @@ class AreaConfig(_RawGetMixin):
         """All sensors of one type, in config order."""
         return tuple(s for s in self.sensors if s.type == sensor_type)
 
+    def rule_by_id(self, rule_id: str | None) -> RuleConfig | None:
+        """Look up a rule by id, or None."""
+        if not rule_id:
+            return None
+        for r in self.rules:
+            if r.id == rule_id:
+                return r
+        return None
+
+    def heatmap_profile_by_id(
+        self, profile_id: str | None
+    ) -> HeatmapProfileConfig | None:
+        """Look up a saved heatmap profile by id, or None."""
+        if not profile_id:
+            return None
+        for p in self.heatmap_profiles:
+            if p.id == profile_id:
+                return p
+        return None
+
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> AreaConfig:
         """Parse a full area config dict; non-dict entries are skipped."""
@@ -601,6 +731,18 @@ class AreaConfig(_RawGetMixin):
             for s in (sensors_raw if isinstance(sensors_raw, list) else [])
             if isinstance(s, dict)
         )
+        rules_raw = raw.get("rules")
+        rules = tuple(
+            RuleConfig.from_dict(r)
+            for r in (rules_raw if isinstance(rules_raw, list) else [])
+            if isinstance(r, dict)
+        )
+        profiles_raw = raw.get("heatmap_profiles")
+        heatmap_profiles = tuple(
+            HeatmapProfileConfig.from_dict(p)
+            for p in (profiles_raw if isinstance(profiles_raw, list) else [])
+            if isinstance(p, dict)
+        )
         return cls(
             area_id=raw.get("area_id"),
             name=raw.get("name"),
@@ -610,5 +752,7 @@ class AreaConfig(_RawGetMixin):
             channels=channels,
             inputs=inputs,
             activities=activities,
+            rules=rules,
+            heatmap_profiles=heatmap_profiles,
             raw=raw,
         )

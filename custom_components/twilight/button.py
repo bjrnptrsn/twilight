@@ -1,11 +1,10 @@
 """Optional HA button entities for click-mode Twilight button inputs.
 
-Twilight has no user-facing Config Flow (see AGENTS.md) — entities are managed
-manually via a single, integration-owned EntityComponent instead of the usual
+Twilight has no user-facing Config Flow — entities are managed manually via a
+single, integration-owned EntityComponent instead of the usual
 async_setup_entry/platform-forwarding path. A single, silently self-created
 config entry (config_flow.py) is attached to the platform below purely so the
-device registry has a config_entry_id to anchor per-area devices to — see
-docs/architecture/ha_entities.md.
+device registry has a config_entry_id to anchor per-area devices to.
 """
 
 from __future__ import annotations

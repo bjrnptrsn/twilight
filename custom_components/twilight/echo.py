@@ -1,7 +1,5 @@
 """Echo detection — distinguish Twilight's own service-call side effects
 from external state changes, based on the Context-ID chain.
-
-See docs/architecture/echo_detection.md for the analysis and rationale.
 """
 
 from __future__ import annotations

@@ -23,10 +23,16 @@ from ..const import (
     PRIMARY_CHANNEL_ID,
     SIGNAL_ENGINES_CHANGED,
     STANDARD_ZONES,
+    ActionType,
     StartType,
 )
 from ..engine import TwilightEngine
-from ..helpers import channel_entities, detect_channel_collisions, partition_by_domain
+from ..helpers import (
+    channel_entities,
+    detect_channel_collisions,
+    partition_by_domain,
+    simulation_template_eligible,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -123,14 +129,26 @@ def _ws_area_validate() -> websocket_api.WebSocketCommandHandler:
         connection: websocket_api.ActiveConnection,
         msg: dict[str, Any],
     ) -> None:
+        # Simulation-template issues come from the saved config and don't need a
+        # running engine; channel collisions need the resolved scene_map.
+        store = hass.data[DOMAIN].get("store")
+        raw_area = store.get_area(msg["area_id"]) if store else None
+        sim_issues = (
+            _simulation_template_issues(AreaConfig.from_dict(raw_area))
+            if raw_area
+            else []
+        )
+
+        engine = hass.data[DOMAIN].get("engines", {}).get(msg["area_id"])
+        if not engine:
+            connection.send_result(
+                msg["id"], {"collisions": {}, "sim_template_issues": sim_issues}
+            )
+            return
+
         # Detect entities controlled by more than one channel of a running engine.
         # Built from the resolved scene_map (covers Hue scenes too) — a soft warning,
         # not a hard block (multi_channel.md §3 #6).
-        engine = hass.data[DOMAIN].get("engines", {}).get(msg["area_id"])
-        if not engine:
-            connection.send_result(msg["id"], {"collisions": {}})
-            return
-
         channels = engine.config.channels
         collisions = detect_channel_collisions(engine.scene_map)
         result = {
@@ -147,9 +165,28 @@ def _ws_area_validate() -> websocket_api.WebSocketCommandHandler:
             }
             for entity_id, channel_ids in collisions.items()
         }
-        connection.send_result(msg["id"], {"collisions": result})
+        connection.send_result(
+            msg["id"], {"collisions": result, "sim_template_issues": sim_issues}
+        )
 
     return handle
+
+
+def _simulation_template_issues(config: AreaConfig) -> list[dict[str, Any]]:
+    """Report simulation activities whose template_activity is missing or ineligible.
+
+    Soft validation companion to the hard handler-start guard
+    (PRESENCE_SIMULATION_PLAN.md §5.6).
+    """
+    issues: list[dict[str, Any]] = []
+    for activity in config.activities:
+        action = activity.action
+        if action is None or action.type != ActionType.SIMULATION:
+            continue
+        template = getattr(action, "template_activity", None)
+        if not simulation_template_eligible(config, template):
+            issues.append({"activity": activity.id, "template_activity": template})
+    return issues
 
 
 async def _async_turn_off_entities(
@@ -245,6 +282,10 @@ def _ws_area_save() -> websocket_api.WebSocketCommandHandler:
             # rejected here rather than silently skipped downstream.
             vol.Optional("inputs", default=[]): [dict],
             vol.Optional("activities", default=[]): [dict],
+            vol.Optional("rules", default=[]): [dict],
+            # Saved heatmap snapshots (heatmap_profiles.md); inner shape stays
+            # open like inputs/activities — the store normalizes/validates it.
+            vol.Optional("heatmap_profiles", default=[]): [dict],
         }
     )
     @websocket_api.require_admin
@@ -288,6 +329,8 @@ def _ws_area_save() -> websocket_api.WebSocketCommandHandler:
             "channels": msg.get("channels", {}),
             "inputs": msg.get("inputs", []),
             "activities": msg.get("activities", []),
+            "rules": msg.get("rules", []),
+            "heatmap_profiles": msg.get("heatmap_profiles", []),
         }
 
         async with _get_area_lock(hass, area_id):

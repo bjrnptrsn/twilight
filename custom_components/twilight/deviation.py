@@ -1,7 +1,6 @@
 """target/actual deviation computation for Twilight scene lights.
 
-Backend-first (see docs/architecture/backend_first.md §6c): the frontend does
-NOT compute anything. This module builds a per-entity, per-attribute map with
+Backend-first: the frontend does NOT compute anything. This module builds a per-entity, per-attribute map with
 ready-to-render display values (labels + swatch CSS) and the deviation flag.
 The card only maps fields to cells/badges — no hass.states access, no value
 formatting, no comparison, no competing data sources.

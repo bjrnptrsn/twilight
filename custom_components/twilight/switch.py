@@ -1,11 +1,10 @@
 """Optional HA switch entities for toggle-mode Twilight button inputs.
 
-Twilight has no user-facing Config Flow (see AGENTS.md) — entities are managed
-manually via a single, integration-owned EntityComponent instead of the usual
+Twilight has no user-facing Config Flow — entities are managed manually via a
+single, integration-owned EntityComponent instead of the usual
 async_setup_entry/platform-forwarding path. A single, silently self-created
 config entry (config_flow.py) is attached to the platform below purely so the
-device registry has a config_entry_id to anchor per-area devices to — see
-docs/architecture/ha_entities.md.
+device registry has a config_entry_id to anchor per-area devices to.
 """
 
 from __future__ import annotations
@@ -44,16 +43,13 @@ class TwilightSwitchEntity(TwilightEntity, SwitchEntity):
         def _state_changed(
             area_id: str, old_state: RunState, new_state: RunState
         ) -> None:
-            if (
-                area_id == self._area_id
-                and old_state.inputs_active.get(self._input_id) != new_state.inputs_active.get(self._input_id)
-            ):
+            if area_id == self._area_id and old_state.inputs_active.get(
+                self._input_id
+            ) != new_state.inputs_active.get(self._input_id):
                 self.async_write_ha_state()
 
         self.async_on_remove(
-            async_dispatcher_connect(
-                self.hass, SIGNAL_STATE_CHANGED, _state_changed
-            )
+            async_dispatcher_connect(self.hass, SIGNAL_STATE_CHANGED, _state_changed)
         )
 
     @property

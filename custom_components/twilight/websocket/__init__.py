@@ -30,6 +30,11 @@ from .config import (
     _ws_placeholder_defaults,
 )
 from .diagnostics import _ws_diagnostics
+from .heatmap import (
+    _ws_heatmap_compute,
+    _ws_heatmap_profile_delete,
+    _ws_heatmap_profile_save,
+)
 from .inputs import _ws_trigger_input
 from .registry import _ws_area_registry_list, _ws_lab_area_entities
 from .subscribe import _ws_subscribe_all
@@ -60,4 +65,6 @@ def async_register_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, _ws_subscribe_all())
     websocket_api.async_register_command(hass, _ws_diagnostics())
     websocket_api.async_register_command(hass, _ws_trigger_input())
-
+    websocket_api.async_register_command(hass, _ws_heatmap_compute())
+    websocket_api.async_register_command(hass, _ws_heatmap_profile_save())
+    websocket_api.async_register_command(hass, _ws_heatmap_profile_delete())

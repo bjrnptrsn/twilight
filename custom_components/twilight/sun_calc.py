@@ -336,7 +336,7 @@ def compute_sun_day_data(
         slot_day = slot_sunrise + 30
         slot_gold_dusk = slot_sunset - 30
 
-    # Note on Dusk-Slot mapping (intentional asymmetry vs Dawn, see docs/architecture/slots.md):
+    # Note on Dusk-Slot mapping (intentional asymmetry vs Dawn):
     # - slot_civil_dusk starts at sunset (slot_sunset) and covers the civil dusk period.
     # - slot_nautical_dusk starts at civil dusk (clamped["dusk"]) and covers nautical dusk.
     # - slot_astro_dusk starts at nautical dusk (clamped["nautical_dusk"]) and covers astronomical dusk.

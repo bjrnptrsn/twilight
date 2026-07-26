@@ -46,6 +46,7 @@
   - [Activities](#activities)
     - [Actions & Release Actions](#actions--release-actions)
   - [Manual Triggers (Button Inputs)](#manual-triggers-button-inputs)
+  - [Rules](#rules)
 - [Frontend Tabs](#frontend-tabs)
   - [Areas](#areas-tab)
   - [Timeline](#timeline-tab)
@@ -163,12 +164,15 @@ its own scene/script assignment.
 | **Primary** | 10 fixed astral zones | Main indoor lighting — follows the sun |
 | **Custom** (up to 3) | Free-form — sun event or fixed time + offset | Outdoor lights, accent lighting, separate schedules |
 
+Each channel also has its own **slot transition duration** (default 60s) —
+the crossfade time when moving from one slot to the next.
+
 ### Scenes
 
 Twilight supports different scene sources, assigned per slot:
 
 - **Plain Scenes** — standard Home Assistant scenes created via the HA UI or `configuration.yaml`
-- **Hue Scenes** — Hue Smart Scenes from your Hue Bridge (requires [Hue Integration](https://www.home-assistant.io/integrations/hue/))
+- **Hue Scenes** — Hue scenes from your Hue Bridge (requires [Hue Integration](https://www.home-assistant.io/integrations/hue/))
 - **Scripts** — any Home Assistant script that can control lights
 
 ---
@@ -199,9 +203,9 @@ stable `id`, used to reference it from an activity's `suppress_inputs`.
 | **Timer** | A daily fixed clock time (`HH:MM:SS`) | No entity needed — useful for a nightly reset |
 | **Button** | Manually via the Areas panel or the `twilight.trigger_input` service | `click` mode fires once; `toggle` mode also sends a release on the second call — see [Manual Triggers](#manual-triggers-button-inputs) |
 
-Each input maps to exactly one **activity**. Multiple inputs of the same type
-are allowed per area (e.g. two independent motion inputs with different lux
-thresholds for different activities).
+Each input targets either an **Activity** or a **Rule** (via "Target Type").
+Binary and toggle-mode button inputs can target either; motion, event, timer,
+and click-mode button inputs always target an Activity.
 
 ### Activities
 
@@ -213,7 +217,7 @@ whatever was active before.
 |---|---|
 | `suppress_inputs` | List of input `id`s to ignore while this activity is active (e.g. a `sleep` activity suppressing the `motion` input) |
 | `auto_expire` | `HH:MM:SS` after which the activity ends automatically; `00:00:00`/empty = only ends on an explicit release |
-| `expire_check_mode` | What happens right when the timer would expire: `disabled` (always ends), `respect_lux` (renews the timer if a motion input is still active *and* passes its lux check), `ignore_lux` (renews regardless of lux) |
+| `expire_check_mode` | What happens right when the timer would expire: `disabled` (always ends), `respect_lux` (renews the timer if a motion input is still active *and* passes its lux check), `ignore_lux` (renews if a motion input is still active, regardless of lux). A still-active binary input renews the timer in every mode, since binary inputs have no lux gate. |
 
 #### Actions & Release Actions
 
@@ -228,10 +232,23 @@ What actually happens to the lights on start (`action`) and on end
 | `none` | Does nothing to the lights | action / release |
 | `turn_off` | Turns off all of this activity's slot entities | release (default) |
 | `reset` | Sends a fixed command (`on`/`off`/`toggle`/`activate`) to `input_boolean`, `switch`, or `script` entities you choose — for driving something other than lights, e.g. resetting a helper | action (no release phase) |
-| `simulation` | Runs presence simulation | action |
+| `simulation` | Simulates presence by playing back an activity's light behavior timed by historical or profile heatmap probabilities | action |
 
 If you don't configure an `action`, an activity defaults to playing the
 current slot scene on start and turning all its lights off on release.
+
+#### Presence Simulation
+
+Activities using the `simulation` action type make an empty home look occupied
+by re-creating realistic lighting patterns. You select an existing activity
+(such as your standard `motion` activity) to copy its light behavior and duration,
+and Twilight triggers it based on motion density probabilities throughout the day:
+
+- **Data source**: evaluate dynamic live recorder history (a rolling 30-day window) or pick one of up to **5 saved heatmap profiles** per area (saved from the Heatmap card, where you choose the range `1w`–`6m` and resolution).
+- **Lux gating**: choose when simulated motion may turn lights on (`dusk_dawn` [default, dusk/dawn/night slots only], `threshold` [below illuminance threshold], or `always`).
+- **Eligible activities**: any activity that controls lights (`slot`, `entity`, or `light`).
+
+#### Default Activities
 
 Four activities are preconfigured on every new area (from the default
 [area template](#settings--area-template)):
@@ -260,6 +277,28 @@ creates a `switch.*`. Useful if you want to trigger it from a physical
 dashboard tile, voice assistant, or another automation without going through
 the service call.
 
+### Rules
+
+**Rules** are a temporary, parallel override layer: while a trigger input (a
+switch or toggle button) is active, active Rules modify the behavior of the
+currently running activity or configuration — they do not control lights on
+their own. Unlike Activities (only one active at a time), any number of Rules
+can be active in parallel.
+
+Today there is one Rule type:
+
+| Rule Type | Overrides | Trigger & Condition |
+|---|---|---|
+| **Activity Rule** | The slot exclusions (`excluded_slot_ids`) of a target Activity | Triggered by binary or toggle button input; active only when target Activity is running |
+
+An **Activity Rule** affects exactly one Activity. While active, its slot
+exclusions override the Activity's own exclusions for the listed channels. If
+multiple Rules target the same Activity, "exclude wins" — a slot is excluded if
+any active Rule excludes it.
+
+Configure Rules via the **Rules** card in an area's detail view or in the
+[Area Template](#settings--area-template).
+
 ---
 
 ## Frontend Tabs
@@ -271,9 +310,10 @@ after initial setup.
 
 Overview cards (with a sparkline day chart and live stats per area) plus a
 detail view per area for all configuration described above: channels, sensors,
-inputs, activities, and a live status card showing the currently active
-activity and what triggered it. New areas stay a local, unsaved draft until
-you click **Save**.
+inputs, activities, an activity heatmap card (visualizing weekday sensor patterns
+from live recorder data or up to **5 saved heatmap profiles**), and a live status card
+showing the currently active activity and what triggered it. New areas stay a local,
+unsaved draft until you click **Save**.
 
 <p align="center">
   <img src="assets/Areas.png" alt="Twilight Areas Tab" width="100%">
@@ -297,21 +337,14 @@ correlate light changes with actual sensor activity.
 
 ### Settings & Area Template
 
-Two kinds of settings:
-
-- **Global settings** — none currently. Almost every option lives on the
-  object it affects (channel/input/activity/sensor) and falls back through
-  its parent to a `const.py` default, so there is nothing that would only
-  make sense as a single value shared by every area. The Settings tab keeps
-  the category as a placeholder and explains this inline.
-- **Area template** — the blueprint used to seed every *new* area: its
-  default inputs (motion, manual override, reset, a binary sleep trigger, a
-  manual-trigger button), default activities (`motion`, `manual`, `sleep`,
-  `reset`), and default custom channels. Edit it once in
-  **Settings** and every area you create afterwards starts pre-wired instead
-  of empty — existing areas are unaffected. A granular **Reset to System
-  Defaults** dialog lets you restore individual inputs/activities/channels
-  without resetting the whole template.
+The **Area template** setting is the blueprint used to seed every *new* area:
+its default inputs (motion, manual override, reset, a binary sleep trigger, a
+manual-trigger button), default activities (`motion`, `manual`, `sleep`,
+`reset`), default [Rules](#rules), and default custom channels. Edit it once
+in **Settings** and every area you create afterwards starts pre-wired instead
+of empty — existing areas are unaffected. A granular **Reset to System
+Defaults** dialog lets you restore individual inputs/activities/rules/channels
+without resetting the whole template.
 
 <p align="center">
   <img src="assets/Settings.png" alt="Twilight Settings Tab" width="100%">
@@ -348,7 +381,7 @@ needing a real HA entity for it.
 | Field | Required | Description |
 |-------|----------|--------------|
 | `area_id` | Yes | The Home Assistant area containing the input |
-| `input_id` | Yes | The button input's `id` (visible in the inputs list) |
+| `input_id` | Yes | The button input's `id` or name (visible in the inputs list) |
 | `active` | No | For `toggle`-mode buttons: `true`/`false` to set the state explicitly |
 
 ```yaml

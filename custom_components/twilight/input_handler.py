@@ -56,13 +56,60 @@ T = TypeVar("T")
 class BaseInputHandler:
     """Base class for all Twilight input handlers."""
 
+    #: Human-readable label used in the setup debug logs (e.g. "Illuminance").
+    #: State-change handlers that use the standard ``async_setup`` template set
+    #: this; handlers with their own setup (Timer) leave it empty.
+    STATE_LABEL: str = ""
+
     def __init__(self, engine: TwilightEngine) -> None:
         """Initialize the input handler."""
         self.engine = engine
         self.listeners: list[Any] = []
 
     async def async_setup(self, *args: Any, **kwargs: Any) -> None:
-        """Set up the event listeners."""
+        """Register a state-change listener for this handler's tracked entities.
+
+        Template method for the state-change input handlers (Lux/Event/Motion):
+        collect the entities (``_tracked_entities`` hook), bail out if none are
+        configured, register ``_on_state_changed``, then run an optional
+        post-setup step (``_after_listener_setup`` hook). Handlers whose setup
+        does not fit this shape (Binary's ordered initial sync, Timer's
+        time-change scheduling) override ``async_setup`` directly.
+        """
+        entities = self._tracked_entities()
+        if not entities:
+            _LOGGER.debug(
+                "[%s] %s: nothing configured",
+                self.engine.area_id,
+                self.STATE_LABEL or self.__class__.__name__,
+            )
+            return
+        self.listeners.append(
+            async_track_state_change_event(
+                self.engine.hass, entities, self._on_state_changed
+            )
+        )
+        _LOGGER.debug(
+            "[%s] %s: listening on %s",
+            self.engine.area_id,
+            self.STATE_LABEL or self.__class__.__name__,
+            entities,
+        )
+        self._after_listener_setup(entities)
+
+    def _tracked_entities(self) -> list[str]:
+        """Hook: the entities this handler's ``async_setup`` template listens on.
+
+        Empty by default (base handler and non-template handlers register
+        nothing via the template).
+        """
+        return []
+
+    def _on_state_changed(self, event: Any) -> None:
+        """Hook: handle a state-change event for a tracked entity."""
+
+    def _after_listener_setup(self, entities: list[str]) -> None:
+        """Hook: optional step run after the listener is registered (e.g. seed state)."""
 
     async def async_teardown(self) -> None:
         """Tear down the event listeners."""
@@ -101,29 +148,17 @@ class BaseInputHandler:
 class LuxInputHandler(BaseInputHandler):
     """Handles lux sensor changes and forwards them to the coordinator."""
 
-    async def async_setup(self) -> None:
-        """Set up lux sensor listeners."""
+    STATE_LABEL = "Illuminance"
+
+    def _tracked_entities(self) -> list[str]:
+        """The illuminance sensor entities configured for this area."""
         from .config_model import IlluminanceSensorConfig
 
         sensors: list[str] = []
         for s in self.engine.config.sensors_of_type(SensorType.ILLUMINANCE):
             if isinstance(s, IlluminanceSensorConfig):
                 sensors.extend(s.entity_ids)
-        if not sensors:
-            _LOGGER.debug(
-                "[%s] LuxInputHandler: no illuminance sensors configured",
-                self.engine.area_id,
-            )
-            return
-
-        self.listeners.append(
-            async_track_state_change_event(
-                self.engine.hass, sensors, self._on_state_changed
-            )
-        )
-        _LOGGER.debug(
-            "[%s] LuxInputHandler: listening on %s", self.engine.area_id, sensors
-        )
+        return sensors
 
     @callback
     def _on_state_changed(self, event: Any) -> None:
@@ -140,30 +175,16 @@ class LuxInputHandler(BaseInputHandler):
 class EventInputHandler(BaseInputHandler):
     """Handles event signals from buttons and switches to request activities."""
 
-    async def async_setup(self) -> None:
-        """Set up event listeners."""
-        event_entities = [
+    STATE_LABEL = "Event"
+
+    def _tracked_entities(self) -> list[str]:
+        """The entities of all event inputs configured for this area."""
+        return [
             ent
             for inp in self.engine.config.inputs_of_type(InputType.EVENT)
             for ent in inp.entity_ids
             if ent
         ]
-        if not event_entities:
-            _LOGGER.debug(
-                "[%s] EventInputHandler: no event inputs configured",
-                self.engine.area_id,
-            )
-            return
-        self.listeners.append(
-            async_track_state_change_event(
-                self.engine.hass, event_entities, self._on_state_changed
-            )
-        )
-        _LOGGER.debug(
-            "[%s] EventInputHandler: listening on %s",
-            self.engine.area_id,
-            event_entities,
-        )
 
     @callback
     def _on_state_changed(self, event: Any) -> None:
@@ -180,12 +201,15 @@ class EventInputHandler(BaseInputHandler):
             return
 
         # Ignore state restoration or online/offline transitions at startup/reload
-        # and ignore changes where the timestamp state has not modified
         if (
             old_state is None
             or old_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN)
-            or old_state.state == new_state.state
         ):
+            return
+
+        old_event_type = old_state.attributes.get("event_type")
+        new_event_type = new_state.attributes.get("event_type")
+        if old_state.state == new_state.state and old_event_type == new_event_type:
             return
 
         # Find the activities mapped to this event entity_id and event_type
@@ -399,7 +423,7 @@ class BinaryInputHandler(BaseInputHandler):
 
 class LightStateInputHandler(BaseInputHandler):
     """Watches light entity state changes and distinguishes Twilight's own echoes
-    from external changes (see docs/architecture/echo_detection.md)."""
+    from external changes."""
 
     ENABLED = True
 
@@ -558,10 +582,10 @@ class LuxWatchHandler:
         self._unsub: Callable[[], None] | None = None
 
     def start(self) -> None:
-        """Start polling."""
+        """Start polling, or extend the deadline if already running."""
+        self._deadline = time.monotonic() + self._window
         if self._unsub:
             return
-        self._deadline = time.monotonic() + self._window
         self._unsub = async_call_later(self._hass, POLL_INTERVAL, self._poll)
 
     def stop(self) -> None:
@@ -609,40 +633,31 @@ class MotionInputHandler(BaseInputHandler):
         """
         return resolve_retrigger(self.engine.hass, inp, self.engine.config)
 
-    async def async_setup(self) -> None:
-        """Set up motion sensor tracking for all motion inputs."""
-        motion_entities = []
+    STATE_LABEL = "Motion"
 
-        # Find initial active state for each motion input
-        for inp in cast(
-            "tuple[MotionInputConfig, ...]",
-            self.engine.config.inputs_of_type(InputType.MOTION),
-        ):
-            for ent in inp.entity_ids:
-                if not ent:
-                    continue
-                motion_entities.append(ent)
-                state_obj = self.engine.hass.states.get(ent)
-                if state_obj and state_obj.state in MOTION_ACTIVE_STATES:
-                    self.active_entities.add(ent)
-
-        if not motion_entities:
-            _LOGGER.debug(
-                "[%s] MotionInputHandler: no motion inputs configured",
-                self.engine.area_id,
+    def _tracked_entities(self) -> list[str]:
+        """The entities of all motion inputs configured for this area."""
+        return [
+            ent
+            for inp in cast(
+                "tuple[MotionInputConfig, ...]",
+                self.engine.config.inputs_of_type(InputType.MOTION),
             )
-            return
+            for ent in inp.entity_ids
+            if ent
+        ]
 
-        self.listeners.append(
-            async_track_state_change_event(
-                self.engine.hass, motion_entities, self._on_state_changed
-            )
-        )
-        _LOGGER.debug(
-            "[%s] MotionInputHandler: listening on %s",
-            self.engine.area_id,
-            motion_entities,
-        )
+    def _after_listener_setup(self, entities: list[str]) -> None:
+        """Seed ``active_entities`` from the current state of the motion sensors.
+
+        Populating a set has no side effects, so doing it after the listener is
+        registered (rather than before, as the pre-template code did) is safe:
+        no ``activity_requested`` is issued here, unlike Binary's ordered sync.
+        """
+        for ent in entities:
+            state_obj = self.engine.hass.states.get(ent)
+            if state_obj and state_obj.state in MOTION_ACTIVE_STATES:
+                self.active_entities.add(ent)
 
     async def async_teardown(self) -> None:
         """Tear down listeners and lux watch timers."""
@@ -769,7 +784,11 @@ class MotionInputHandler(BaseInputHandler):
         lux_threshold = self._get_value(
             input_config, "lux_threshold", DEFAULT_LUX_THRESHOLD
         )
-        if ignore_lux or self._should_ignore_lux(input_config) or lux_threshold is None:
+        # Note: a `null` lux_threshold never disables the gate — get_config_value
+        # treats None as "unset" and falls through to DEFAULT_LUX_THRESHOLD. The
+        # gate is disabled via _should_ignore_lux() (no illuminance sensor, or the
+        # lux_ignore_active/scope options), not by clearing the threshold.
+        if ignore_lux or self._should_ignore_lux(input_config):
             return True
         lux = self._read_lux()
         return lux is not None and lux <= lux_threshold
@@ -820,7 +839,8 @@ class MotionInputHandler(BaseInputHandler):
                 entity_id=entity_id,
             )
         elif lux_watch_window:
-            if input_id not in self.lux_watches:
+            watch = self.lux_watches.get(input_id)
+            if watch is None:
                 watch = LuxWatchHandler(
                     hass=self.engine.hass,
                     evaluate_fn=lambda: self._evaluate(input_config),
@@ -829,7 +849,7 @@ class MotionInputHandler(BaseInputHandler):
                     window_seconds=lux_watch_window,
                 )
                 self.lux_watches[input_id] = watch
-                watch.start()
+            watch.start()
 
     def _on_lux_success(self, input_config: MotionInputConfig) -> None:
         input_id = input_config.id

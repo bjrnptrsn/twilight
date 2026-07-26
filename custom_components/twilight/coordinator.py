@@ -17,7 +17,7 @@ from .action_handler import (
     EntityActionHandler,
     LightActionHandler,
     NoneActionHandler,
-    SimulationActionHandler,
+    PresenceSimulationActionHandler,
     SlotActionHandler,
     TurnOffActionHandler,
 )
@@ -46,11 +46,12 @@ from .helpers import (
     get_config_value,
     get_slot_info,
     get_store,
-    is_slot_excluded,
+    is_slot_excluded_effective,
     parse_hms,
 )
 from .input_state_manager import InputStateManager
 from .lux_manager import LuxManager
+from .rule_manager import RuleManager
 from .state import ActivityTrigger, RunState
 
 if TYPE_CHECKING:
@@ -76,10 +77,16 @@ class Coordinator:
             for channel_id, channel in self.engine.config.channels.items()
             if channel.enabled
         }
+        # Per-channel grace_elapsed rescued from a handler cancelled by
+        # cancel_all_handlers() before swap_channel_handler() runs and can no
+        # longer see it via self._handlers (already cleared). Consumed and
+        # cleared by swap_channel_handler() on the next call for that channel.
+        self._pending_grace: dict[str, float] = {}
 
         # Sub-managers for specialized business logics
         self.lux_manager = LuxManager(self)
         self.input_manager = InputStateManager(self)
+        self.rule_manager = RuleManager(self)
 
         # Statically instantiated Action Handlers
         self._action_handlers: dict[str, BaseActionHandler] = {
@@ -88,7 +95,7 @@ class Coordinator:
             ActionType.LIGHT: LightActionHandler(self),
             ActionType.NONE: NoneActionHandler(self),
             ActionType.TURN_OFF: TurnOffActionHandler(self),
-            ActionType.SIMULATION: SimulationActionHandler(self),
+            ActionType.SIMULATION: PresenceSimulationActionHandler(self),
         }
         self._active_handler: BaseActionHandler | None = None
 
@@ -104,8 +111,19 @@ class Coordinator:
         return list(self.engine.config.channels)
 
     def cancel_all_handlers(self) -> None:
-        """Cancel all channel handlers and clear dictionary."""
-        for handler in self._handlers.values():
+        """Cancel all channel handlers and clear dictionary.
+
+        Rescues each cancelled handler's grace_elapsed into _pending_grace
+        first — a handler still settling (is_busy) loses its entry in
+        self._handlers here, so swap_channel_handler() could otherwise never
+        see it and grace_elapsed would silently stay 0 for the channel's next
+        handler (see RETRIGGER_RACE_PLAN.md, Fall 2).
+        """
+        for channel_id, handler in self._handlers.items():
+            if handler and handler.is_busy:
+                elapsed = handler.elapsed_since_last_call
+                if elapsed is not None:
+                    self._pending_grace[channel_id] = max(0.0, elapsed)
             if handler:
                 handler.cancel()
         self._handlers.clear()
@@ -170,6 +188,7 @@ class Coordinator:
         callers that also pass inputs_disabled_by explicitly are left as-is.
         """
         if "active_activity" in kwargs and "inputs_disabled_by" not in kwargs:
+            kwargs = dict(kwargs)
             kwargs["inputs_disabled_by"] = self.input_manager.compute_disablers(
                 kwargs["active_activity"]
             )
@@ -182,6 +201,30 @@ class Coordinator:
     def update_input_active(self, input_id: str | None, active: bool) -> None:
         """Delegated helper to update the physical active state of an input."""
         self.input_manager.update_input_active(input_id, active)
+
+    def reapply_active_activity_rules(self) -> None:
+        """Re-apply rules for the currently active activity if running."""
+        active_act_id = self.run_state.active_activity
+        if not active_act_id or not self._active_handler:
+            return
+
+        act = self.engine.config.activity_by_id(active_act_id)
+        if not act:
+            return
+
+        action = self._coerce_action(act.action, DEFAULT_ACTION_TYPE)
+        if action.type == ActionType.SLOT:
+            _LOGGER.debug(
+                "[%s] Re-applying active activity rules for slot activity: %s",
+                self.engine.area_id,
+                active_act_id,
+            )
+            transition_off = self._get_activity_transition_off_seconds(active_act_id)
+            self._create_task(
+                self._active_handler.start(
+                    action, self.run_state.active_slots, transition_off=transition_off
+                )
+            )
 
     def _get_config_value(self, key: str, default: Any) -> Any:
         """Get configuration value with fallback to global store config."""
@@ -263,6 +306,34 @@ class Coordinator:
             if expire_secs > 0
             else None
         )
+
+        # Guard (Fix 1): If the same activity is re-requested while any channel
+        # handler is still busy/retrying or settling, refresh the expire timer
+        # and skip _apply_action() to avoid tearing down active call handlers.
+        is_same_activity = self.run_state.active_activity == name
+        has_busy_handler = any(
+            h.is_busy for h in self._handlers.values() if h is not None
+        )
+
+        if is_same_activity and has_busy_handler:
+            _LOGGER.debug(
+                "[%s] Activity '%s' re-requested while call handler is busy; refreshing timer without re-applying action",
+                self.engine.area_id,
+                name,
+            )
+            self.update_state(
+                activity_trigger=ActivityTrigger(
+                    input_id=input_id,
+                    input_type=input_type,
+                    entity_id=entity_id,
+                    triggered_at=dt_util.utcnow(),
+                ),
+                activity_expires_at=expires_at,
+            )
+            self.lux_manager.update_lux_state()
+            if expire_secs > 0:
+                self._start_auto_expire_timer(name, expire_secs)
+            return
 
         self.update_state(
             active_activity=name,
@@ -413,6 +484,10 @@ class Coordinator:
             self.update_state(active_slots=dict(active_slots))
         self.lux_manager.update_lux_state()
 
+        # Boot deliberately switches NO light: on startup we only restore which
+        # slot each channel is in (active_slots above), never activate a scene —
+        # Twilight lights up on real activity, not merely because it booted into
+        # a slot. Same when no scene is active (scene_activated_at is None).
         if is_boot or self.run_state.scene_activated_at is None:
             return
 
@@ -420,8 +495,12 @@ class Coordinator:
             return
 
         for channel_id, slot_id in changed.items():
-            if is_slot_excluded(
-                self.engine.config, self.run_state, channel_id, slot_id
+            if is_slot_excluded_effective(
+                self.engine.config,
+                self.run_state,
+                self.rule_manager,
+                channel_id,
+                slot_id,
             ):
                 self.turn_off_channel(channel_id)
                 continue
@@ -459,9 +538,10 @@ class Coordinator:
         if self.run_state.scene_activated_at is None:
             return False
 
-        if is_slot_excluded(
+        if is_slot_excluded_effective(
             self.engine.config,
             self.run_state,
+            self.rule_manager,
             channel_id,
             target_slot_id,
         ):
@@ -498,10 +578,17 @@ class Coordinator:
     ) -> None:
         """Cancel current channel handler, replace with new handler, and execute."""
         existing = self._handlers.get(channel_id)
+        grace_elapsed = self._pending_grace.pop(channel_id, 0.0)
         if existing:
+            if existing.is_busy:
+                elapsed = existing.elapsed_since_last_call
+                if elapsed is not None:
+                    grace_elapsed = max(grace_elapsed, elapsed)
             existing.cancel()
         self._handlers[channel_id] = handler
-        self._create_task(handler.execute(entities, params or {}))
+        self._create_task(
+            handler.execute(entities, params or {}, grace_elapsed=grace_elapsed)
+        )
 
     def reapply_deviating_slot(self, channel_id: str, slot_id: str) -> None:
         """Re-apply only the deviating entities of a slot scene, or fallback to full apply."""
@@ -537,7 +624,9 @@ class Coordinator:
         else:
             self.apply_channel_slot(channel_id, slot_id, direct=True)
 
-    def turn_off_channel(self, channel_id: str, transition_off: int | None = None) -> None:
+    def turn_off_channel(
+        self, channel_id: str, transition_off: int | None = None
+    ) -> None:
         """Turn off a single channel's active-slot entities via TurnOffCallHandler."""
         entities = list(
             channel_entities(
@@ -547,7 +636,9 @@ class Coordinator:
             )
         )
         if entities:
-            handler = TurnOffCallHandler(self.engine, channel_id, transition_off=transition_off)
+            handler = TurnOffCallHandler(
+                self.engine, channel_id, transition_off=transition_off
+            )
             self.swap_channel_handler(channel_id, handler, entities)
 
     def apply_channel_slot(
@@ -603,7 +694,9 @@ class Coordinator:
         raw["type"] = default_type
         return ActionConfig.from_dict(raw)
 
-    def _apply_action(self, action: dict[str, Any] | ActionConfig, name: str | None = None) -> None:
+    def _apply_action(
+        self, action: dict[str, Any] | ActionConfig, name: str | None = None
+    ) -> None:
         """Apply the configured start action for the activity via ActionHandlers."""
         action = self._coerce_action(action, DEFAULT_ACTION_TYPE)
 
@@ -623,10 +716,14 @@ class Coordinator:
         self._active_handler = handler
         transition_off = self._get_activity_transition_off_seconds(name)
         self._create_task(
-            self._active_handler.start(action, self.run_state.active_slots, transition_off=transition_off)
+            self._active_handler.start(
+                action, self.run_state.active_slots, transition_off=transition_off
+            )
         )
 
-    def _apply_release_action(self, release: dict[str, Any] | ActionConfig, name: str | None = None) -> None:
+    def _apply_release_action(
+        self, release: dict[str, Any] | ActionConfig, name: str | None = None
+    ) -> None:
         """Apply the configured release action for the activity via ActionHandlers."""
         release = self._coerce_action(release, DEFAULT_RELEASE_ACTION_TYPE)
 

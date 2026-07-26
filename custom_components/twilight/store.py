@@ -45,7 +45,15 @@ AREA_DEFAULTS: dict[str, Any] = {
     "lux_ignore_scope": None,
 }
 AREA_STRUCTURED_KEYS = frozenset(
-    {"channels", "inputs", "activities", "sensors", "_state"}
+    {
+        "channels",
+        "inputs",
+        "activities",
+        "sensors",
+        "rules",
+        "heatmap_profiles",
+        "_state",
+    }
 )
 
 # Global config keys, mapped to their const.py default. Single source of
@@ -188,7 +196,11 @@ def _normalize_custom_channels(channels: dict[str, Any]) -> bool:
 
             # Assign stable custom_ ID if missing or draft_ ID (§5.2)
             slot_id = slot.get("id")
-            if not slot_id or not isinstance(slot_id, str) or slot_id.startswith("draft_"):
+            if (
+                not slot_id
+                or not isinstance(slot_id, str)
+                or slot_id.startswith("draft_")
+            ):
                 candidate = f"custom_{secrets.token_hex(4)}"
                 while candidate in existing_slot_ids:
                     candidate = f"custom_{secrets.token_hex(4)}"
@@ -268,6 +280,14 @@ def _normalize_input(inp: dict[str, Any], existing_ids: set[str]) -> bool:
         inp["entity_ids"] = []
         modified = True
 
+    # Backfill activity and rule keys
+    if "activity" not in inp:
+        inp["activity"] = None
+        modified = True
+    if "rule" not in inp:
+        inp["rule"] = None
+        modified = True
+
     # Normalization of re-trigger (motion) / aggregation (binary) options
     inp_type = inp.get("type")
     if inp_type == "motion":
@@ -320,9 +340,21 @@ def _normalize_input(inp: dict[str, Any], existing_ids: set[str]) -> bool:
     return modified
 
 
-def _normalize_activity(act: dict[str, Any]) -> bool:
-    """Normalize a single activity dict (auto_expire, suppress_inputs, action/release_action)."""
+def _normalize_activity(act: dict[str, Any], existing_ids: set[str]) -> bool:
+    """Normalize a single activity dict (id, name, auto_expire, suppress_inputs, action/release_action)."""
     modified = False
+
+    if "id" not in act or not act["id"]:
+        candidate = f"activity_{secrets.token_hex(4)}"
+        while candidate in existing_ids:
+            candidate = f"activity_{secrets.token_hex(4)}"
+        existing_ids.add(candidate)
+        act["id"] = candidate
+        modified = True
+
+    if "name" not in act or not act["name"]:
+        act["name"] = act.get("id", "").capitalize() if act.get("id") else None
+        modified = True
 
     if "auto_expire" not in act:
         act["auto_expire"] = None
@@ -395,11 +427,48 @@ def _normalize_sensor(sensor: dict[str, Any], existing_ids: set[str]) -> bool:
     return modified
 
 
+def _normalize_rule(rule: dict[str, Any], existing_ids: set[str]) -> bool:
+    """Normalize a single rule dict (id, name, enabled, applied_activities, slot_overrides).
+
+    Trigger inputs are configured on the input side (InputConfig.rule), not here —
+    a rule never lists its own trigger inputs.
+    """
+    modified = False
+
+    if "id" not in rule or not rule["id"]:
+        candidate = f"rule_{secrets.token_hex(4)}"
+        while candidate in existing_ids:
+            candidate = f"rule_{secrets.token_hex(4)}"
+        existing_ids.add(candidate)
+        rule["id"] = candidate
+        modified = True
+
+    if "name" not in rule:
+        rule["name"] = ""
+        modified = True
+
+    if "enabled" not in rule:
+        rule["enabled"] = True
+        modified = True
+
+    if "applied_activities" not in rule or not isinstance(
+        rule["applied_activities"], list
+    ):
+        rule["applied_activities"] = []
+        modified = True
+
+    if "slot_overrides" not in rule or not isinstance(rule["slot_overrides"], dict):
+        rule["slot_overrides"] = {}
+        modified = True
+
+    return modified
+
+
 def _normalize_config_lists(config: dict[str, Any]) -> bool:
-    """Normalize the inputs/activities/sensors lists of an area or area_template.
+    """Normalize the inputs/activities/sensors/rules lists of an area or area_template.
 
     Shared by _normalize_area_config and the area_template normalization so both
-    backfill the same input/activity/sensor defaults (retrigger, trigger_time,
+    backfill the same input/activity/sensor/rule defaults (retrigger, trigger_time,
     expire_check_mode, stable ids, …).
     """
     modified = False
@@ -428,10 +497,15 @@ def _normalize_config_lists(config: dict[str, Any]) -> bool:
         config["activities"] = activities
         modified = True
 
+    existing_activity_ids: set[str] = {
+        act["id"]
+        for act in activities
+        if isinstance(act, dict) and isinstance(act.get("id"), str) and act["id"]
+    }
     for act in activities:
         if not isinstance(act, dict):
             continue
-        modified = _normalize_activity(act) or modified
+        modified = _normalize_activity(act, existing_activity_ids) or modified
 
     # 3. Normalize sensors
     sensors = config.get("sensors", [])
@@ -450,6 +524,23 @@ def _normalize_config_lists(config: dict[str, Any]) -> bool:
             continue
         modified = _normalize_sensor(s, existing_sensor_ids) or modified
 
+    # 4. Normalize rules
+    rules = config.get("rules", [])
+    if not isinstance(rules, list):
+        rules = []
+        config["rules"] = rules
+        modified = True
+
+    existing_rule_ids: set[str] = {
+        r["id"]
+        for r in rules
+        if isinstance(r, dict) and isinstance(r.get("id"), str) and r["id"]
+    }
+    for r in rules:
+        if not isinstance(r, dict):
+            continue
+        modified = _normalize_rule(r, existing_rule_ids) or modified
+
     return modified
 
 
@@ -458,6 +549,10 @@ def _normalize_area_config(config: dict[str, Any]) -> bool:
     modified = _prune_and_default(config, AREA_DEFAULTS, keep=AREA_STRUCTURED_KEYS)
     modified = _normalize_channels(config) or modified
     modified = _normalize_config_lists(config) or modified
+    profiles = config.get("heatmap_profiles")
+    if not isinstance(profiles, list):
+        config["heatmap_profiles"] = []
+        modified = True
     return modified
 
 
@@ -517,7 +612,14 @@ class TwilightStore:
             if isinstance(custom_ch, dict) and _normalize_custom_channels(custom_ch):
                 updated = True
 
-        # Normalize the area_template's inputs/activities/sensors with the same
+            rules = area_template.get("rules")
+            if not isinstance(rules, list) or not rules:
+                area_template["rules"] = copy.deepcopy(
+                    DEFAULT_AREA_TEMPLATE.get("rules", [])
+                )
+                updated = True
+
+        # Normalize the area_template's inputs/activities/sensors/rules with the same
         # backfill as real areas, so new areas seeded from it are complete.
         if isinstance(area_template, dict) and _normalize_config_lists(area_template):
             updated = True
@@ -642,6 +744,9 @@ class TwilightStore:
             "sensors": copy.deepcopy(
                 stored_tpl.get("sensors", DEFAULT_AREA_TEMPLATE.get("sensors", []))
             ),
+            "rules": copy.deepcopy(
+                stored_tpl.get("rules", DEFAULT_AREA_TEMPLATE.get("rules", []))
+            ),
         }
 
     # --- Global Defaults ---
@@ -650,8 +755,15 @@ class TwilightStore:
         return dict(self.data["global"])
 
     async def async_save_global(self, config: dict[str, Any]) -> None:
+        # Deep-copy so the store never aliases the caller's dict: the WS handler
+        # passes msg["config"] straight in (and echoes it back via send_result),
+        # and _normalize_custom_channels() mutates in place — without the copy
+        # that mutation would leak into the caller's payload and vice versa.
+        config = copy.deepcopy(config)
         area_template = config.get("area_template")
-        if isinstance(area_template, dict) and isinstance(area_template.get("custom_channels"), dict):
+        if isinstance(area_template, dict) and isinstance(
+            area_template.get("custom_channels"), dict
+        ):
             _normalize_custom_channels(area_template["custom_channels"])
         self.data["global"] = config
         await self.store.async_save(self.data)
@@ -715,4 +827,3 @@ class TwilightStore:
 
         self.data["global"] = new_global
         await self.store.async_save(self.data)
-

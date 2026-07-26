@@ -20,7 +20,7 @@
         },
         "input_id": {
           "name": "Input ID",
-          "description": "The ID of the button input to trigger."
+          "description": "The ID or name of the button input to trigger."
         },
         "active": {
           "name": "Active State",

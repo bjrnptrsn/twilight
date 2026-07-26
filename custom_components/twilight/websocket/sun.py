@@ -113,7 +113,10 @@ def _ws_sun_day() -> websocket_api.WebSocketCommandHandler:
                             "azimuth": round(az_val, 2),
                         }
                     )
-                except Exception:
+                except ValueError:
+                    # astral raises ValueError for undefined sun positions (e.g.
+                    # polar day/night); skip that minute. Narrowed from a bare
+                    # `except Exception` so real errors (TypeError, …) surface.
                     pass
 
             civil = _sun_safe(location, target_date, Depression.CIVIL)
@@ -152,7 +155,10 @@ def _ws_sun_day() -> websocket_api.WebSocketCommandHandler:
                     az_val = azimuth(location.observer, local_dt)
                     az_rounded = round(az_val, 2)
                     cardinal = _get_cardinal(az_rounded)
-                except Exception:
+                except ValueError:
+                    # astral raises ValueError for undefined sun positions;
+                    # fall back to due north. Narrowed from a bare
+                    # `except Exception` so real errors surface.
                     az_rounded = 0.0
                     cardinal = "N"
                 return {

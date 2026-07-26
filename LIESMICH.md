@@ -47,6 +47,7 @@
   - [Activities](#activities)
     - [Actions & Release Actions](#actions--release-actions)
   - [Manuelle Auslöser (Button-Inputs)](#manuelle-auslöser-button-inputs)
+  - [Rules](#rules)
 - [Frontend-Tabs](#frontend-tabs)
   - [Areas](#areas-tab)
   - [Timeline](#timeline-tab)
@@ -170,12 +171,16 @@ hat eine eigene Scene-/Script-Zuweisung.
 | **Primary** | 10 fixe astronomische Zonen | Haupt-Innenbeleuchtung — folgt der Sonne |
 | **Custom** (bis zu 3) | Frei definierbar — Sonnenereignis oder feste Zeit + Offset | Außenlicht, Akzentbeleuchtung, separate Zeitpläne |
 
+Jeder Channel hat außerdem eine eigene **Slot-Übergangsdauer**
+(Standard 60 s) — die Überblendzeit beim Wechsel von einem Slot zum
+nächsten.
+
 ### Scenes
 
 Twilight unterstützt verschiedene Scene-Quellen, zugewiesen pro Slot:
 
 - **Normale Scenes** — Standard-Home-Assistant-Scenes, erstellt über die HA-UI oder `configuration.yaml`
-- **Hue-Scenes** — Hue Smart Scenes von deiner Hue Bridge (benötigt die [Hue-Integration](https://www.home-assistant.io/integrations/hue/))
+- **Hue-Scenes** — Hue-Scenes von deiner Hue Bridge (benötigt die [Hue-Integration](https://www.home-assistant.io/integrations/hue/))
 - **Scripts** — jedes Home-Assistant-Script, das Lichter steuern kann
 
 ---
@@ -208,9 +213,9 @@ referenziert werden kann.
 | **Timer** | Eine tägliche feste Uhrzeit (`HH:MM:SS`) | Keine Entity nötig — nützlich für einen nächtlichen Reset |
 | **Button** | Manuell über das Areas-Panel oder den Service `twilight.trigger_input` | `click`-Modus feuert einmal; `toggle`-Modus sendet beim zweiten Aufruf zusätzlich ein Release — siehe [Manuelle Auslöser](#manuelle-auslöser-button-inputs) |
 
-Jeder Input ist genau einer **Activity** zugeordnet. Mehrere Inputs desselben
-Typs sind pro Area erlaubt (z. B. zwei unabhängige Motion-Inputs mit
-unterschiedlichen Lux-Schwellwerten für unterschiedliche Activities).
+Jeder Input zielt entweder auf eine **Activity** oder eine **Rule** (über
+„Target Type”). Binary- und Toggle-Button-Inputs können frei wählen; Motion-,
+Event-, Timer- und Click-Button-Inputs zielen immer auf eine Activity.
 
 ### Activities
 
@@ -222,7 +227,7 @@ verdrängt sofort, was zuvor aktiv war.
 |---|---|
 | `suppress_inputs` | Liste von Input-`id`s, die ignoriert werden, solange diese Activity aktiv ist (z. B. eine `sleep`-Activity, die den `motion`-Input unterdrückt) |
 | `auto_expire` | `HH:MM:SS`, nach der die Activity automatisch endet; `00:00:00`/leer = endet nur durch ein explizites Release |
-| `expire_check_mode` | Was genau beim Ablauf des Timers passiert: `disabled` (endet immer), `respect_lux` (verlängert den Timer, wenn ein Motion-Input noch aktiv ist *und* sein Lux-Check besteht), `ignore_lux` (verlängert unabhängig vom Lux-Wert) |
+| `expire_check_mode` | Was genau beim Ablauf des Timers passiert: `disabled` (endet immer), `respect_lux` (verlängert den Timer, wenn ein Motion-Input noch aktiv ist *und* sein Lux-Check besteht), `ignore_lux` (verlängert bei aktivem Motion-Input unabhängig vom Lux-Wert). Ein noch aktiver Binary-Input verlängert in jedem Modus, da Binary-Inputs kein Lux-Gate haben. |
 
 #### Actions & Release Actions
 
@@ -236,20 +241,46 @@ Was beim Start (`action`) und beim Ende (`release_action`) tatsächlich mit den 
 | `none` | Tut nichts mit den Lichtern | Action / Release |
 | `turn_off` | Schaltet alle Slot-Entities dieser Activity aus | Release (Standard) |
 | `reset` | Sendet einen festen Befehl (`on`/`off`/`toggle`/`activate`) an von dir gewählte `input_boolean`-, `switch`- oder `script`-Entities — zum Ansteuern von etwas anderem als Lichtern, z. B. das Zurücksetzen eines Helpers | Action (keine Release-Phase) |
-| `simulation` | Führt eine Anwesenheitssimulation aus | Action |
+| `simulation` | Simuliert Anwesenheit, indem das Lichtverhalten einer ausgewählten Activity basierend auf historischen oder gespeicherten Bewegungsdichten abgespielt wird | Action |
 
 Ist keine `action` konfiguriert, spielt eine Activity standardmäßig beim
 Start die aktuelle Slot-Scene ab und schaltet beim Release alle ihre Lichter
 aus.
 
-Zwei Activities sind bei jeder neuen Area vorkonfiguriert:
+#### Anwesenheitssimulation (Presence Simulation)
 
-- **`presence`** — ausgelöst durch einen `motion`-Input, `auto_expire: 00:01:45`, `expire_check_mode: respect_lux`
-- **`sleep`** *(oder ähnlich, abhängig vom Binary-Input in deinem Template)* — ausgelöst durch einen `binary`-Input, unterdrückt `motion` solange sie aktiv ist
+Wenn du möchtest, dass dein Zuhause bewohnt aussieht, auch wenn du weg bist,
+kannst du die Anwesenheitssimulation nutzen. Sie lässt das Licht so leuchten,
+als wärst du zu Hause, indem sie dein normales Lichtverhalten aus anderen
+Zeiten nachahmt.
 
-Füge eigene für alles andere hinzu — eine `manual`-Activity von einem
-Lichtschalter, die Motion unterdrückt, einen `guest`-Modus, einen nächtlichen
-`reset` und so weiter.
+- **So funktioniert es**: Du wählst eine deiner vorhandenen Activities aus
+  (z. B. deine Standard-`motion`-Activity). Twilight merkt sich, wann die
+  Lichter normalerweise angehen würden, und spielt dieses Verhalten basierend
+  auf deinen täglichen Gewohnheiten ab.
+- **Datenquelle**: Twilight schaut sich an, wie du in den letzten Wochen
+  normalerweise das Licht genutzt hast. Alternativ kannst du auch eines
+  von bis zu 5 gespeicherten Profilen verwenden.
+- **Wann soll das Licht angehen?**: Du kannst festlegen, ob die Simulation
+  immer aktiv sein soll, nur wenn es draußen dunkel ist, oder nur während
+  bestimmter astronomischer Phasen (wie Dämmerung und Nacht).
+- **Flexibilität**: Du kannst jede Activity als Basis nutzen, die deine
+  Lichter steuert. Twilight sorgt dann dafür, dass es im Haus natürlich
+  „lebendig“ wirkt, anstatt starre Zeiten abzuarbeiten.
+
+#### Standard-Activities
+
+Vier Activities sind bei jeder neuen Area vorkonfiguriert (aus dem
+Standard-[Area-Template](#settings--area-template)):
+
+- **`motion`** — ausgelöst durch den `motion`-Input, `auto_expire: 00:05:00`, `expire_check_mode: respect_lux`
+- **`manual`** — ausgelöst durch einen manuellen Override-Input, unterdrückt `motion` solange sie aktiv ist, `auto_expire: 00:00:00` (nur explizites Release)
+- **`sleep`** — ausgelöst durch den `binary`-Input, unterdrückt `motion` solange sie aktiv ist, `auto_expire: 03:00:00` (nächtliches Sicherheitsnetz)
+- **`reset`** — ausgelöst durch einen Button-Input, führt eine `reset`-Action aus (keine Lichtsteuerung)
+
+Bearbeite oder ersetze sie über das Area-Template, und füge eigene für alles
+andere hinzu — einen `guest`-Modus, weitere Motion-Inputs mit
+unterschiedlichen Lux-Schwellwerten und so weiter.
 
 ### Manuelle Auslöser (Button-Inputs)
 
@@ -267,6 +298,29 @@ Nützlich, wenn du ihn von einer physischen Dashboard-Kachel, einem
 Sprachassistenten oder einer anderen Automation aus auslösen willst, ohne den
 Service-Call zu nutzen.
 
+### Rules
+
+**Rules** sind eine temporäre, parallele Override-Ebene: Solange ein
+Auslöser-Input (ein Schalter oder Toggle-Button) aktiv ist, verändern aktive
+Rules das Verhalten der aktuell laufenden Activity oder Konfiguration — sie
+steuern aber nie von sich aus Lichter. Anders als Activities (immer nur eine
+gleichzeitig aktiv) können beliebig viele Rules parallel aktiv sein.
+
+Aktuell gibt es einen Rule-Typ:
+
+| Rule-Typ | Überschreibt | Auslöser & Bedingung |
+|---|---|---|
+| **Activity Rule** | Die Slot-Ausschlüsse (`excluded_slot_ids`) einer Ziel-Activity | Ausgelöst durch Binary- oder Toggle-Button-Input; wirkt nur, wenn die Ziel-Activity aktiv ist |
+
+Eine **Activity Rule** wirkt auf genau eine Activity. Solange sie aktiv ist,
+überschreiben ihre Slot-Ausschlüsse die der Activity für die angegebenen
+Channels. Sind mehrere Rules für dieselbe Activity aktiv, gilt „Exclude
+gewinnt” — ein Slot ist ausgeschlossen, wenn ihn eine aktive Rule
+ausschließt.
+
+Rules werden über die **Rules**-Karte in der Detailansicht einer Area oder im
+[Area-Template](#settings--area-template) konfiguriert.
+
 ---
 
 ## Frontend-Tabs
@@ -278,9 +332,10 @@ Ersteinrichtung ist kein YAML-Editing mehr nötig.
 
 Übersichtskarten (mit Sparkline-Tagesverlauf und Live-Statistiken pro Area)
 plus eine Detailansicht pro Area für die gesamte oben beschriebene
-Konfiguration: Channels, Sensoren, Inputs, Activities sowie eine
-Live-Status-Karte, die die aktuell aktive Activity und ihren Auslöser zeigt.
-Neue Areas bleiben ein lokaler, ungespeicherter Entwurf, bis du auf **Save**
+Konfiguration: Channels, Sensoren, Inputs, Activities, eine Activity-Heatmap-Karte
+(Visualisierung von Wochentagsmustern aus Live-Recorder-Daten oder bis zu **5 gespeicherten
+Heatmap-Profilen**) sowie eine Live-Status-Karte, die die aktuell aktive Activity und ihren
+Auslöser zeigt. Neue Areas bleiben ein lokaler, ungespeicherter Entwurf, bis du auf **Save**
 klickst.
 
 <p align="center">
@@ -305,21 +360,15 @@ damit du Lichtänderungen mit tatsächlicher Sensoraktivität abgleichen kannst.
 
 ### Settings & Area-Template
 
-Zwei Arten von Einstellungen:
-
-- **Globale Einstellungen** — aktuell nur die **Slot-Übergangsdauer**
-  (Standard 60 s, die Überblendzeit beim Wechsel von einem astronomischen
-  Slot zum nächsten). Gilt für jede Area, sofern nicht pro Input/Activity
-  über deren eigenen `const.py`-Default überschrieben.
-- **Area-Template** — die Vorlage, mit der jede *neue* Area vorbefüllt wird:
-  ihre Standard-Inputs (Motion, manueller Override, Reset, ein
-  Binary-Sleep-Trigger, ein manueller Auslöse-Button), Standard-Activities
-  (`presence`, eine unterdrückende Override-Activity, `reset`) sowie
-  Standard-Custom-Channels. Einmal in den **Settings** bearbeitet, startet
-  jede danach angelegte Area vorverkabelt statt leer — bestehende Areas
-  bleiben unberührt. Ein granularer **Reset to System Defaults**-Dialog
-  erlaubt es, einzelne Inputs/Activities/Channels wiederherzustellen, ohne
-  das ganze Template zurückzusetzen.
+Die **Area-Template**-Einstellung ist die Vorlage, mit der jede *neue* Area
+vorbefüllt wird: ihre Standard-Inputs (Motion, manueller Override, Reset, ein
+Binary-Sleep-Trigger, ein manueller Auslöse-Button), Standard-Activities
+(`motion`, `manual`, `sleep`, `reset`), Standard-[Rules](#rules) sowie
+Standard-Custom-Channels. Einmal in den **Settings** bearbeitet, startet jede danach
+angelegte Area vorverkabelt statt leer — bestehende Areas bleiben unberührt. Ein
+granularer **Reset to System Defaults**-Dialog erlaubt es, einzelne
+Inputs/Activities/Rules/Channels wiederherzustellen, ohne das ganze Template
+zurückzusetzen.
 
 <p align="center">
   <img src="assets/Settings.png" alt="Twilight Settings Tab" width="100%">
@@ -358,7 +407,7 @@ gibt ihn frei — ganz ohne echte HA-Entity dafür.
 | Feld | Erforderlich | Beschreibung |
 |-------|----------|--------------|
 | `area_id` | Ja | Die Home-Assistant-Area, die den Input enthält |
-| `input_id` | Ja | Die `id` des Button-Inputs (sichtbar in der Inputs-Liste) |
+| `input_id` | Ja | Die `id` oder der Name des Button-Inputs (sichtbar in der Inputs-Liste) |
 | `active` | Nein | Für Buttons im `toggle`-Modus: `true`/`false`, um den Zustand explizit zu setzen |
 
 ```yaml

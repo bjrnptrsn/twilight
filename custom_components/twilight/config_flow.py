@@ -1,11 +1,11 @@
 """Minimal config flow for Twilight — not user-facing configuration.
 
 Twilight is configured entirely via `twilight:` in configuration.yaml plus the
-sidebar panel (see AGENTS.md — no Config Flow for actual settings). This flow
-exists solely to anchor a single, silently self-created config entry that the
-HA device registry requires to group button/switch entities per area into a
-device (see docs/architecture/ha_entities.md). `single_config_entry: true` in
-manifest.json makes HA reject any second attempt automatically.
+sidebar panel — no Config Flow for actual settings. This flow exists solely to
+anchor a single, silently self-created config entry that the HA device registry
+requires to group button/switch entities per area into a device.
+`single_config_entry: true` in manifest.json makes HA reject any second attempt
+automatically.
 """
 
 from __future__ import annotations

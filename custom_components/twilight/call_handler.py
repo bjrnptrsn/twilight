@@ -18,7 +18,7 @@ from homeassistant.helpers.event import async_call_later, async_track_state_chan
 from homeassistant.util.color import color_temperature_mired_to_kelvin
 
 from .config_model import ActionConfig, LightActionConfig
-from .const import CONTEXT_PREFIX
+from .const import CONTEXT_PREFIX, DEFAULT_RETRY_DELAYS, ECHO_SETTLE_WINDOW_SECONDS
 from .deviation import check_entity_deviation, deviating_attrs
 from .helpers import (
     create_tracked_task,
@@ -146,9 +146,25 @@ class BaseCallHandler(ABC):
         self._reached_target_entities: set[str] = set()
         self._target_states: dict[str, dict[str, Any]] = {}
         self._retry_active: bool = False
+        self._last_call_at: datetime | None = None
         self._color_modes_cache: dict[str, set[str]] = {}
         self._reaction_mode: bool = False
         self._reacted_entities: set[str] = set()
+
+    @property
+    def elapsed_since_last_call(self) -> float | None:
+        """Seconds since the last service call was sent, or None if none was sent yet."""
+        if self._last_call_at is None:
+            return None
+        return (datetime.now(UTC) - self._last_call_at).total_seconds()
+
+    @property
+    def is_busy(self) -> bool:
+        """True if the handler is actively retrying or sent a call within the settle window."""
+        if self._retry_active:
+            return True
+        elapsed = self.elapsed_since_last_call
+        return elapsed is not None and elapsed < ECHO_SETTLE_WINDOW_SECONDS
 
     def _make_context_id(self, suffix: str) -> str:
         """Build a Twilight context ID for service calls."""
@@ -251,7 +267,7 @@ class BaseCallHandler(ABC):
 
     def _retry_delays(self) -> list[float]:
         """Return delays in seconds between retry attempts."""
-        return [1.0, 1.5, 3.0, 5.0, 8.0]
+        return list(DEFAULT_RETRY_DELAYS)
 
     def _update_reaction_mode(self) -> None:  # noqa: B027 -- optional hook, no-op by default
         """Hook: subclasses may switch reaction mode off based on timing."""
@@ -270,9 +286,11 @@ class BaseCallHandler(ABC):
     ) -> list[CallSpec]:
         """Build the list of service calls to execute."""
 
-
     async def execute(
-        self, entities: list[str], params: dict[str, Any] | ActionConfig | None = None
+        self,
+        entities: list[str],
+        params: dict[str, Any] | ActionConfig | None = None,
+        grace_elapsed: float = 0.0,
     ) -> None:
         """Execute the service calls and schedule retries if enabled."""
         self.cancel()
@@ -317,9 +335,11 @@ class BaseCallHandler(ABC):
                     err,
                 )
 
+        self._last_call_at = datetime.now(UTC)
+
         if self._should_retry():
             self._retry_active = True
-            self._schedule_retries(filtered, params)
+            self._schedule_retries(filtered, params, grace_elapsed=grace_elapsed)
 
     def _setup_deviation_watcher(  # noqa: B027 -- optional hook, no-op by default
         self, entities: list[str]
@@ -327,10 +347,16 @@ class BaseCallHandler(ABC):
         """Hook for subclasses to start deviation watcher on execution."""
 
     def _schedule_retries(
-        self, entities: list[str], params: dict[str, Any] | ActionConfig | None
+        self,
+        entities: list[str],
+        params: dict[str, Any] | ActionConfig | None,
+        grace_elapsed: float = 0.0,
     ) -> None:
         """Schedule retry attempts using the unified loop."""
         delays = self._retry_delays()
+        if delays and grace_elapsed > 0:
+            first_delay = max(0.1, delays[0] - grace_elapsed)
+            delays = [first_delay, *delays[1:]]
         for attempt, delay in enumerate(delays, start=1):
             self._start_timer(
                 delay,
@@ -396,7 +422,9 @@ class BaseCallHandler(ABC):
             expected = self._target_states.get(entity_id)
             if not expected:
                 continue
-            self._send_retry_call(entity_id, expected, attempt, retry_trans, retry_style)
+            self._send_retry_call(
+                entity_id, expected, attempt, retry_trans, retry_style
+            )
 
     # ── Deviation Watcher ──
 
@@ -433,6 +461,10 @@ class BaseCallHandler(ABC):
             if self._reaction_mode:
                 self._reacted_entities.add(entity_id)
             else:
+                # On deviation we only LOG, never re-drive the entity: once the
+                # retry loop has reached target and stopped, a later external
+                # change (e.g. the user turns the lamp off by hand) is honoured,
+                # not fought. Re-application happens on the next real trigger.
                 deviates = check_entity_deviation(new_state, expected)
                 if not deviates:
                     self._reached_target_entities.add(entity_id)
@@ -495,7 +527,9 @@ class _SceneCallHandler(BaseCallHandler):
             if not expected:
                 continue
             if entity_id in switch_ids:
-                service = "turn_off" if expected.get("state") == STATE_OFF else "turn_on"
+                service = (
+                    "turn_off" if expected.get("state") == STATE_OFF else "turn_on"
+                )
                 calls.append(CallSpec("switch", service, {"entity_id": entity_id}))
                 continue
             sdata = build_light_service_data(
@@ -608,11 +642,7 @@ class SlotTransitionCallHandler(_SceneCallHandler):
         lead = self._transition_on_seconds() or 0
         if lead <= 0:
             return [0.5, 1.0, 2.0, 4.0, 8.0]
-        return [
-            min(5.0, float(lead) / 3.0),
-            float(lead) / 2.0,
-            float(lead) + 2.0
-        ]
+        return [min(5.0, float(lead) / 3.0), float(lead) / 2.0, float(lead) + 2.0]
 
     def _filter_entities(self, entities: list[str]) -> list[str]:
         """Filter to entities currently 'on' and not 'unavailable'.
@@ -755,20 +785,3 @@ class TurnOffCallHandler(BaseCallHandler):
             calls.append(CallSpec("homeassistant", "turn_off", {"entity_id": others}))
 
         return calls
-
-
-class SimulationCallHandler(BaseCallHandler):
-    """Call handler representing presence simulation.
-
-    Intentional stub reserved for a future presence-simulation feature (light
-    program driven by the activity heatmap) — not dead code. See "Offene
-    Punkte / Stubs" in docs/agents/phases.md.
-    """
-
-    def _should_retry(self) -> bool:
-        return False
-
-    def _build_calls(
-        self, entities: list[str], params: dict[str, Any] | ActionConfig | None
-    ) -> list[CallSpec]:
-        return []

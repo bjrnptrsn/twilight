@@ -11,7 +11,6 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util import dt as dt_util
 
-from .activity_manager import HeatmapManager
 from .config_model import AreaConfig
 from .const import SIGNAL_STATE_CHANGED
 from .coordinator import Coordinator
@@ -97,7 +96,6 @@ class TwilightEngine:
         self.hue_manager = HueManager(self)
         self.scene_manager = SceneManager(self)
         self.twilight_manager = TwilightManager(self)
-        self.heatmap_manager = HeatmapManager(self)
         # Keyed by (channel_id, slot_id) — slot ids can collide across channels.
         self.scene_map: SceneMap = {}
 
@@ -120,7 +118,6 @@ class TwilightEngine:
         self._components: list[Any] = [
             self.scene_manager,
             self.twilight_manager,
-            self.heatmap_manager,
             self.lux_handler,
             self.event_handler,
             self.binary_handler,

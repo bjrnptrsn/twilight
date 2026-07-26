@@ -300,8 +300,7 @@ class HueManager:
             xy = getattr(color, "xy", None) if color else None
             if xy is not None:
                 x, y = getattr(xy, "x", 0.0), getattr(xy, "y", 0.0)
-                # Keep xy for deviation comparison (avoids RGB round-trip drift,
-                # see docs/architecture/backend_first.md §6c).
+                # Keep xy for deviation comparison (avoids RGB round-trip drift).
                 state["xy_color"] = [x, y]
                 # Use HA's own xy→RGB (brightness fixed at 255, like HA does for
                 # rgb_color) so our target RGB matches what HA reports for the

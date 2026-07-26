@@ -34,9 +34,7 @@ _GLOBAL_CONFIG_SCHEMA = vol.Schema(
 )
 
 
-async def _async_reload_all_engines(
-    hass: HomeAssistant, store: TwilightStore
-) -> None:
+async def _async_reload_all_engines(hass: HomeAssistant, store: TwilightStore) -> None:
     """Reload engines for all areas after a full store restore."""
     engines = hass.data[DOMAIN].setdefault("engines", {})
     previous_area_ids = set(engines.keys())
@@ -74,12 +72,8 @@ async def _async_reload_all_engines(
 
     for area_id in previous_area_ids - new_areas.keys():
         empty_config = AreaConfig.from_dict({"area_id": area_id})
-        await twilight_button.async_sync_button_entities(
-            hass, area_id, empty_config
-        )
-        await twilight_switch.async_sync_switch_entities(
-            hass, area_id, empty_config
-        )
+        await twilight_button.async_sync_button_entities(hass, area_id, empty_config)
+        await twilight_switch.async_sync_switch_entities(hass, area_id, empty_config)
 
     async_dispatcher_send(hass, SIGNAL_ENGINES_CHANGED)
 
@@ -205,7 +199,11 @@ def _ws_placeholder_defaults() -> websocket_api.WebSocketCommandHandler:
     ) -> None:
         defaults = dict(PLACEHOLDER_DEFAULTS)
         area_id = msg.get("area_id")
-        lat, lon, tz_str = hass.config.latitude, hass.config.longitude, hass.config.time_zone
+        lat, lon, tz_str = (
+            hass.config.latitude,
+            hass.config.longitude,
+            hass.config.time_zone,
+        )
         if area_id:
             store = hass.data[DOMAIN].get("store")
             if store:
@@ -227,4 +225,3 @@ def _ws_placeholder_defaults() -> websocket_api.WebSocketCommandHandler:
         connection.send_result(msg["id"], defaults)
 
     return handle
-

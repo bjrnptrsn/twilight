@@ -80,7 +80,13 @@ class TwilightManager:
         _LOGGER.debug("[%s] TwilightManager torn down", self.engine.area_id)
 
     def _get_location_params(self) -> tuple[float, float, str]:
-        """Get geographic coordinates and time zone of Home Assistant."""
+        """Get geographic coordinates and time zone of Home Assistant.
+
+        There is no per-area location override: AreaConfig has no lat/lon/tz and
+        the area/save schema does not accept them, so the engine (and the
+        area/slot_times preview) both resolve to hass.config. If a per-area
+        override is ever added, this method and the preview must change together.
+        """
         config = self.engine.hass.config
         return (config.latitude, config.longitude, str(config.time_zone))
 

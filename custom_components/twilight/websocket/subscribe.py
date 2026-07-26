@@ -21,7 +21,7 @@ from ..const import (
 )
 from ..deviation import build_light_states, deviated_entities_from_map
 from ..engine import TwilightEngine
-from ..helpers import channel_entities, is_slot_excluded
+from ..helpers import channel_entities, is_slot_excluded_effective
 from ..state import RunState
 
 _LOGGER = logging.getLogger(__name__)
@@ -203,7 +203,7 @@ def _build_state_dict(
 ) -> dict[str, Any]:
     """Build the JSON-serializable live-state push for the frontend.
 
-    Backend-first (see docs/architecture/backend_first.md §6b/§6c): the backend
+    Backend-first: the backend
     resolves each channel's active slot target, scene names, and the full
     per-attribute target/actual/deviates map (light_states), aggregated across
     all channels. The frontend does not compare values.
@@ -238,11 +238,14 @@ def _build_state_dict(
         expected.update(info.expected_states)
 
     # A channel whose current slot is excluded from the running slot activity
-    # action is actively turned off (see helpers.is_slot_excluded) — reflect
-    # that as the expected state instead of the slot's own scene, so the panel
+    # action (activity default or an active Rule override, see
+    # helpers.is_slot_excluded_effective) is actively turned off — reflect that
+    # as the expected state instead of the slot's own scene, so the panel
     # doesn't show a stale/active scene or flag a false deviation.
     for channel_id, slot_id in state.active_slots.items():
-        if not is_slot_excluded(engine.config, state, channel_id, slot_id):
+        if not is_slot_excluded_effective(
+            engine.config, state, engine.coordinator.rule_manager, channel_id, slot_id
+        ):
             continue
         for entity_id in channel_entities(engine.scene_map, channel_id):
             expected[entity_id] = {"state": STATE_OFF}
@@ -325,4 +328,5 @@ def _build_state_dict(
         "lights_on": lights_on,
         "lights_total": lights_total,
         "inputs": inputs_push,
+        "active_rules": dict(state.active_rules),
     }

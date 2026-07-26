@@ -14,12 +14,21 @@ from .const import (
     DEFAULT_BINARY_AGGREGATION,
     DEFAULT_MOTION_RETRIGGER,
     DOMAIN,
+    ActionType,
     AggregationMode,
     InputType,
 )
 
+# Action types a presence-simulation template activity may use: only those that
+# switch a light *on* (PRESENCE_SIMULATION_PLAN.md §5.6). none/turn_off/reset/
+# simulation are excluded (nothing to play back / recursion).
+SIM_TEMPLATE_ELIGIBLE_TYPES = frozenset(
+    {ActionType.SLOT, ActionType.ENTITY, ActionType.LIGHT}
+)
+
 if TYPE_CHECKING:
     from .config_model import AreaConfig
+    from .rule_manager import RuleManager
     from .state import RunState, SlotSceneInfo
 
 _LOGGER = logging.getLogger(__name__)
@@ -75,7 +84,7 @@ def create_tracked_task(
 
 # The scene_map is keyed by (channel_id, slot_id): slot ids are free in custom
 # channels and can collide across channels, so a flat slot_id key is not enough
-# (see docs/architecture/multi_channel.md §3, "scene_map must become channel-aware").
+# (scene_map must be channel-aware).
 SceneMap = dict[tuple[str, str], "SlotSceneInfo"]
 
 
@@ -191,7 +200,9 @@ async def dispatch_entity_target(
     misconfigured target must not crash the reset.
     """
     if not entity_id or "." not in entity_id or not action:
-        _LOGGER.warning("Invalid entity_target: entity_id=%s action=%s", entity_id, action)
+        _LOGGER.warning(
+            "Invalid entity_target: entity_id=%s action=%s", entity_id, action
+        )
         return
     domain = entity_id.split(".", 1)[0]
     service = _ENTITY_TARGET_SERVICES.get(domain, {}).get(action)
@@ -211,15 +222,26 @@ def dispatch_button_input(
 ) -> str | None:
     """Look up a button input and trigger/toggle it via its engine's button_handler.
 
-    Shared by the `twilight.trigger_input` service and the `twilight/trigger_input`
-    WS command, which must stay in sync on lookup/validation behavior.
-    Returns an error code ("not_found" / "invalid_format") on failure, else None.
+    `input_id` may be either the input's technical id or its configured name
+    (case-insensitive); id is tried first. Shared by the `twilight.trigger_input`
+    service and the `twilight/trigger_input` WS command, which must stay in sync
+    on lookup/validation behavior.
+    Returns an error code ("not_found" / "invalid_format" / "ambiguous") on
+    failure, else None.
     """
     engine = hass.data.get(DOMAIN, {}).get("engines", {}).get(area_id)
     if not engine:
         return "not_found"
 
     inp = engine.config.input_by_id(input_id)
+    if inp is None:
+        needle = input_id.casefold()
+        by_name = [
+            i for i in engine.config.inputs if (i.name or "").casefold() == needle
+        ]
+        if len(by_name) > 1:
+            return "ambiguous"
+        inp = by_name[0] if by_name else None
     if inp is None:
         return "not_found"
 
@@ -228,9 +250,9 @@ def dispatch_button_input(
 
     handler = engine.button_handler
     if (inp.button_mode or "click") == "toggle":
-        handler.toggle(input_id, active)
+        handler.toggle(inp.id, active)
     else:
-        handler.trigger(input_id)
+        handler.trigger(inp.id)
     return None
 
 
@@ -316,7 +338,9 @@ def resolve_retrigger(
     multi-entity aggregation.
     """
     return str(
-        get_config_value(hass, [inp, area_config], "retrigger", DEFAULT_MOTION_RETRIGGER)
+        get_config_value(
+            hass, [inp, area_config], "retrigger", DEFAULT_MOTION_RETRIGGER
+        )
     )
 
 
@@ -355,3 +379,50 @@ def is_slot_excluded(
     if not excluded_slot_ids:
         return False
     return slot_id in excluded_slot_ids.get(channel_id, ())
+
+
+def is_slot_excluded_effective(
+    config: AreaConfig,
+    state: RunState,
+    rule_manager: RuleManager,
+    channel_id: str,
+    slot_id: str,
+) -> bool:
+    """Whether a slot is excluded once active Rule overrides are applied.
+
+    Same activity-only check as `is_slot_excluded()`, but additionally consults
+    `rule_manager.get_effective_excluded_slots()` — the same merge
+    (activity default, replaced by the union of active matching rules) that
+    `action_handler.apply_slot_action_over_channels()` uses. Without this, a
+    Rule-excluded slot would only be turned off on the next
+    `reapply_active_activity_rules()` re-trigger instead of immediately on the
+    next natural slot change / anticipatory fade / live state push — see
+    `docs/architecture/rules.md` §5.
+    """
+    activity_id = state.active_activity
+    if not activity_id:
+        return is_slot_excluded(config, state, channel_id, slot_id)
+
+    activity = config.activity_by_id(activity_id)
+    action = activity.action if activity else None
+    default_excluded = getattr(action, "excluded_slot_ids", None) or {}
+
+    effective = rule_manager.get_effective_excluded_slots(activity_id, default_excluded)
+    return slot_id in effective.get(channel_id, ())
+
+
+def simulation_template_eligible(config: AreaConfig, template: str | None) -> bool:
+    """Whether an activity may serve as a presence-simulation template.
+
+    Eligible = it exists and its start action switches a light on
+    (slot/entity/light). A `None`-typed action defaults to `slot`, which is
+    eligible. See PRESENCE_SIMULATION_PLAN.md §5.6.
+    """
+    if not template:
+        return False
+    activity = config.activity_by_id(template)
+    if activity is None:
+        return False
+    action = activity.action
+    action_type = (action.type if action else None) or DEFAULT_ACTION_TYPE
+    return action_type in SIM_TEMPLATE_ELIGIBLE_TYPES

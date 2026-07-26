@@ -82,6 +82,24 @@ class LuxIgnoreScope(StrEnum):
     ALL_SLOTS = "all_slots"
 
 
+class SimulationMode(StrEnum):
+    """Umbrella modes for the `simulation` action. Only presence_heatmap in v1."""
+
+    PRESENCE_HEATMAP = "presence_heatmap"
+
+
+class SimLuxMode(StrEnum):
+    """When the presence simulation is allowed to switch lights on.
+
+    The lux gate normally lives in the motion input, which the simulation
+    skips — so the sim-handler evaluates one of these itself before an "on" step.
+    """
+
+    THRESHOLD = "threshold"  # only when current lux <= lux_threshold
+    DUSK_DAWN = "dusk_dawn"  # only when the primary slot is in TWILIGHT_SLOTS
+    ALWAYS = "always"  # no condition
+
+
 class AggregationMode(StrEnum):
     """How a binary input combines multiple entity states into one active flag."""
 
@@ -126,7 +144,7 @@ class StartType(StrEnum):
 # offset_minutes are configurable per slot.
 PRIMARY_CHANNEL_ID = "primary"
 # Maximum number of additional (custom) channels per area, on top of Primary
-# (see docs/architecture/multi_channel.md §4D — keeps the sun-path readable).
+# (keeps the sun-path readable).
 MAX_CUSTOM_CHANNELS = 3
 # Maximum slots per channel. Primary is fixed at 10; custom channels may not exceed it.
 MAX_SLOTS_PER_CHANNEL = 10
@@ -153,6 +171,16 @@ DEFAULT_TRANSITION_OFF_SECONDS = 0
 DEFAULT_LUX_AGGREGATION = "min"
 DEFAULT_MOTION_RETRIGGER = RetriggerMode.EVERY
 DEFAULT_BINARY_AGGREGATION = AggregationMode.ANY
+DEFAULT_RETRY_DELAYS = (1.0, 1.5, 3.0, 5.0, 8.0)
+ECHO_SETTLE_WINDOW_SECONDS = 1.0
+
+# Presence simulation defaults (PRESENCE_SIMULATION_PLAN.md)
+DEFAULT_SIMULATION_MODE = SimulationMode.PRESENCE_HEATMAP
+DEFAULT_SIM_LUX_MODE = SimLuxMode.DUSK_DAWN
+SIM_LOOP_TICK_S = 60.0  # fallback loop tick when the template has no auto_expire
+# (normally the tick is dynamic: 0.4 * auto_expire, see presence_simulation.md §3)
+SIM_DEFAULT_RESOLUTION = "15m"  # dynamic recorder window bucket size
+SIM_DEFAULT_RANGE = "1m"  # dynamic recorder window (30 days)
 DEFAULT_LUX_IGNORE_ACTIVE = False
 DEFAULT_LUX_IGNORE_SCOPE = LuxIgnoreScope.NONE
 # Placeholder values shown (greyed) in edit dialogs when a per-object field is
@@ -192,7 +220,7 @@ ALL_IGNORE_SLOTS = TWILIGHT_SLOTS | {"day"}
 SCENE_EXTRACTION_MAX_RETRIES = 6  # Try for 1 minute (6 attempts * 10 seconds)
 SCENE_EXTRACTION_RETRY_INTERVAL = 10.0  # seconds
 
-# Deviation comparison tolerances (see docs/architecture/backend_first.md §6c).
+# Deviation comparison tolerances.
 # Per-attribute, individually switchable for live A/B testing. 0 = EXACT
 # comparison for that attribute (deviates as soon as the values differ at all);
 # > 0 swallows differences up to that amount (e.g. Hue bridge rounding). The
@@ -273,6 +301,7 @@ DEFAULT_AREA_TEMPLATE = {
             "id": "motion",
             "type": "motion",
             "activity": "motion",
+            "rule": None,
             "enabled": True,
             "entity_ids": [],
             "lux_threshold": None,
@@ -285,6 +314,7 @@ DEFAULT_AREA_TEMPLATE = {
             "id": "manual",
             "type": "event",
             "activity": "manual",
+            "rule": None,
             "enabled": True,
             "entity_ids": [],
         },
@@ -292,6 +322,7 @@ DEFAULT_AREA_TEMPLATE = {
             "id": "reset",
             "type": "event",
             "activity": "reset",
+            "rule": None,
             "enabled": True,
             "entity_ids": [],
         },
@@ -299,6 +330,7 @@ DEFAULT_AREA_TEMPLATE = {
             "id": "binary",
             "type": "binary",
             "entity_ids": [],
+            "rule": None,
             "activity": "sleep",
             "aggregation": None,
             "aggregation_count": None,
@@ -307,6 +339,7 @@ DEFAULT_AREA_TEMPLATE = {
             "id": "clear",
             "type": "button",
             "activity": "reset",
+            "rule": None,
             "enabled": True,
             "button_mode": "click",
             "label": "Reset",
@@ -316,6 +349,7 @@ DEFAULT_AREA_TEMPLATE = {
     "activities": [
         {
             "id": "motion",
+            "name": "Motion",
             "suppress_inputs": [],
             "auto_expire": "00:05:00",
             "expire_check_mode": ExpireCheckMode.RESPECT_LUX,
@@ -325,6 +359,7 @@ DEFAULT_AREA_TEMPLATE = {
         },
         {
             "id": "manual",
+            "name": "Manual",
             "suppress_inputs": ["motion"],
             "auto_expire": "00:00:00",
             "expire_check_mode": None,
@@ -334,6 +369,7 @@ DEFAULT_AREA_TEMPLATE = {
         },
         {
             "id": "reset",
+            "name": "Reset",
             "suppress_inputs": [],
             "auto_expire": None,
             "expire_check_mode": None,
@@ -343,6 +379,7 @@ DEFAULT_AREA_TEMPLATE = {
         },
         {
             "id": "sleep",
+            "name": "Sleep",
             "suppress_inputs": ["motion"],
             "auto_expire": "03:00:00",
             "expire_check_mode": None,
@@ -431,4 +468,13 @@ DEFAULT_AREA_TEMPLATE = {
             ],
         },
     },
+    "rules": [
+        {
+            "id": "party",
+            "name": "Party",
+            "enabled": True,
+            "applied_activities": ["motion"],
+            "slot_overrides": {},
+        }
+    ],
 }

@@ -43,7 +43,9 @@ def compute_dynamic_min_slot_distance(
     try:
         min_gap = 9999.0
         start_date = _dt.date(year, 1, 1)
-        days_count = 366 if (year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)) else 365
+        days_count = (
+            366 if (year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)) else 365
+        )
         for day_idx in range(days_count):
             d = start_date + _dt.timedelta(days=day_idx)
             sun_data = compute_sun_day_data(lat, lon, tz_str, d)

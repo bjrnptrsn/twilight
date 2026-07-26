@@ -44,6 +44,13 @@ def _ws_trigger_input() -> websocket_api.WebSocketCommandHandler:
                 msg["id"], "invalid_format", f"Input '{input_id}' is not a button input"
             )
             return
+        if error == "ambiguous":
+            connection.send_error(
+                msg["id"],
+                "ambiguous",
+                f"Multiple inputs named '{input_id}' in area '{area_id}'",
+            )
+            return
 
         connection.send_result(msg["id"], {})
 

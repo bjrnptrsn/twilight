@@ -48,6 +48,9 @@ class RunState:
     inputs_disabled_by: dict[str, list[str]] = field(
         default_factory=dict
     )  # list of disablers per input ID
+    active_rules: dict[str, bool] = field(
+        default_factory=dict
+    )  # active status per rule ID
 
 
 @dataclass(frozen=True)
@@ -73,6 +76,23 @@ class ActivityProfile:
     motion_buckets: dict[str, list[float]] = field(default_factory=dict)
     light_buckets: dict[str, list[float]] = field(default_factory=dict)
     last_updated: float | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert the profile to a dictionary representation."""
+        return {
+            "motion_buckets": self.motion_buckets,
+            "light_buckets": self.light_buckets,
+            "last_updated": self.last_updated,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> ActivityProfile:
+        """Instantiate an ActivityProfile from a dictionary."""
+        return cls(
+            motion_buckets=data.get("motion_buckets", {}),
+            light_buckets=data.get("light_buckets", {}),
+            last_updated=data.get("last_updated"),
+        )
 
 
 class StateManager:

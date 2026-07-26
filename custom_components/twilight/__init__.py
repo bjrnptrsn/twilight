@@ -63,13 +63,11 @@ async def async_setup(hass: HomeAssistant, _config: dict[str, Any]) -> bool:
     twilight_switch.async_setup(hass)
 
     # Self-create the single, silent config entry that anchors per-area devices
-    # for those entities in the HA device registry (see docs/architecture/
-    # ha_entities.md — actual configuration still only happens via this
-    # async_setup()/the sidebar panel, never via the config entry itself).
-    # Must be fire-and-forget: finishing the flow re-enters
+    # for those entities in the HA device registry — actual configuration still
+    # only happens via this async_setup()/the sidebar panel, never via the config
+    # entry itself. Must be fire-and-forget: finishing the flow re-enters
     # async_setup_component("twilight"), which awaits this very setup's future —
-    # awaiting the flow here deadlocks the boot (see tests/init/
-    # test_boot_via_setup_component.py). _async_boot below awaits the task
+    # awaiting the flow here deadlocks the boot. _async_boot below awaits the task
     # instead, after async_setup has returned.
     if not hass.config_entries.async_entries(DOMAIN):
         hass.data[DOMAIN]["entry_flow_task"] = hass.async_create_task(
@@ -168,6 +166,8 @@ async def async_setup(hass: HomeAssistant, _config: dict[str, Any]) -> bool:
             )
         elif error == "invalid_format":
             _LOGGER.warning("Input '%s' is not a button input", input_id)
+        elif error == "ambiguous":
+            _LOGGER.warning("Multiple inputs named '%s' in area: %s", input_id, area_id)
 
     hass.services.async_register(
         DOMAIN,
