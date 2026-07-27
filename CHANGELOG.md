@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0 - 2026-07-27
+
+### ✨ Features
+
+*   **Timeline Area Offsets**: The Timeline tab now features an Area selector, displaying area-specific primary-channel slot offsets on both the day and year sun charts.
+
+### 🔧 Fixes
+
+*   **Input & Activity Editor**: Fixed an issue where entity pickers were hidden.
+
 ## 0.2.0 - 2026-07-26
 
 ### ✨ Features

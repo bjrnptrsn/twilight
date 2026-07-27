@@ -470,6 +470,9 @@ class LightStateInputHandler(BaseInputHandler):
         if not entity_id or not new_state:
             return
 
+        if new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
+            return
+
         if is_own_echo(event.context, self.engine.area_id):
             _LOGGER.debug(
                 "[%s] LightStateInputHandler: %s → %s (own echo)",
@@ -706,6 +709,11 @@ class MotionInputHandler(BaseInputHandler):
                 self.engine.coordinator.update_input_active(inp.id, inp_active)
                 matched = True
 
+            if not active and not inp_active and inp.id in self.lux_watches:
+                # No entity of this input is active anymore — stop polling for a
+                # lux drop rather than waiting out the full lux_watch_window.
+                self.lux_watches.pop(inp.id).stop()
+
             if active:
                 if inp.id and self._is_disabled(inp.id):
                     _LOGGER.debug(
@@ -750,7 +758,16 @@ class MotionInputHandler(BaseInputHandler):
 
     def _should_ignore_lux(self, input_config: MotionInputConfig) -> bool:
         """Return True if lux check should be skipped for the current engine state."""
-        if not self.engine.config.sensors_of_type(SensorType.ILLUMINANCE):
+        from .config_model import IlluminanceSensorConfig
+
+        illuminance_sensors = self.engine.config.sensors_of_type(SensorType.ILLUMINANCE)
+        if not any(
+            isinstance(s, IlluminanceSensorConfig) and s.entity_ids
+            for s in illuminance_sensors
+        ):
+            # No illuminance sensor configured (or configured with no entity_ids,
+            # as in the default area template) — never gate motion on a lux
+            # reading that can never be produced.
             return True
 
         lux_ignore_active = self._get_value(

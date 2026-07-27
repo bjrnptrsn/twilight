@@ -135,11 +135,27 @@ def resolve_slot_times(
                 }
             )
 
-    # Collision handling: fixed slots are immovable and claim their minute first;
-    # astral slots (processed in chronological order for determinism) then bump
-    # forward by 1 min past any already-occupied minute — fixed or astral alike —
-    # so a bump can never land on a minute freed or claimed by an earlier slot.
-    occupied = {round(s["start"]) for s in fixed_slots}
+    # Collision handling: two fixed slots configured for the same fixed_time are
+    # not immovable relative to each other — the earlier one claims the minute,
+    # later ones bump forward by 1 min. Astral slots (processed in chronological
+    # order) then bump forward past any already-occupied minute — fixed or
+    # astral alike — so a bump can never land on a minute freed or claimed by an
+    # earlier slot.
+    #
+    # Both lists are sorted by time first so the result depends only on the
+    # configured times, never on the order the slots happen to sit in the store
+    # (a drag&drop reorder in the UI must not shift resolved start times).
+    # sort() is stable, so equal times keep config order as a deterministic
+    # tiebreak.
+    occupied: set[int] = set()
+    fixed_slots.sort(key=lambda s: s["start"])
+    for f_slot in fixed_slots:
+        start = round(f_slot["start"])
+        while start in occupied:
+            start += 1
+        f_slot["start"] = float(start)
+        occupied.add(start)
+
     astral_slots.sort(key=lambda s: s["start"])
     for a_slot in astral_slots:
         start = round(a_slot["start"])

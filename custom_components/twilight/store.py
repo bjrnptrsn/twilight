@@ -659,8 +659,12 @@ class TwilightStore:
         return dict(state) if state is not None else None
 
     async def async_save_area(self, area_id: str, config: dict[str, Any]) -> str:
-        # Filter out incoming _state from config
-        cleaned_config = dict(config)
+        # Deep-copy so the store never aliases the caller's dict: the WS handler
+        # passes msg["channels"]/msg["inputs"]/... straight in, and
+        # _normalize_area_config() mutates nested structures in place — without
+        # the copy that mutation would leak into the caller's payload (same
+        # aliasing hazard as async_save_global(), see the comment there).
+        cleaned_config = copy.deepcopy(config)
         cleaned_config.pop("_state", None)
 
         # Populate with default template if new area is created

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import Any
 
@@ -30,17 +29,13 @@ from ..engine import TwilightEngine
 from ..helpers import (
     channel_entities,
     detect_channel_collisions,
+    get_area_lock,
     partition_by_domain,
     simulation_template_eligible,
 )
+from .sun import clear_timeline_slot_cache
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def _get_area_lock(hass: HomeAssistant, area_id: str) -> asyncio.Lock:
-    """Return the per-area asyncio.Lock, serializing save/delete for one area_id."""
-    locks: dict[str, asyncio.Lock] = hass.data[DOMAIN].setdefault("area_locks", {})
-    return locks.setdefault(area_id, asyncio.Lock())
 
 
 def _valid_hhmm(value: Any) -> str:
@@ -333,7 +328,7 @@ def _ws_area_save() -> websocket_api.WebSocketCommandHandler:
             "heatmap_profiles": msg.get("heatmap_profiles", []),
         }
 
-        async with _get_area_lock(hass, area_id):
+        async with get_area_lock(hass, area_id):
             await store.async_save_area(area_id, config)
 
             # Use the normalized stored config (Primary channel always complete) for the engine.
@@ -409,6 +404,7 @@ def _ws_area_save() -> websocket_api.WebSocketCommandHandler:
                     hass, area_id, empty_config
                 )
 
+            clear_timeline_slot_cache()
             connection.send_result(msg["id"], saved_area)
 
     return handle
@@ -436,7 +432,7 @@ def _ws_area_delete() -> websocket_api.WebSocketCommandHandler:
             return
 
         area_id = msg["area_id"]
-        async with _get_area_lock(hass, area_id):
+        async with get_area_lock(hass, area_id):
             deleted = await store.async_delete_area(area_id)
 
             engines = hass.data[DOMAIN].setdefault("engines", {})
@@ -452,6 +448,8 @@ def _ws_area_delete() -> websocket_api.WebSocketCommandHandler:
             await twilight_switch.async_sync_switch_entities(
                 hass, area_id, empty_config
             )
+
+            clear_timeline_slot_cache()
 
         connection.send_result(msg["id"], {"deleted": deleted})
 
@@ -517,9 +515,11 @@ def _ws_area_slot_times() -> websocket_api.WebSocketCommandHandler:
             )
             return
 
-        lat = area_config.get("latitude") or hass.config.latitude
-        lon = area_config.get("longitude") or hass.config.longitude
-        tz_str = area_config.get("timezone") or hass.config.time_zone
+        # No per-area location override exists (see twilight_manager.py's
+        # _get_location() docstring) — always resolve from hass.config.
+        lat = hass.config.latitude
+        lon = hass.config.longitude
+        tz_str = hass.config.time_zone
 
         date_str = msg.get("date")
         if date_str:

@@ -250,9 +250,14 @@ def _ws_sun_year() -> websocket_api.WebSocketCommandHandler:
 
 
 _TIMELINE_SLOT_CACHE_MAX_SIZE = 16
-_TIMELINE_SLOT_CACHE: OrderedDict[tuple[float, float, int, str], dict[str, Any]] = (
-    OrderedDict()
-)
+_TIMELINE_SLOT_CACHE: OrderedDict[
+    tuple[float, float, int, str, str | None], dict[str, Any]
+] = OrderedDict()
+
+
+def clear_timeline_slot_cache() -> None:
+    """Clear the timeline slot cache, called when area configs change."""
+    _TIMELINE_SLOT_CACHE.clear()
 
 
 def _ws_timeline_slot_times() -> websocket_api.WebSocketCommandHandler:
@@ -263,6 +268,7 @@ def _ws_timeline_slot_times() -> websocket_api.WebSocketCommandHandler:
             vol.Optional("lat"): vol.Coerce(float),
             vol.Optional("lon"): vol.Coerce(float),
             vol.Optional("tz"): str,
+            vol.Optional("area_id"): vol.Any(None, str),
         }
     )
     @websocket_api.async_response
@@ -271,18 +277,37 @@ def _ws_timeline_slot_times() -> websocket_api.WebSocketCommandHandler:
         connection: websocket_api.ActiveConnection,
         msg: dict[str, Any],
     ) -> None:
-        from ..const import default_primary_slots
+        from ..const import DOMAIN, PRIMARY_CHANNEL_ID, default_primary_slots
         from ..slot_calc import resolve_slot_times
 
         year = msg.get("year") or dt.date.today().year
-        lat = msg.get("lat")
-        lon = msg.get("lon")
-        if lat is None or lon is None:
+        area_id = msg.get("area_id")
+
+        lat: float
+        lon: float
+        tz_str: str
+
+        primary_slots = default_primary_slots()
+        if area_id:
+            store = hass.data[DOMAIN].get("store")
+            area_config = store.get_area(area_id) if store else None
+            if area_config:
+                channels = area_config.get("channels", {})
+                primary_ch = channels.get(PRIMARY_CHANNEL_ID, {})
+                if isinstance(primary_ch, dict) and primary_ch.get("slots"):
+                    primary_slots = primary_ch["slots"]
+
             lat = hass.config.latitude
             lon = hass.config.longitude
-        tz_str = msg.get("tz") or hass.config.time_zone
+            tz_str = hass.config.time_zone
+        else:
+            msg_lat = msg.get("lat")
+            msg_lon = msg.get("lon")
+            lat = hass.config.latitude if msg_lat is None else float(msg_lat)
+            lon = hass.config.longitude if msg_lon is None else float(msg_lon)
+            tz_str = msg.get("tz") or hass.config.time_zone
 
-        cache_key = (lat, lon, year, tz_str)
+        cache_key = (lat, lon, year, tz_str, area_id)
         cached = _TIMELINE_SLOT_CACHE.get(cache_key)
         if cached is not None:
             _TIMELINE_SLOT_CACHE.move_to_end(cache_key)
@@ -290,8 +315,9 @@ def _ws_timeline_slot_times() -> websocket_api.WebSocketCommandHandler:
             return
 
         def _compute() -> dict[str, Any]:
-            primary_slots = default_primary_slots()
-            curves: dict[str, list[int]] = {s["id"]: [] for s in primary_slots}
+            curves: dict[str, list[int]] = {
+                s["id"]: [] for s in primary_slots if isinstance(s, dict) and "id" in s
+            }
 
             start = dt.date(year, 1, 1)
             days_cnt = 366 if _is_leap(year) else 365
@@ -313,3 +339,4 @@ def _ws_timeline_slot_times() -> websocket_api.WebSocketCommandHandler:
         connection.send_result(msg["id"], result)
 
     return handle
+

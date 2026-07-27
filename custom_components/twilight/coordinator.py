@@ -28,7 +28,12 @@ from .call_handler import (
     SlotTransitionCallHandler,
     TurnOffCallHandler,
 )
-from .config_model import ActionConfig, ActivityConfig, ResetActionConfig
+from .config_model import (
+    ActionConfig,
+    ActivityConfig,
+    ButtonInputConfig,
+    ResetActionConfig,
+)
 from .const import (
     DEFAULT_ACTION_TYPE,
     DEFAULT_AUTO_EXPIRE,
@@ -117,7 +122,7 @@ class Coordinator:
         first — a handler still settling (is_busy) loses its entry in
         self._handlers here, so swap_channel_handler() could otherwise never
         see it and grace_elapsed would silently stay 0 for the channel's next
-        handler (see RETRIGGER_RACE_PLAN.md, Fall 2).
+        handler.
         """
         for channel_id, handler in self._handlers.items():
             if handler and handler.is_busy:
@@ -139,9 +144,11 @@ class Coordinator:
             self.unsub_state = None
 
         # Cancel all tracked background tasks
-        for task in list(self._tasks):
-            if not task.done():
-                task.cancel()
+        pending = [task for task in self._tasks if not task.done()]
+        for task in pending:
+            task.cancel()
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
         self._tasks.clear()
 
         # Teardown all channel handlers
@@ -379,7 +386,12 @@ class Coordinator:
         return val
 
     def _check_still_active(self, activity_name: str) -> bool:
-        """Check if any input (motion or binary) that triggers this activity is still active.
+        """Check if any input holding this activity is still active.
+
+        Covers the three input kinds that carry a lasting "still on" state:
+        motion, binary, and toggle-mode buttons. Click-mode buttons are
+        deliberately excluded — they fire and forget, they never hold an
+        activity open.
 
         Returns False immediately if expire_check_mode is "disabled" for this
         activity — the activity then always expires on schedule.
@@ -401,6 +413,19 @@ class Coordinator:
 
         for inp in self.engine.config.inputs_of_type(InputType.BINARY):
             if inp.activity != activity_name or not inp.id:
+                continue
+            if self.run_state.inputs_active.get(inp.id):
+                return True
+
+        # A toggle button that is still switched on holds the activity exactly
+        # like an open door does — without this the HA switch stays visibly on
+        # while its activity has already expired underneath it.
+        for inp in self.engine.config.inputs_of_type(InputType.BUTTON):
+            if inp.activity != activity_name or not inp.id:
+                continue
+            if not isinstance(inp, ButtonInputConfig):
+                continue
+            if (inp.button_mode or "click") != "toggle":
                 continue
             if self.run_state.inputs_active.get(inp.id):
                 return True
@@ -736,11 +761,8 @@ class Coordinator:
             active_activity=None, activity_trigger=None, activity_expires_at=None
         )
 
-        if handler:
-            self._create_task(handler.stop(release, transition_off=transition_off))
-        else:
-            fallback = self._action_handlers[ActionType.SLOT]
-            self._create_task(fallback.stop(release, transition_off=transition_off))
+        target = handler or self._action_handlers[ActionType.SLOT]
+        self._create_task(target.stop(release, transition_off=transition_off))
 
     def get_activity_config(self, name: str) -> ActivityConfig | None:
         """Get the typed config for an activity, or None if not configured."""

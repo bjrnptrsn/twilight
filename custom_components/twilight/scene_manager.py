@@ -121,10 +121,18 @@ class SceneManager:
             )
 
     async def async_teardown(self) -> None:
-        """Tear down scene manager."""
-        if self.retry_task and not self.retry_task.done():
-            self.retry_task.cancel()
-            self.retry_task = None
+        """Tear down scene manager.
+
+        The cancel is awaited: task.cancel() only schedules the CancelledError,
+        so without the await the retry loop can still resume once after teardown
+        returned and write into the (possibly already replaced) engine's
+        scene_map — see docs/agents/ha_internals.md.
+        """
+        task = self.retry_task
+        self.retry_task = None
+        if task and not task.done():
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
 
     async def _async_retry_extraction_loop(self) -> None:
         """Retry scene extraction in background for incomplete slots."""

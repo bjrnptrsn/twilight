@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import date as _date
 from typing import Any
 
@@ -22,6 +23,8 @@ from ..const import (
 from ..engine import TwilightEngine
 from ..slot_calc import compute_dynamic_min_slot_distance
 from ..store import GLOBAL_DEFAULTS, TwilightStore
+
+_LOGGER = logging.getLogger(__name__)
 
 # Type-guard for the global config. Tolerant by design (ALLOW_EXTRA) so the
 # frontend payload is never rejected for an unknown key, but known scalar keys
@@ -53,7 +56,15 @@ async def _async_reload_all_engines(hass: HomeAssistant, store: TwilightStore) -
         )
         if config.get("enabled") and has_slots:
             engine = TwilightEngine(hass, area_id, config)
-            await engine.async_setup()
+            try:
+                await engine.async_setup()
+            except Exception:
+                _LOGGER.exception(
+                    "[%s] Engine setup failed during reload-all — area config is "
+                    "persisted but no engine is registered",
+                    area_id,
+                )
+                continue
             engines[area_id] = engine
             await twilight_button.async_sync_button_entities(
                 hass, area_id, engine.config
@@ -198,20 +209,13 @@ def _ws_placeholder_defaults() -> websocket_api.WebSocketCommandHandler:
         msg: dict[str, Any],
     ) -> None:
         defaults = dict(PLACEHOLDER_DEFAULTS)
-        area_id = msg.get("area_id")
+        # No per-area location override exists (see twilight_manager.py's
+        # _get_location() docstring) — always resolve from hass.config.
         lat, lon, tz_str = (
             hass.config.latitude,
             hass.config.longitude,
             hass.config.time_zone,
         )
-        if area_id:
-            store = hass.data[DOMAIN].get("store")
-            if store:
-                area_config = store.get_area(area_id)
-                if area_config:
-                    lat = area_config.get("latitude", lat)
-                    lon = area_config.get("longitude", lon)
-                    tz_str = area_config.get("timezone", tz_str)
 
         if lat is not None and lon is not None and tz_str:
             now_year = _date.today().year

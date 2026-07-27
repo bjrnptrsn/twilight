@@ -10,7 +10,7 @@ from collections.abc import Callable, Coroutine
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, cast
 
-from homeassistant.const import STATE_OFF
+from homeassistant.const import STATE_OFF, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.helpers.event import async_call_later
 from homeassistant.util import dt as dt_util
 
@@ -144,6 +144,14 @@ def _channel_already_off(coordinator: Coordinator, channel_id: str) -> bool:
     active) re-runs SlotActionHandler.start(), and _apply_action() clears all
     channel handlers beforehand, so a call-handler-type check can't detect
     "already turned off"; checking live entity state can.
+
+    An entity that HA reports as explicitly unavailable/unknown is skipped
+    rather than counted as "not off": check_entity_deviation() reports it as
+    deviating, so counting it would make a single offline lamp defeat the guard
+    permanently and re-send turn_off to the whole channel on every motion
+    re-trigger. An entity with no state object at all is NOT skipped — that is
+    "we have never heard from it", not "it is known to be offline", and the
+    channel must still get its turn_off.
     """
     entities = channel_entities(
         coordinator.engine.scene_map,
@@ -155,6 +163,11 @@ def _channel_already_off(coordinator: Coordinator, channel_id: str) -> bool:
     hass = coordinator.engine.hass
     for entity_id in entities:
         ha_state = hass.states.get(entity_id)
+        if ha_state is not None and ha_state.state in (
+            STATE_UNAVAILABLE,
+            STATE_UNKNOWN,
+        ):
+            continue
         if check_entity_deviation(ha_state, {"state": STATE_OFF}):
             return False
     return True
@@ -452,10 +465,18 @@ class PresenceSimulationActionHandler(BaseActionHandler):
 
     async def _tick(self) -> None:
         """One loop tick: roll simulated motion, apply on-step + off-timer restart."""
-        if random.random() < self._scaled_probability() and self._lux_allows_on():
-            await self._on_step()
-            self._restart_off_timer()
-        self._schedule_tick()
+        try:
+            if random.random() < self._scaled_probability() and self._lux_allows_on():
+                await self._on_step()
+                self._restart_off_timer()
+        except Exception:
+            _LOGGER.exception(
+                "[%s] Presence simulation tick failed", self._coordinator.engine.area_id
+            )
+        finally:
+            # Always reschedule, even if the block above raised — otherwise the
+            # simulation silently stalls until the activity is manually retriggered.
+            self._schedule_tick()
 
     def _lux_allows_on(self) -> bool:
         """Evaluate lux_mode before an "on" step (the sim skips the input gate)."""

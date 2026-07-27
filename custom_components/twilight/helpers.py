@@ -151,6 +151,12 @@ def get_store(hass: HomeAssistant) -> Any | None:
     return hass.data.get(DOMAIN, {}).get("store")
 
 
+def get_area_lock(hass: HomeAssistant, area_id: str) -> asyncio.Lock:
+    """Return the per-area asyncio.Lock, serializing save/delete for one area_id."""
+    locks: dict[str, asyncio.Lock] = hass.data[DOMAIN].setdefault("area_locks", {})
+    return locks.setdefault(area_id, asyncio.Lock())
+
+
 def partition_by_domain(
     entities: Sequence[str],
 ) -> tuple[list[str], list[str], list[str]]:

@@ -12,6 +12,7 @@ from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN
 from ..heatmap import async_compute_heatmap
+from ..helpers import get_area_lock
 
 VALID_RESOLUTIONS = ("1m", "5m", "10m", "15m", "30m", "60m")
 VALID_SAVED_RESOLUTIONS = ("5m", "10m", "15m", "30m", "60m")
@@ -72,58 +73,65 @@ def _ws_heatmap_profile_save() -> websocket_api.WebSocketCommandHandler:
         msg: dict[str, Any],
     ) -> None:
         store = hass.data[DOMAIN].get("store")
-        area = store.get_area(msg["area_id"]) if store else None
-        if area is None:
+        if store is None:
             connection.send_error(
                 msg["id"], "not_found", f"Area {msg['area_id']} not found"
             )
             return
 
-        profiles = list(area.get("heatmap_profiles", []))
-        profile_id = msg.get("profile_id") or f"prof_{uuid.uuid4().hex[:8]}"
+        async with get_area_lock(hass, msg["area_id"]):
+            area = store.get_area(msg["area_id"])
+            if area is None:
+                connection.send_error(
+                    msg["id"], "not_found", f"Area {msg['area_id']} not found"
+                )
+                return
 
-        existing_idx = -1
-        created_at = dt_util.utcnow().isoformat()
-        for idx, p in enumerate(profiles):
-            if isinstance(p, dict) and p.get("id") == profile_id:
-                existing_idx = idx
-                if p.get("created_at"):
-                    created_at = p["created_at"]
-                break
+            profiles = list(area.get("heatmap_profiles", []))
+            profile_id = msg.get("profile_id") or f"prof_{uuid.uuid4().hex[:8]}"
 
-        if existing_idx < 0 and len(profiles) >= MAX_HEATMAP_PROFILES:
-            connection.send_error(
-                msg["id"],
-                "limit_exceeded",
-                f"Maximum {MAX_HEATMAP_PROFILES} heatmap profiles allowed per area",
+            existing_idx = -1
+            created_at = dt_util.utcnow().isoformat()
+            for idx, p in enumerate(profiles):
+                if isinstance(p, dict) and p.get("id") == profile_id:
+                    existing_idx = idx
+                    if p.get("created_at"):
+                        created_at = p["created_at"]
+                    break
+
+            if existing_idx < 0 and len(profiles) >= MAX_HEATMAP_PROFILES:
+                connection.send_error(
+                    msg["id"],
+                    "limit_exceeded",
+                    f"Maximum {MAX_HEATMAP_PROFILES} heatmap profiles allowed per area",
+                )
+                return
+
+            profile = await async_compute_heatmap(
+                hass,
+                area,
+                resolution=msg["resolution"],
+                range_str=msg["range"],
             )
-            return
 
-        profile = await async_compute_heatmap(
-            hass,
-            area,
-            resolution=msg["resolution"],
-            range_str=msg["range"],
-        )
+            now_iso = dt_util.utcnow().isoformat()
+            prof_dict: dict[str, Any] = {
+                "id": profile_id,
+                "name": msg["name"],
+                "resolution": msg["resolution"],
+                "range": msg["range"],
+                "created_at": created_at,
+                "updated_at": now_iso,
+                "motion_buckets": profile.motion_buckets,
+            }
 
-        now_iso = dt_util.utcnow().isoformat()
-        prof_dict: dict[str, Any] = {
-            "id": profile_id,
-            "name": msg["name"],
-            "resolution": msg["resolution"],
-            "range": msg["range"],
-            "created_at": created_at,
-            "updated_at": now_iso,
-            "motion_buckets": profile.motion_buckets,
-        }
+            if existing_idx >= 0:
+                profiles[existing_idx] = prof_dict
+            else:
+                profiles.append(prof_dict)
 
-        if existing_idx >= 0:
-            profiles[existing_idx] = prof_dict
-        else:
-            profiles.append(prof_dict)
-
-        area["heatmap_profiles"] = profiles
-        await store.async_save_area(msg["area_id"], area)
+            area["heatmap_profiles"] = profiles
+            await store.async_save_area(msg["area_id"], area)
 
         connection.send_result(msg["id"], prof_dict)
 
@@ -145,20 +153,27 @@ def _ws_heatmap_profile_delete() -> websocket_api.WebSocketCommandHandler:
         msg: dict[str, Any],
     ) -> None:
         store = hass.data[DOMAIN].get("store")
-        area = store.get_area(msg["area_id"]) if store else None
-        if area is None:
+        if store is None:
             connection.send_error(
                 msg["id"], "not_found", f"Area {msg['area_id']} not found"
             )
             return
 
-        profiles = [
-            p
-            for p in area.get("heatmap_profiles", [])
-            if isinstance(p, dict) and p.get("id") != msg["profile_id"]
-        ]
-        area["heatmap_profiles"] = profiles
-        await store.async_save_area(msg["area_id"], area)
+        async with get_area_lock(hass, msg["area_id"]):
+            area = store.get_area(msg["area_id"])
+            if area is None:
+                connection.send_error(
+                    msg["id"], "not_found", f"Area {msg['area_id']} not found"
+                )
+                return
+
+            profiles = [
+                p
+                for p in area.get("heatmap_profiles", [])
+                if isinstance(p, dict) and p.get("id") != msg["profile_id"]
+            ]
+            area["heatmap_profiles"] = profiles
+            await store.async_save_area(msg["area_id"], area)
 
         connection.send_result(msg["id"], {"success": True})
 

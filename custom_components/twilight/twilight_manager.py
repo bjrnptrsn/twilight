@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import zoneinfo
 from collections.abc import Callable
@@ -13,7 +14,7 @@ from homeassistant.core import callback
 from homeassistant.helpers.event import async_call_later
 
 from .const import DEFAULT_TRANSITION_ON_SECONDS
-from .helpers import get_config_value
+from .helpers import create_tracked_task, get_config_value
 from .slot_calc import resolve_slot_times
 from .sun_calc import compute_sun_day_data
 
@@ -58,6 +59,7 @@ class TwilightManager:
         self.engine = engine
         self.timer_unsub: Callable[[], None] | None = None
         self._schedules: dict[str, ChannelSlotSchedule] = {}
+        self._tasks: set[asyncio.Task[Any]] = set()
 
     async def async_setup(self) -> None:
         """Set up the slot scheduler and calculate initial state."""
@@ -77,6 +79,12 @@ class TwilightManager:
         if self.timer_unsub:
             self.timer_unsub()
             self.timer_unsub = None
+        pending = [task for task in self._tasks if not task.done()]
+        for task in pending:
+            task.cancel()
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
+        self._tasks.clear()
         _LOGGER.debug("[%s] TwilightManager torn down", self.engine.area_id)
 
     def _get_location_params(self) -> tuple[float, float, str]:
@@ -304,35 +312,44 @@ class TwilightManager:
         """Callback triggered when the transition timer fires."""
         self.timer_unsub = None
         _LOGGER.debug("[%s] Slot transition timer fired", self.engine.area_id)
-        self.engine.hass.async_create_task(self._async_on_slot_transition())
+        create_tracked_task(
+            self.engine.hass, self._async_on_slot_transition(), self._tasks
+        )
 
     async def _async_on_slot_transition(self) -> None:
         """Asynchronous runner to process stage 1 and stage 2 for all channels."""
-        now_local = self._now_local()
+        try:
+            now_local = self._now_local()
 
-        for channel_id, schedule in list(self._schedules.items()):
-            lead_seconds = self._get_transition_seconds_for_channel(channel_id)
-            t_fade = schedule.transition_start(lead_seconds)
-            t_ziel = schedule.next_slot_start
+            for channel_id, schedule in list(self._schedules.items()):
+                lead_seconds = self._get_transition_seconds_for_channel(channel_id)
+                t_fade = schedule.transition_start(lead_seconds)
+                t_ziel = schedule.next_slot_start
 
-            # Stage 1 due? (lead time reached, T_target not yet reached — otherwise stage-2 fallback)
-            if (
-                not schedule.fade_started
-                and schedule.next_slot_id
-                and t_fade
-                and t_ziel
-                and t_fade <= now_local < t_ziel
-            ):
-                success = await self.engine.coordinator.async_start_slot_fade(
-                    channel_id=channel_id,
-                    target_slot_id=schedule.next_slot_id,
-                    target_slot_start=t_ziel,
-                )
-                if success:
-                    schedule.fade_started = True
-
-        # Running _update_slots_and_schedule will transition to Stage 2 if now_local >= t_ziel
-        await self._update_slots_and_schedule()
+                # Stage 1 due? (lead time reached, T_target not yet reached — otherwise stage-2 fallback)
+                if (
+                    not schedule.fade_started
+                    and schedule.next_slot_id
+                    and t_fade
+                    and t_ziel
+                    and t_fade <= now_local < t_ziel
+                ):
+                    success = await self.engine.coordinator.async_start_slot_fade(
+                        channel_id=channel_id,
+                        target_slot_id=schedule.next_slot_id,
+                        target_slot_start=t_ziel,
+                    )
+                    if success:
+                        schedule.fade_started = True
+        except Exception:
+            _LOGGER.exception(
+                "[%s] Error processing slot transition", self.engine.area_id
+            )
+        finally:
+            # Always reschedule, even if the block above raised — otherwise the
+            # scheduler stalls on the current slot for the rest of the HA runtime
+            # (timer_unsub is already None by the time this coroutine runs).
+            await self._update_slots_and_schedule()
 
     def _get_transition_seconds_for_channel(self, channel_id: str) -> int:
         """Get transition seconds for a channel (falling back to area/const.py)."""

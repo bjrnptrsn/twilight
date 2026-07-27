@@ -388,16 +388,17 @@ class LightActionConfig(ActionConfig):
     def from_dict(cls, raw: dict[str, Any] | None) -> LightActionConfig:
         if not raw:
             raw = {}
-        rgb_color = raw.get("rgb_color")
+        raw_rgb = raw.get("rgb_color")
+        parsed_rgb: tuple[int, int, int] | None = None
+        if isinstance(raw_rgb, (list, tuple)) and len(raw_rgb) == 3:
+            parsed_rgb = (raw_rgb[0], raw_rgb[1], raw_rgb[2])
         return cls(
             **ActionConfig._base_kwargs(raw),
             targets=tuple(raw.get("targets") or ()),
             state=raw.get("state"),
             brightness=raw.get("brightness"),
             color_temp=raw.get("color_temp"),
-            rgb_color=(rgb_color[0], rgb_color[1], rgb_color[2])
-            if rgb_color and len(rgb_color) == 3
-            else None,
+            rgb_color=parsed_rgb,
         )
 
 
@@ -585,7 +586,7 @@ class HeatmapProfileConfig(_RawGetMixin):
 
 
 @dataclass(frozen=True)
-class RuleConfig:
+class RuleConfig(_RawGetMixin):
     """Configuration for a parallel Rule (v1: slot schedule override)."""
 
     id: str
@@ -593,6 +594,7 @@ class RuleConfig:
     enabled: bool = True
     applied_activities: tuple[str, ...] = ()
     slot_overrides: dict[str, dict[str, tuple[str, ...]]] = field(default_factory=dict)
+    raw: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any] | None) -> RuleConfig:
@@ -619,6 +621,7 @@ class RuleConfig:
             if isinstance(applied_activities, (list, tuple))
             else (),
             slot_overrides=slot_overrides,
+            raw=raw,
         )
 
 

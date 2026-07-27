@@ -323,6 +323,7 @@ unsaved draft until you click **Save**.
 
 - **Day view** — the sun's path through today's astral zones, with live time indicator
 - **Year view** — the same zones plotted across the whole year, so you can see how slot durations shift with the seasons
+- **Area selector** — preview area-specific primary-channel slot offsets on both charts
 - Includes a demo mode with example locations, independent of any configured area
 
 <p align="center">

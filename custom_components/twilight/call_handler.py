@@ -14,12 +14,14 @@ from typing import TYPE_CHECKING, Any
 from homeassistant.components.light import get_supported_color_modes
 from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import Context, HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.event import async_call_later, async_track_state_change_event
 from homeassistant.util.color import color_temperature_mired_to_kelvin
 
 from .config_model import ActionConfig, LightActionConfig
 from .const import CONTEXT_PREFIX, DEFAULT_RETRY_DELAYS, ECHO_SETTLE_WINDOW_SECONDS
 from .deviation import check_entity_deviation, deviating_attrs
+from .echo import is_own_echo
 from .helpers import (
     create_tracked_task,
     get_slot_info,
@@ -56,11 +58,12 @@ def build_light_service_data(
         service_data["transition"] = transition
 
     if entity_id not in color_modes_cache:
-        modes = get_supported_color_modes(hass, entity_id) or set()
-        if not modes:
-            state_obj = hass.states.get(entity_id)
-            if state_obj:
-                modes = set(state_obj.attributes.get("supported_color_modes") or [])
+        try:
+            modes = get_supported_color_modes(hass, entity_id) or set()
+        except HomeAssistantError:
+            # Entity has neither a state nor an entity registry entry
+            # (e.g. removed/renamed while still referenced by a scene).
+            modes = set()
         color_modes_cache[entity_id] = modes
     supported_modes: set[str] = color_modes_cache[entity_id]
 
@@ -184,11 +187,15 @@ class BaseCallHandler(ABC):
         unsub = async_call_later(self.hass, delay, _fire)
         self._timers.append(unsub)
 
-    def cancel(self) -> None:
-        """Cancel all running tasks, timers, retries and deviation watcher."""
+    def _cancel_timers(self) -> None:
+        """Cancel all pending retry timers."""
         for unsub in self._timers:
             unsub()
         self._timers.clear()
+
+    def cancel(self) -> None:
+        """Cancel all running tasks, timers, retries and deviation watcher."""
+        self._cancel_timers()
 
         for task in list(self._tasks):
             if not task.done():
@@ -215,8 +222,23 @@ class BaseCallHandler(ABC):
         context_prefix = "check_retry_" if style == "check" else "retry_"
         context = Context(id=self._make_context_id(f"{context_prefix}{attempt}"))
         service_data: dict[str, Any]
+        domain = entity_id.split(".", 1)[0]
 
         if style == "blind":
+            if domain != "light":
+                # Non-light entities (e.g. switch.*) have no brightness/color to
+                # blind-reapply — always drive them via their own on/off service.
+                service = "turn_on" if expected.get("state") == STATE_ON else "turn_off"
+                call_domain = domain if domain in ("light", "switch") else "homeassistant"
+                self._create_task(
+                    self.hass.services.async_call(
+                        call_domain,
+                        service,
+                        {"entity_id": entity_id},
+                        context=context,
+                    )
+                )
+                return
             service_data = build_light_service_data(
                 self.hass,
                 entity_id,
@@ -231,7 +253,6 @@ class BaseCallHandler(ABC):
             )
             return
 
-        domain = entity_id.split(".", 1)[0]
         service = "turn_on" if expected.get("state") == STATE_ON else "turn_off"
         if domain == "light" and service == "turn_on":
             service_data = build_light_service_data(
@@ -468,15 +489,23 @@ class BaseCallHandler(ABC):
                 deviates = check_entity_deviation(new_state, expected)
                 if not deviates:
                     self._reached_target_entities.add(entity_id)
-                elif not (
-                    context and context.id and context.id.startswith(CONTEXT_PREFIX)
-                ):
-                    _LOGGER.info(
-                        "[%s] Deviation detected on %s: %s",
-                        self.engine.area_id,
-                        entity_id,
-                        deviating_attrs(new_state, expected),
-                    )
+                elif not is_own_echo(context, self.engine.area_id):
+                    if self._retry_active:
+                        _LOGGER.info(
+                            "[%s] External deviation detected on %s: %s (stopping retries)",
+                            self.engine.area_id,
+                            entity_id,
+                            deviating_attrs(new_state, expected),
+                        )
+                        self._retry_active = False
+                        self._cancel_timers()
+                    else:
+                        _LOGGER.debug(
+                            "[%s] External deviation detected on %s: %s (retries already stopped)",
+                            self.engine.area_id,
+                            entity_id,
+                            deviating_attrs(new_state, expected),
+                        )
 
         self._unsub_deviation = async_track_state_change_event(
             self.hass, entities, _on_state_change
@@ -526,11 +555,16 @@ class _SceneCallHandler(BaseCallHandler):
             expected = self.scene_info.expected_states.get(entity_id)
             if not expected:
                 continue
+            is_off = expected.get("state") == STATE_OFF
             if entity_id in switch_ids:
-                service = (
-                    "turn_off" if expected.get("state") == STATE_OFF else "turn_on"
-                )
+                service = "turn_off" if is_off else "turn_on"
                 calls.append(CallSpec("switch", service, {"entity_id": entity_id}))
+                continue
+            if is_off:
+                sdata: dict[str, Any] = {"entity_id": entity_id}
+                if transition is not None and transition > 0:
+                    sdata["transition"] = transition
+                calls.append(CallSpec("light", "turn_off", sdata))
                 continue
             sdata = build_light_service_data(
                 self.hass,
@@ -550,6 +584,20 @@ class SlotDirectCallHandler(_SceneCallHandler):
         super().__init__(engine, channel_id)
         self.slot_id = slot_id
         self.scene_info = get_slot_info(engine.scene_map, channel_id, slot_id)
+
+    def _filter_entities(self, entities: list[str]) -> list[str]:
+        """Fall back to the scene's own entities when the caller passes none.
+
+        Callers that activate a whole slot scene pass `execute([])` — without
+        this fallback the retry loop would have no entities to check and the
+        scene would never be re-driven. An explicitly passed (sub)set is
+        respected as-is.
+        """
+        if entities:
+            return entities
+        if not self.scene_info:
+            return []
+        return list(self.scene_info.extracted_entities)
 
     def _setup_deviation_watcher(self, entities: list[str]) -> None:
         if self.scene_info and self.scene_info.expected_states:
@@ -580,6 +628,16 @@ class SlotDirectCallHandler(_SceneCallHandler):
         if domain == "script":
             return [CallSpec("script", object_id, {})]
         if domain == "scene":
+            st = self.hass.states.get(scene_id)
+            is_dynamic = bool(st and st.attributes.get("is_dynamic"))
+            if (
+                not is_dynamic
+                and self.scene_info
+                and self.scene_info.extracted_entities
+            ):
+                return self._build_scene_calls(
+                    list(self.scene_info.extracted_entities), transition=None
+                )
             return [CallSpec("scene", "turn_on", {"entity_id": scene_id})]
         if domain == "light":
             return [CallSpec("light", "turn_on", {"entity_id": scene_id})]

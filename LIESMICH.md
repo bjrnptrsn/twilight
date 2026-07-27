@@ -346,6 +346,7 @@ klickst.
 
 - **Tagesansicht** — der Sonnenverlauf durch die heutigen astronomischen Zonen, mit Live-Zeitanzeige
 - **Jahresansicht** — dieselben Zonen über das ganze Jahr geplottet, damit du siehst, wie sich die Slot-Dauern mit den Jahreszeiten verschieben
+- **Area-Auswahl** — Vorschau flächenspezifischer Slot-Offsets des primären Channels auf beiden Diagrammen
 - Enthält einen Demo-Modus mit Beispielstandorten, unabhängig von einer konfigurierten Area
 
 <p align="center">
