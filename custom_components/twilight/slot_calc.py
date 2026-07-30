@@ -88,6 +88,15 @@ def resolve_slot_times(
     - Fixed slots: start = parsed fixed_time (invalid/missing fixed_time slots are discarded).
     - Resolves fixed-slot collisions with astral slots (+1 min transitive while loop).
     - Returns list of {"id": slot_id, "start": start_minutes} sorted by start.
+
+    Each returned entry also carries a "synthetic" bool. It is True when the
+    slot's astral zone does not physically occur on that day (polar day/night:
+    `sun_data` has no value for the zone) and the start time is therefore the
+    solar-noon placeholder rather than a real sun event. The scheduling path
+    (`twilight_manager`) ignores the flag and keeps using the placeholder, so
+    light control stays gapless under polar conditions. Renderers that draw
+    zone *areas* must skip synthetic slots — drawing them produces a fan of ten
+    1-minute zones around solar noon (see docs/agents/timeline.md §11e3).
     """
     astral_slots: list[dict[str, Any]] = []
     fixed_slots: list[dict[str, Any]] = []
@@ -108,14 +117,26 @@ def resolve_slot_times(
             if fixed_mins is None:
                 # Discard invalid/missing fixed_time slots per spec §5
                 continue
-            fixed_slots.append({"id": slot_id, "start": float(fixed_mins)})
+            fixed_slots.append(
+                {"id": slot_id, "start": float(fixed_mins), "synthetic": False}
+            )
         else:
             # Astral / Sun event slot
             zone = slot.get("zone") or slot.get("startEvent") or slot_id
 
             raw_val = sun_data.get(f"slot_{zone}")
-            if raw_val is None:
+            if raw_val is None and f"slot_{zone}" not in sun_data:
+                # Only for zones that have no slot_* representation at all
+                # (custom channels may reference a bare event name). Never as a
+                # fallback for a slot_* key that exists but is None: the slot_*
+                # series is shifted by one position against the raw events
+                # (slot_astro_dusk carries raw nautical_dusk), so the bare value
+                # of the same name is the *neighbouring* zone's time. Using it
+                # duplicated a minute another zone already owned — 155 collisions
+                # per year across the polar test locations, every single one of
+                # them wrong.
                 raw_val = sun_data.get(zone)
+            synthetic = raw_val is None
             if raw_val is None:
                 raw_val = solar_noon
 
@@ -132,6 +153,7 @@ def resolve_slot_times(
                     "id": slot_id,
                     "zone": zone,
                     "start": float(raw_val) + offset_mins,
+                    "synthetic": synthetic,
                 }
             )
 
@@ -167,9 +189,13 @@ def resolve_slot_times(
     # Combine all resolved slots
     all_slots: list[dict[str, Any]] = []
     for s in astral_slots:
-        all_slots.append({"id": s["id"], "start": round(s["start"])})
+        all_slots.append(
+            {"id": s["id"], "start": round(s["start"]), "synthetic": s["synthetic"]}
+        )
     for s in fixed_slots:
-        all_slots.append({"id": s["id"], "start": round(s["start"])})
+        all_slots.append(
+            {"id": s["id"], "start": round(s["start"]), "synthetic": False}
+        )
 
     # Sort all slots by start minute
     all_slots.sort(key=lambda s: s["start"])

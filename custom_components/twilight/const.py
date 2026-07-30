@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from enum import StrEnum
 from typing import Any
 
@@ -11,7 +12,10 @@ from homeassistant.const import (
     STATE_OPEN,
 )
 
+_LOGGER = logging.getLogger(__name__)
+
 DOMAIN = "twilight"
+STORAGE_VERSION = 2
 
 # Prefix for HA Context IDs on Twilight's own service calls, used by echo
 # detection (echo.py) to distinguish them from externally-triggered state
@@ -68,7 +72,7 @@ class ActionType(StrEnum):
     SLOT = "slot"
     ENTITY = "entity"
     LIGHT = "light"
-    NONE = "none"
+    BLOCK = "block"
     TURN_OFF = "turn_off"
     SIMULATION = "simulation"
     RESET = "reset"
@@ -128,6 +132,15 @@ class ExpireCheckMode(StrEnum):
     IGNORE_LUX = "ignore_lux"
 
 
+class RuleAutoExpireMode(StrEnum):
+    """Whether/how a Rule freezes its targeted Activity's auto-expire timer."""
+
+    NONE = "none"
+    RESTART = "restart"
+    PAUSE = "pause"
+    SUSPEND = "suspend"
+
+
 class StartType(StrEnum):
     """Slot start types for the channel scheduler.
 
@@ -171,7 +184,7 @@ DEFAULT_TRANSITION_OFF_SECONDS = 0
 DEFAULT_LUX_AGGREGATION = "min"
 DEFAULT_MOTION_RETRIGGER = RetriggerMode.EVERY
 DEFAULT_BINARY_AGGREGATION = AggregationMode.ANY
-DEFAULT_RETRY_DELAYS = (1.0, 1.5, 3.0, 5.0, 8.0)
+DEFAULT_RETRY_DELAYS = (1.2, 2.4, 3.6, 4.8, 6.0)
 ECHO_SETTLE_WINDOW_SECONDS = 1.0
 
 # Presence simulation defaults (PRESENCE_SIMULATION_PLAN.md)
@@ -269,18 +282,127 @@ STANDARD_NAMES = {
 
 def default_primary_slots() -> list[dict[str, Any]]:
     """Build a fresh list of the 10 fixed Primary-Channel slots."""
-    return [
-        {
-            "id": z,
-            "name": STANDARD_NAMES[z],
-            "start_type": StartType.ASTRAL.value,
-            "zone": z,
-            "offset_minutes": 0,
-            "scene_entity_id": None,
-            "configured_entities": [],
+    return materialize_primary_slots({})
+
+
+def materialize_primary_slots(
+    raw_slots: dict[str, Any] | list[dict[str, Any]] | None,
+) -> list[dict[str, Any]]:
+    """Materialize Primary-Channel slots into 10 complete slot dicts.
+
+    Accepts two input shapes:
+      - the sparse overrides dict (the store's persistence format): keyed by
+        standard zone ID, each value a dict with only the fields that deviate
+        from default (offset_minutes/scene_entity_id/configured_entities).
+      - a full slot list (the frontend's `area/save` payload / call-site
+        format used throughout config_model.py and tests): one dict per zone
+        with all seven SlotConfig fields; only the three override fields are
+        actually read, the rest is recomputed from STANDARD_ZONES/STANDARD_NAMES.
+
+    Unknown zone keys/ids or fields, and fields with an implausible type, are
+    pruned and replaced by their default — logged as a warning so a
+    corrupted/hand-edited entry is visible, not silently accepted (see
+    docs/architecture/slots.md §3.1).
+
+    The list path projects each item onto the three override fields before that
+    validation runs — otherwise the structurally fixed fields of a full slot dict
+    (id/name/start_type/zone/fixed_time) would each be reported as an unknown field.
+    """
+    override_by_zone: dict[str, dict[str, Any]] = {}
+
+    if isinstance(raw_slots, dict):
+        for zone_id, override in raw_slots.items():
+            if not isinstance(zone_id, str) or zone_id not in STANDARD_ZONES:
+                _LOGGER.warning(
+                    "Discarding Primary-Channel slot override for unknown zone %r "
+                    "(not one of the 10 standard zones)",
+                    zone_id,
+                )
+                continue
+            if not isinstance(override, dict):
+                _LOGGER.warning(
+                    "Discarding Primary-Channel slot override for zone %r: "
+                    "expected a dict, got %s",
+                    zone_id,
+                    type(override).__name__,
+                )
+                continue
+            override_by_zone[zone_id] = override
+    elif isinstance(raw_slots, list):
+        for item in raw_slots:
+            if not isinstance(item, dict):
+                continue
+            item_zone = item.get("zone") or item.get("id")
+            if isinstance(item_zone, str) and item_zone in STANDARD_ZONES:
+                override_by_zone[item_zone] = {
+                    "offset_minutes": item.get("offset_minutes"),
+                    "scene_entity_id": item.get("scene_entity_id"),
+                    "configured_entities": item.get("configured_entities"),
+                }
+    elif raw_slots is not None:
+        _LOGGER.warning(
+            "Discarding Primary-Channel slots: expected a dict or list, got %s",
+            type(raw_slots).__name__,
+        )
+
+    result: list[dict[str, Any]] = []
+    for zone in STANDARD_ZONES:
+        override = override_by_zone.get(zone) or {}
+
+        offset_mins = override.get("offset_minutes")
+        if offset_mins is not None and not isinstance(offset_mins, (int, float)):
+            _LOGGER.warning(
+                "Discarding invalid offset_minutes %r for Primary-Channel zone %r "
+                "(expected a number)",
+                offset_mins,
+                zone,
+            )
+            offset_mins = None
+
+        scene_id = override.get("scene_entity_id")
+        if scene_id is not None and not isinstance(scene_id, str):
+            _LOGGER.warning(
+                "Discarding invalid scene_entity_id %r for Primary-Channel zone %r "
+                "(expected a string)",
+                scene_id,
+                zone,
+            )
+            scene_id = None
+
+        entities = override.get("configured_entities")
+        if entities is not None and not isinstance(entities, (list, tuple)):
+            _LOGGER.warning(
+                "Discarding invalid configured_entities %r for Primary-Channel zone %r "
+                "(expected a list)",
+                entities,
+                zone,
+            )
+            entities = None
+
+        unknown_keys = set(override) - {
+            "offset_minutes",
+            "scene_entity_id",
+            "configured_entities",
         }
-        for z in STANDARD_ZONES
-    ]
+        if unknown_keys:
+            _LOGGER.warning(
+                "Discarding unknown field(s) %s in Primary-Channel override for zone %r",
+                sorted(unknown_keys),
+                zone,
+            )
+
+        result.append(
+            {
+                "id": zone,
+                "name": STANDARD_NAMES[zone],
+                "start_type": StartType.ASTRAL.value,
+                "zone": zone,
+                "offset_minutes": int(offset_mins) if offset_mins is not None else 0,
+                "scene_entity_id": scene_id,
+                "configured_entities": list(entities) if entities is not None else [],
+            }
+        )
+    return result
 
 
 def default_channels() -> dict[str, Any]:
@@ -289,7 +411,7 @@ def default_channels() -> dict[str, Any]:
         PRIMARY_CHANNEL_ID: {
             "name": "Primary",
             "enabled": True,
-            "slots": default_primary_slots(),
+            "slots": {},
         }
     }
 
@@ -298,69 +420,102 @@ def default_channels() -> dict[str, Any]:
 DEFAULT_AREA_TEMPLATE = {
     "inputs": [
         {
-            "id": "motion",
+            "id": "motion_4011420a",
+            "name": None,
             "type": "motion",
-            "activity": "motion",
-            "rule": None,
-            "enabled": True,
             "entity_ids": [],
+            "activity": "activity_b04fef97",
+            "enabled": True,
+            "rule": None,
             "lux_threshold": None,
             "lux_watch_window": None,
             "lux_ignore_active": False,
-            "lux_ignore_scope": LuxIgnoreScope.NONE,
-            "retrigger": RetriggerMode.EVERY,
+            "lux_ignore_scope": LuxIgnoreScope.NONE.value,
+            "retrigger": RetriggerMode.EVERY.value,
         },
         {
-            "id": "manual",
+            "id": "event_0cf81d91",
+            "name": None,
             "type": "event",
-            "activity": "manual",
-            "rule": None,
-            "enabled": True,
             "entity_ids": [],
+            "activity": "activity_a7ae5492",
+            "enabled": True,
+            "rule": None,
+            "event_type": None,
         },
         {
-            "id": "reset",
+            "id": "event_c325c375",
+            "name": None,
             "type": "event",
-            "activity": "reset",
-            "rule": None,
-            "enabled": True,
             "entity_ids": [],
+            "activity": "activity_1c5fd855",
+            "enabled": True,
+            "rule": None,
+            "event_type": None,
         },
         {
-            "id": "binary",
+            "id": "binary_1d9958e7",
+            "name": None,
             "type": "binary",
             "entity_ids": [],
+            "activity": "activity_c3abaeee",
+            "enabled": None,
             "rule": None,
-            "activity": "sleep",
             "aggregation": None,
             "aggregation_count": None,
         },
         {
-            "id": "clear",
+            "id": "button_d319b0b3",
+            "name": None,
             "type": "button",
-            "activity": "reset",
-            "rule": None,
+            "activity": "activity_1c5fd855",
             "enabled": True,
+            "rule": None,
             "button_mode": "click",
             "label": "Reset",
             "create_entity": False,
         },
+        {
+            "id": "binary_8f2a1b94",
+            "name": "Ambient",
+            "type": "binary",
+            "entity_ids": [],
+            "activity": None,
+            "enabled": True,
+            "rule": "rule_92bf6f67",
+            "aggregation": None,
+            "aggregation_count": None,
+        },
     ],
     "activities": [
         {
-            "id": "motion",
+            "id": "activity_b04fef97",
             "name": "Motion",
             "suppress_inputs": [],
             "auto_expire": "00:05:00",
-            "expire_check_mode": ExpireCheckMode.RESPECT_LUX,
-            "action": {"type": None},
+            "expire_check_mode": ExpireCheckMode.RESPECT_LUX.value,
+            "action": {
+                "type": "slot",
+              "excluded_slots": {
+                "primary": [],
+                "channel_e0c3dd6b": [
+                  "custom_80635c06",
+                  "custom_ea7c9f51",
+                  "custom_631b9f14",
+                  "custom_5cb9c9a3",
+                  "custom_8148b20b",
+                  "custom_159cacc9",
+                  "custom_489cd4cb"
+                ]
+              }
+            },
             "release_action": {"type": None},
             "transition_off_seconds": 0,
         },
         {
-            "id": "manual",
+            "id": "activity_a7ae5492",
             "name": "Manual",
-            "suppress_inputs": ["motion"],
+            "suppress_inputs": ["motion_4011420a"],
             "auto_expire": "00:00:00",
             "expire_check_mode": None,
             "action": {"type": None},
@@ -368,95 +523,103 @@ DEFAULT_AREA_TEMPLATE = {
             "transition_off_seconds": 0,
         },
         {
-            "id": "reset",
+            "id": "activity_1c5fd855",
             "name": "Reset",
             "suppress_inputs": [],
             "auto_expire": None,
             "expire_check_mode": None,
-            "action": {"type": ActionType.RESET},
+            "action": {"type": ActionType.RESET.value, "entity_targets": []},
             "release_action": {"type": None},
             "transition_off_seconds": 0,
         },
         {
-            "id": "sleep",
+            "id": "activity_c3abaeee",
             "name": "Sleep",
-            "suppress_inputs": ["motion"],
+            "suppress_inputs": ["motion_4011420a"],
             "auto_expire": "03:00:00",
             "expire_check_mode": None,
-            "action": {"type": ActionType.NONE},
+            "action": {"type": ActionType.BLOCK.value},
             "release_action": {"type": None},
-            "transition_off_seconds": 0,
+            "transition_off_seconds": None,
         },
     ],
     "sensors": [
         {
-            "id": "illuminance_1",
+            "id": "illuminance_814db760",
+            "name": None,
             "type": "illuminance",
             "entity_ids": [],
             "aggregation": "min",
         }
     ],
+    "primary_slots": {},
     "custom_channels": {
-        "ambient": {
+        "channel_e0c3dd6b": {
             "name": "Ambient",
             "enabled": True,
             "slots": [
                 {
-                    "id": "custom_astro_dawn",
+                    "id": "custom_80635c06",
                     "name": STANDARD_NAMES["astro_dawn"],
                     "start_type": StartType.ASTRAL.value,
                     "zone": "astro_dawn",
+                    "fixed_time": None,
                     "offset_minutes": 0,
                     "scene_entity_id": None,
                     "configured_entities": [],
                 },
                 {
-                    "id": "custom_civil_dawn",
+                    "id": "custom_ea7c9f51",
                     "name": STANDARD_NAMES["civil_dawn"],
                     "start_type": StartType.ASTRAL.value,
                     "zone": "civil_dawn",
+                    "fixed_time": None,
                     "offset_minutes": 0,
                     "scene_entity_id": None,
                     "configured_entities": [],
                 },
                 {
-                    "id": "custom_day",
+                    "id": "custom_631b9f14",
                     "name": STANDARD_NAMES["day"],
                     "start_type": StartType.ASTRAL.value,
                     "zone": "day",
+                    "fixed_time": None,
                     "offset_minutes": 0,
                     "scene_entity_id": None,
                     "configured_entities": [],
                 },
                 {
-                    "id": "custom_civil_dusk",
+                    "id": "custom_5cb9c9a3",
                     "name": STANDARD_NAMES["civil_dusk"],
                     "start_type": StartType.ASTRAL.value,
                     "zone": "civil_dusk",
+                    "fixed_time": None,
                     "offset_minutes": 0,
                     "scene_entity_id": None,
                     "configured_entities": [],
                 },
                 {
-                    "id": "custom_astro_dusk",
+                    "id": "custom_8148b20b",
                     "name": STANDARD_NAMES["astro_dusk"],
                     "start_type": StartType.ASTRAL.value,
                     "zone": "astro_dusk",
+                    "fixed_time": None,
                     "offset_minutes": 0,
                     "scene_entity_id": None,
                     "configured_entities": [],
                 },
                 {
-                    "id": "custom_night",
+                    "id": "custom_159cacc9",
                     "name": STANDARD_NAMES["night"],
                     "start_type": StartType.ASTRAL.value,
                     "zone": "night",
+                    "fixed_time": None,
                     "offset_minutes": 0,
                     "scene_entity_id": None,
                     "configured_entities": [],
                 },
                 {
-                    "id": "custom_late_evening",
+                    "id": "custom_489cd4cb",
                     "name": "Late Evening",
                     "start_type": StartType.FIXED.value,
                     "zone": None,
@@ -470,11 +633,13 @@ DEFAULT_AREA_TEMPLATE = {
     },
     "rules": [
         {
-            "id": "party",
-            "name": "Party",
+            "id": "rule_92bf6f67",
+            "name": "Ambient",
             "enabled": True,
-            "applied_activities": ["motion"],
-            "slot_overrides": {},
+            "applied_activities": ["activity_b04fef97"],
+            "excluded_slots_override": {},
+            "auto_expire_mode": RuleAutoExpireMode.NONE.value,
+            "suppressed_inputs_override": [],
         }
     ],
 }

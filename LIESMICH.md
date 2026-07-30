@@ -1,6 +1,12 @@
 # Twilight für Home Assistant
 
 <p align="center">
+  <a href="https://github.com/bjrnptrsn/twilight/actions/workflows/validate.yaml">
+    <img src="https://github.com/bjrnptrsn/twilight/actions/workflows/validate.yaml/badge.svg" alt="Validate (HACS + hassfest)">
+  </a>
+</p>
+
+<p align="center">
   <img src="custom_components/twilight/brand/icon.png" alt="Twilight Logo" width="128">
 </p>
 
@@ -57,7 +63,10 @@
 - [Services](#services)
 - [Diagnostics](#diagnostics)
 - [Fehlerbehebung](#fehlerbehebung)
+  - [Debug-Logging](#debug-logging)
 - [Bekannte Einschränkungen](#bekannte-einschränkungen)
+- [Mitwirken](#mitwirken)
+- [Lizenz](#lizenz)
 
 ---
 
@@ -119,8 +128,6 @@ Template-Sensoren. Kein Scene-zu-Zeit-Abgleich. Keine Automations-Spaghetti.
 4. Im Bereich **Channels** deine Licht-Entities dem Primary-Channel zuweisen
 5. Für jeden Zeit-Slot eine Scene oder ein Script auswählen, das in diesem Zeitraum laufen soll
 6. Auf **Save** klicken — die Engine startet sofort
-
-![Areas Overview](docs/screenshots/areas-overview.png)
 
 ---
 
@@ -197,21 +204,20 @@ unterstützt Twilight einen Sensor-Typ:
   `sensor.*`-Entities hinzu; bei mehreren werden ihre Werte über eine
   **Aggregations**-Methode kombiniert: Minimum (Standard), Maximum,
   Durchschnitt oder Median. Der aggregierte Wert ist das, womit Motion-Inputs
-  ihren `lux_threshold` vergleichen.
+  ihren Lux-Schwellwert vergleichen.
 
 ### Inputs
 
 **Inputs** sind die Event-Quellen, die eine Activity anfordern. Jeder Input
-hat eine stabile `id`, über die er von `suppress_inputs` einer Activity
-referenziert werden kann.
+hat einen Namen und lässt sich in den Einstellungen verwalten.
 
 | Input-Typ | Löst aus bei | Hinweise |
 |------------|-------------|-------|
-| **Motion** | Eine seiner `binary_sensor.*`/`device_tracker.*`-Entities wechselt zu `on`/`home` | Optionales `lux_threshold`-Gate; `retrigger`-Modus (`every` = jeder Entity-Wechsel triggert erneut, `first` = nur die erste aktiv werdende Entity); optionales `lux_watch_window` für erneute Versuche nach Blockade durch zu viel Licht |
-| **Binary** | Any/all/majority/count seiner `binary_sensor.*`/`input_boolean.*`-Entities (konfigurierbare `aggregation`) | Sendet `activity_released` beim umgekehrten Übergang |
-| **Event** | Statusänderung einer `event.*`-Entity, optional gefiltert auf einen `event_type` | Feuert einmal pro passendem Event, kein Release |
+| **Motion** | Eine seiner `binary_sensor.*`/`device_tracker.*`-Entities wechselt zu `on`/`home` | Optionaler Lux-Schwellwert; Re-Trigger-Modus (Jeder Wechsel / Nur der erste Wechsel); optionales Lux-Beobachtungsfenster für erneute Versuche nach Blockade durch zu viel Licht |
+| **Binary** | Eine/Alle/Anzahl seiner `binary_sensor.*`/`input_boolean.*`-Entities (konfigurierbare Aggregation) | Sendet beim Deaktivieren ein Release |
+| **Event** | Statusänderung einer `event.*`-Entity, optional gefiltert auf einen Event-Typ | Feuert einmal pro passendem Event, kein Release |
 | **Timer** | Eine tägliche feste Uhrzeit (`HH:MM:SS`) | Keine Entity nötig — nützlich für einen nächtlichen Reset |
-| **Button** | Manuell über das Areas-Panel oder den Service `twilight.trigger_input` | `click`-Modus feuert einmal; `toggle`-Modus sendet beim zweiten Aufruf zusätzlich ein Release — siehe [Manuelle Auslöser](#manuelle-auslöser-button-inputs) |
+| **Button** | Manuell über das Areas-Panel oder den Service `twilight.trigger_input` | Click-Modus feuert einmal; Toggle-Modus sendet beim zweiten Aufruf zusätzlich ein Release — siehe [Manuelle Auslöser](#manuelle-auslöser-button-inputs) |
 
 Jeder Input zielt entweder auf eine **Activity** oder eine **Rule** (über
 „Target Type”). Binary- und Toggle-Button-Inputs können frei wählen; Motion-,
@@ -225,48 +231,47 @@ verdrängt sofort, was zuvor aktiv war.
 
 | Option | Beschreibung |
 |---|---|
-| `suppress_inputs` | Liste von Input-`id`s, die ignoriert werden, solange diese Activity aktiv ist (z. B. eine `sleep`-Activity, die den `motion`-Input unterdrückt) |
-| `auto_expire` | `HH:MM:SS`, nach der die Activity automatisch endet; `00:00:00`/leer = endet nur durch ein explizites Release |
-| `expire_check_mode` | Was genau beim Ablauf des Timers passiert: `disabled` (endet immer), `respect_lux` (verlängert den Timer, wenn ein Motion-Input noch aktiv ist *und* sein Lux-Check besteht), `ignore_lux` (verlängert bei aktivem Motion-Input unabhängig vom Lux-Wert). Ein noch aktiver Binary-Input verlängert in jedem Modus, da Binary-Inputs kein Lux-Gate haben. |
+| **Unterdrückte Inputs** | Liste von Inputs, die ignoriert werden, solange diese Activity aktiv ist (z. B. eine Schlaf-Activity, die den Bewegungsmelder-Input unterdrückt) |
+| **Auto-Expire (Ablaufzeit)** | Zeitdauer (`HH:MM:SS`), nach der die Activity automatisch endet; leer = endet nur durch ein explizites Release |
+| **Timer-Ablaufprüfung** | Was genau beim Ablauf des Timers passiert: Deaktiviert (endet immer), Lux-Schwellwert beachten (verlängert den Timer, wenn noch Bewegung vorhanden ist und der Lux-Check besteht), Lux-Schwellwert ignorieren (verlängert bei Bewegung unabhängig vom Lux-Wert). |
 
 #### Actions & Release Actions
 
-Was beim Start (`action`) und beim Ende (`release_action`) tatsächlich mit den Lichtern passiert:
+Was beim Start (Aktion) und beim Ende (Release-Aktion) tatsächlich mit den Lichtern passiert:
 
 | Action-Typ | Effekt | Gilt für |
 |---|---|---|
-| `slot` (Standard) | Spielt die Scene des aktuellen Channel-/Slot ab; unterstützt `excluded_slot_ids`, um bestimmte Channels in bestimmten Slots erzwungen auszuschalten | Action |
-| `entity` | Aktiviert direkt eine ausgewählte Scene oder ein Script, unabhängig vom Zeitplan | Action |
-| `light` | Steuert bestimmte Licht-Entities direkt — an/aus, Helligkeit, Farbtemperatur oder RGB — ganz ohne Scenes | Action |
-| `none` | Tut nichts mit den Lichtern | Action / Release |
-| `turn_off` | Schaltet alle Slot-Entities dieser Activity aus | Release (Standard) |
-| `reset` | Sendet einen festen Befehl (`on`/`off`/`toggle`/`activate`) an von dir gewählte `input_boolean`-, `switch`- oder `script`-Entities — zum Ansteuern von etwas anderem als Lichtern, z. B. das Zurücksetzen eines Helpers | Action (keine Release-Phase) |
-| `simulation` | Simuliert Anwesenheit, indem das Lichtverhalten einer ausgewählten Activity basierend auf historischen oder gespeicherten Bewegungsdichten abgespielt wird | Action |
+| **Zeitplan** (Standard) | Spielt die Szene des aktuellen Channels/Slots ab; erlaubt das gezielte Auswählen aktiver Channels und Slots | Aktion |
+| **Entity/Script** | Aktiviert direkt eine ausgewählte Szene oder ein Script, unabhängig vom Zeitplan | Aktion |
+| **Lichtsteuerung** | Steuert bestimmte Licht-Entities direkt — an/aus, Helligkeit, Farbtemperatur oder RGB — ganz ohne Szenen | Aktion |
+| **Blockieren** | Tut nichts mit den Lichtern ("Block Only / No Action") | Aktion |
+| **Ausschalten** | Schaltet alle Slot-Entities dieser Activity aus | Release (Standard) |
+| **Reset-Befehl** | Sendet einen festen Befehl (`on`/`off`/`toggle`/`activate`) an von dir gewählte `input_boolean`-, `switch`- oder `script`-Entities — zum Ansteuern von etwas anderem als Lichtern | Aktion (keine Release-Phase) |
+| **Anwesenheitssimulation** | Simuliert Anwesenheit, indem das Lichtverhalten einer ausgewählten Activity basierend auf historischen oder gespeicherten Bewegungsdichten abgespielt wird | Aktion |
 
 Ist keine `action` konfiguriert, spielt eine Activity standardmäßig beim
 Start die aktuelle Slot-Scene ab und schaltet beim Release alle ihre Lichter
 aus.
 
+#### Channel- und Slot-Auswahl
+
+Bei der Zeitplan-Steuerung kannst du in der UI pro Channel und Slot auswählen, welche Abschnitte aktiv geschaltet werden. Ist ein Slot für einen Channel abgewählt, bleibt dieser Channel in dem entsprechenden Zeitraum aus.
+
 #### Anwesenheitssimulation (Presence Simulation)
 
-Wenn du möchtest, dass dein Zuhause bewohnt aussieht, auch wenn du weg bist,
-kannst du die Anwesenheitssimulation nutzen. Sie lässt das Licht so leuchten,
-als wärst du zu Hause, indem sie dein normales Lichtverhalten aus anderen
-Zeiten nachahmt.
+Activities mit Anwesenheitssimulation lassen ein leeres Zuhause bewohnt
+wirken, indem sie realistische Lichtmuster nachbilden. Du wählst eine
+vorhandene Activity aus (z. B. deine Standard-Bewegungs-Activity), deren
+Lichtverhalten und Dauer übernommen werden, und Twilight löst sie anhand der
+Bewegungsdichte-Wahrscheinlichkeit über den Tagesverlauf aus:
 
-- **So funktioniert es**: Du wählst eine deiner vorhandenen Activities aus
-  (z. B. deine Standard-`motion`-Activity). Twilight merkt sich, wann die
-  Lichter normalerweise angehen würden, und spielt dieses Verhalten basierend
-  auf deinen täglichen Gewohnheiten ab.
-- **Datenquelle**: Twilight schaut sich an, wie du in den letzten Wochen
-  normalerweise das Licht genutzt hast. Alternativ kannst du auch eines
-  von bis zu 5 gespeicherten Profilen verwenden.
-- **Wann soll das Licht angehen?**: Du kannst festlegen, ob die Simulation
-  immer aktiv sein soll, nur wenn es draußen dunkel ist, oder nur während
-  bestimmter astronomischer Phasen (wie Dämmerung und Nacht).
-- **Flexibilität**: Du kannst jede Activity als Basis nutzen, die deine
-  Lichter steuert. Twilight sorgt dann dafür, dass es im Haus natürlich
-  „lebendig“ wirkt, anstatt starre Zeiten abzuarbeiten.
+- **Datenquelle**: entweder ein rollierendes 30-Tage-Fenster der Live-Recorder-Historie
+  auswerten oder eines von bis zu **5 gespeicherten Heatmap-Profilen** pro Area
+  wählen (gespeichert über die Heatmap-Karte, dort wählst du Zeitraum
+  `1w`–`6m` und Auflösung).
+- **Lux-Gating**: legt fest, wann simuliertes Licht angehen darf —
+  Dämmerung/Nacht (Standard), Beleuchtungsstärke-Schwellwert oder immer.
+- **Geeignete Activities**: jede Activity, die Lichter steuert (Zeitplan, Entity, Licht).
 
 #### Standard-Activities
 
@@ -310,13 +315,31 @@ Aktuell gibt es einen Rule-Typ:
 
 | Rule-Typ | Überschreibt | Auslöser & Bedingung |
 |---|---|---|
-| **Activity Rule** | Die Slot-Ausschlüsse (`excluded_slot_ids`) einer Ziel-Activity | Ausgelöst durch Binary- oder Toggle-Button-Input; wirkt nur, wenn die Ziel-Activity aktiv ist |
+| **Activity Rule** | Die Channel- und Slot-Auswahl einer Ziel-Activity | Ausgelöst durch Binary- oder Toggle-Button-Input; wirkt nur, wenn die Ziel-Activity aktiv ist |
 
 Eine **Activity Rule** wirkt auf genau eine Activity. Solange sie aktiv ist,
-überschreiben ihre Slot-Ausschlüsse die der Activity für die angegebenen
-Channels. Sind mehrere Rules für dieselbe Activity aktiv, gilt „Exclude
-gewinnt” — ein Slot ist ausgeschlossen, wenn ihn eine aktive Rule
-ausschließt.
+überschreibt ihre Einstellung die der Ziel-Activity: **Was in der Rule angehakt ist, gilt.**
+Sind mehrere Rules für dieselbe Activity aktiv, gilt „Exclude gewinnt” — ein Slot
+ist für einen Kanal nur dann aktiv, wenn er in allen aktiven Rules angehakt ist.
+
+Eine Activity Rule kann zusätzlich optional steuern, was mit dem
+**Auto-Expire**-Countdown der Ziel-Activity passiert, solange die Rule aktiv
+ist ("Auto-Expire-Verhalten"):
+
+| Modus | Effekt |
+|---|---|
+| **Keine** (Standard) | Kein Eingriff — der Timer läuft unbeeinflusst weiter. |
+| **Pausieren** | Friert den Timer bei der aktuellen Restzeit ein; läuft nach Rule-Ende mit genau dieser Restzeit weiter. |
+| **Aufheben** | Friert den Timer bei null ein; die Activity läuft sofort nach Rule-Ende ab (außer eine andere Bedingung, z. B. aktive Bewegung, hält sie weiterhin aktiv). |
+| **Neustart** | Friert den Timer bei der vollen konfigurierten Dauer ein; die Activity bekommt nach Rule-Ende einen frischen vollen Timer. |
+
+Eine Rule kann außerdem, solange sie aktiv ist, andere Inputs unterdrücken —
+z. B. eine „Ambient"-Rule, die für ihre Dauer den Bewegungsmelder-Input
+ignoriert. Solange eine passende Rule aktiv ist, ersetzen ihre unterdrückten Inputs
+die Input-Unterdrückungen der Ziel-Activity. Unterdrückte Inputs reagieren bis zum
+Ende der Rule nicht mehr auf Auslöser — dasselbe Deaktivierungs-Prinzip wie bei der
+[Input-Unterdrückung einer Activity](#activities), nur an die Rule gebunden. Eine Rule
+kann nicht den Input unterdrücken, der sie selbst auslöst.
 
 Rules werden über die **Rules**-Karte in der Detailansicht einer Area oder im
 [Area-Template](#settings--area-template) konfiguriert.
@@ -364,8 +387,9 @@ damit du Lichtänderungen mit tatsächlicher Sensoraktivität abgleichen kannst.
 Die **Area-Template**-Einstellung ist die Vorlage, mit der jede *neue* Area
 vorbefüllt wird: ihre Standard-Inputs (Motion, manueller Override, Reset, ein
 Binary-Sleep-Trigger, ein manueller Auslöse-Button), Standard-Activities
-(`motion`, `manual`, `sleep`, `reset`), Standard-[Rules](#rules) sowie
-Standard-Custom-Channels. Einmal in den **Settings** bearbeitet, startet jede danach
+(`motion`, `manual`, `sleep`, `reset`), Standard-[Rules](#rules),
+Standard-Custom-Channels sowie die Standard-Slots des Primary-Channels
+(Offsets und Szenen pro Zone). Einmal in den **Settings** bearbeitet, startet jede danach
 angelegte Area vorverkabelt statt leer — bestehende Areas bleiben unberührt. Ein
 granularer **Reset to System Defaults**-Dialog erlaubt es, einzelne
 Inputs/Activities/Rules/Channels wiederherzustellen, ohne das ganze Template
@@ -427,6 +451,12 @@ Area den Live-Run-State, die aufgelöste Scene-Map (welche Entity in welchem
 Slot läuft) und den letzten bekannten Zustand jedes gesteuerten Lichts —
 nützlich beim Melden eines Bugs.
 
+> [!NOTE]
+> Die Datei enthält deine echten Entity-IDs, Scene-Namen und Area-Namen —
+> nichts Geheimes (keine Tokens oder Zugangsdaten), aber potenziell
+> aufschlussreich über dein Zuhause. Vor dem Anhängen an ein öffentliches
+> GitHub-Issue kurz durchsehen.
+
 ---
 
 ## Fehlerbehebung
@@ -440,7 +470,34 @@ nützlich beim Melden eines Bugs.
 | Lichter blinken beim Neustart | Das sollte nicht passieren — Twilight nutzt Boot-Catch-up, um ungewolltes Einschalten zu vermeiden. Bitte [ein Issue öffnen](https://github.com/bjrnptrsn/twilight/issues) |
 | Area erscheint nicht im Panel | Sicherstellen, dass die HA-Area existiert und mindestens eine Licht-Entity zugewiesen ist |
 
+### Debug-Logging
+
+**Einstellungen → Geräte & Dienste → Integrationen → Twilight** öffnen, im
+Drei-Punkte-Menü **Debug-Protokollierung aktivieren** wählen. Kein Neustart
+nötig — gilt nur bis zum nächsten Neustart.
+
+Beim Melden eines Bugs idealerweise das vollständige Log teilen. Wer keine
+unbeteiligten Daten weitergeben möchte, kann es auf Twilights Einträge
+filtern:
+
+```bash
+grep 'twilight' home-assistant.log > twilight.log
+```
+
+Der [Diagnostics-Download](#diagnostics) ist bei Konfigurations-/Zustandsfragen
+meist hilfreicher — Debug-Logging lohnt sich, wenn du die tatsächlichen
+Entscheidungen Event für Event sehen willst (warum eine Activity nicht
+ausgelöst hat, warum ein Retry gefeuert hat, etc.).
+
 ## Bekannte Einschränkungen
 
 - Nur ein Beleuchtungsstärke-Sensor pro Area (mehrere Entities können jedoch in ihn einfließen)
 - Noch keine Mehrsprachigkeit (nur Englisch)
+
+## Mitwirken
+
+Einen Bug gefunden oder eine Idee? [Ein Issue öffnen](https://github.com/bjrnptrsn/twilight/issues) auf GitHub.
+
+## Lizenz
+
+MIT License

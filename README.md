@@ -1,6 +1,12 @@
 # Twilight for Home Assistant
 
 <p align="center">
+  <a href="https://github.com/bjrnptrsn/twilight/actions/workflows/validate.yaml">
+    <img src="https://github.com/bjrnptrsn/twilight/actions/workflows/validate.yaml/badge.svg" alt="Validate (HACS + hassfest)">
+  </a>
+</p>
+
+<p align="center">
   <img src="custom_components/twilight/brand/icon.png" alt="Twilight Logo" width="128">
 </p>
 
@@ -56,7 +62,10 @@
 - [Services](#services)
 - [Diagnostics](#diagnostics)
 - [Troubleshooting](#troubleshooting)
+  - [Debug Logging](#debug-logging)
 - [Known Limitations](#known-limitations)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
@@ -188,20 +197,20 @@ supports one sensor type:
 - **Illuminance (Lux)** — one per area. Add one or more `sensor.*` entities;
   if you add more than one, their values are combined with an **aggregation**
   method: Minimum (default), Maximum, Average, or Median. The aggregated
-  value is what motion inputs compare against their `lux_threshold`.
+  value is what motion inputs compare against their illuminance threshold.
 
 ### Inputs
 
-**Inputs** are the event sources that request an activity. Every input has a
-stable `id`, used to reference it from an activity's `suppress_inputs`.
+**Inputs** are the event sources that request an activity. Every input has a name
+and can be configured in the UI.
 
 | Input Type | Triggers on | Notes |
 |------------|-------------|-------|
-| **Motion** | Any of its `binary_sensor.*`/`device_tracker.*` entities turning `on`/`home` | Optional `lux_threshold` gate; `retrigger` mode (`every` = every entity flip re-triggers, `first` = only the first entity to go active); optional `lux_watch_window` to retry after being blocked by light |
-| **Binary** | Any/all/count of its `binary_sensor.*`/`input_boolean.*` entities (configurable `aggregation`) | Sends `activity_released` on the reverse transition |
-| **Event** | A `event.*` entity's state change, optionally filtered to one `event_type` | Fires once per matching event, no release |
+| **Motion** | Any of its `binary_sensor.*`/`device_tracker.*` entities turning `on`/`home` | Optional illuminance threshold; re-trigger mode (every flip / first flip); optional lux watch window to retry after being blocked by light |
+| **Binary** | Any/all/count of its `binary_sensor.*`/`input_boolean.*` entities (configurable aggregation) | Sends a release when turned off |
+| **Event** | A `event.*` entity's state change, optionally filtered to an event type | Fires once per matching event, no release |
 | **Timer** | A daily fixed clock time (`HH:MM:SS`) | No entity needed — useful for a nightly reset |
-| **Button** | Manually via the Areas panel or the `twilight.trigger_input` service | `click` mode fires once; `toggle` mode also sends a release on the second call — see [Manual Triggers](#manual-triggers-button-inputs) |
+| **Button** | Manually via the Areas panel or the `twilight.trigger_input` service | Click mode fires once; Toggle mode sends a release on the second call — see [Manual Triggers](#manual-triggers-button-inputs) |
 
 Each input targets either an **Activity** or a **Rule** (via "Target Type").
 Binary and toggle-mode button inputs can target either; motion, event, timer,
@@ -215,38 +224,37 @@ whatever was active before.
 
 | Option | Description |
 |---|---|
-| `suppress_inputs` | List of input `id`s to ignore while this activity is active (e.g. a `sleep` activity suppressing the `motion` input) |
-| `auto_expire` | `HH:MM:SS` after which the activity ends automatically; `00:00:00`/empty = only ends on an explicit release |
-| `expire_check_mode` | What happens right when the timer would expire: `disabled` (always ends), `respect_lux` (renews the timer if a motion input is still active *and* passes its lux check), `ignore_lux` (renews if a motion input is still active, regardless of lux). A still-active binary input renews the timer in every mode, since binary inputs have no lux gate. |
+| **Suppressed Inputs** | List of inputs to ignore while this activity is active (e.g. a sleep activity suppressing the motion input) |
+| **Auto-Expire Timer** | Duration (`HH:MM:SS`) after which the activity ends automatically; empty = only ends on an explicit release |
+| **Expiry Check Mode** | What happens right when the timer would expire: Disabled (always ends), Respect Lux (renews the timer if motion is active and passes lux check), Ignore Lux (renews if motion is active regardless of lux). |
 
 #### Actions & Release Actions
 
-What actually happens to the lights on start (`action`) and on end
-(`release_action`):
+What actually happens to the lights on start (action) and on end (release action):
 
 | Action type | Effect | Applies to |
 |---|---|---|
-| `slot` (default) | Plays the current channel/slot's scene; supports `excluded_slot_ids` to force specific channels off during specific slots | action |
-| `entity` | Activates one chosen scene or script directly, ignoring the schedule | action |
-| `light` | Sets specific light entities directly — on/off, brightness, color temperature, or RGB — bypassing scenes entirely | action |
-| `none` | Does nothing to the lights | action / release |
-| `turn_off` | Turns off all of this activity's slot entities | release (default) |
-| `reset` | Sends a fixed command (`on`/`off`/`toggle`/`activate`) to `input_boolean`, `switch`, or `script` entities you choose — for driving something other than lights, e.g. resetting a helper | action (no release phase) |
-| `simulation` | Simulates presence by playing back an activity's light behavior timed by historical or profile heatmap probabilities | action |
+| **Schedule** (default) | Plays the current channel/slot's scene; allows selecting active channels and slots | Action |
+| **Entity/Script** | Activates one chosen scene or script directly, ignoring the schedule | Action |
+| **Light Control** | Sets specific light entities directly — on/off, brightness, color temperature, or RGB | Action |
+| **Block** | Does nothing to the lights ("Block Only / No Action") | Action |
+| **Turn Off** | Turns off all of this activity's slot entities | Release (default) |
+| **Reset Command** | Sends a fixed command (`on`/`off`/`toggle`/`activate`) to `input_boolean`, `switch`, or `script` entities you choose — for driving something other than lights | Action (no release phase) |
+| **Presence Simulation** | Simulates presence by playing back an activity's light behavior timed by historical or profile heatmap probabilities | Action |
 
 If you don't configure an `action`, an activity defaults to playing the
 current slot scene on start and turning all its lights off on release.
 
 #### Presence Simulation
 
-Activities using the `simulation` action type make an empty home look occupied
+Activities using presence simulation make an empty home look occupied
 by re-creating realistic lighting patterns. You select an existing activity
-(such as your standard `motion` activity) to copy its light behavior and duration,
+(such as your standard motion activity) to copy its light behavior and duration,
 and Twilight triggers it based on motion density probabilities throughout the day:
 
 - **Data source**: evaluate dynamic live recorder history (a rolling 30-day window) or pick one of up to **5 saved heatmap profiles** per area (saved from the Heatmap card, where you choose the range `1w`–`6m` and resolution).
-- **Lux gating**: choose when simulated motion may turn lights on (`dusk_dawn` [default, dusk/dawn/night slots only], `threshold` [below illuminance threshold], or `always`).
-- **Eligible activities**: any activity that controls lights (`slot`, `entity`, or `light`).
+- **Lux gating**: choose when simulated motion may turn lights on (Dusk/Dawn [default], illuminance threshold, or Always).
+- **Eligible activities**: any activity that controls lights (Schedule, Entity, or Light).
 
 #### Default Activities
 
@@ -289,12 +297,30 @@ Today there is one Rule type:
 
 | Rule Type | Overrides | Trigger & Condition |
 |---|---|---|
-| **Activity Rule** | The slot exclusions (`excluded_slot_ids`) of a target Activity | Triggered by binary or toggle button input; active only when target Activity is running |
+| **Activity Rule** | The channel and slot selection of a target Activity | Triggered by binary or toggle button input; active only when target Activity is running |
 
-An **Activity Rule** affects exactly one Activity. While active, its slot
-exclusions override the Activity's own exclusions for the listed channels. If
-multiple Rules target the same Activity, "exclude wins" — a slot is excluded if
-any active Rule excludes it.
+An **Activity Rule** affects exactly one Activity. While active, its settings
+override the Activity's own settings: **what is checked in the Rule applies.**
+If multiple Rules target the same Activity, "exclude wins" — a slot is active for a
+channel only if it is checked in all active Rules.
+
+An Activity Rule can also optionally control what happens to the target
+Activity's **auto-expire** countdown while the Rule is active ("Auto-Expire
+Behavior"):
+
+| Mode | Effect |
+|---|---|
+| **None** (default) | No effect — the timer runs unaffected. |
+| **Pause** | Freezes the timer at its current remaining time; resumes with that same remaining time once the Rule ends. |
+| **Suspend** | Freezes the timer at zero; the Activity expires immediately once the Rule ends (unless another condition, like active motion, still holds it open). |
+| **Restart** | Freezes the timer at the full configured duration; the Activity gets a fresh full timer once the Rule ends. |
+
+A Rule can also suppress other inputs while it is active — e.g. an "Ambient" Rule
+that ignores the motion sensor input for its duration. While a matching Rule is active,
+its suppressed inputs replace the target Activity's own input suppression.
+Suppressed inputs stop reacting to triggers until the Rule ends; this uses the same
+disabler mechanism as an Activity's own [input suppression](#activities), just
+keyed to the Rule instead. A Rule cannot suppress the input that triggers it.
 
 Configure Rules via the **Rules** card in an area's detail view or in the
 [Area Template](#settings--area-template).
@@ -341,7 +367,8 @@ correlate light changes with actual sensor activity.
 The **Area template** setting is the blueprint used to seed every *new* area:
 its default inputs (motion, manual override, reset, a binary sleep trigger, a
 manual-trigger button), default activities (`motion`, `manual`, `sleep`,
-`reset`), default [Rules](#rules), and default custom channels. Edit it once
+`reset`), default [Rules](#rules), default custom channels, and the default
+Primary-channel slots (per-zone offsets and scenes). Edit it once
 in **Settings** and every area you create afterwards starts pre-wired instead
 of empty — existing areas are unaffected. A granular **Reset to System
 Defaults** dialog lets you restore individual inputs/activities/rules/channels
@@ -400,6 +427,11 @@ current store (all areas + global settings) and, per area, the live run
 state, the resolved scene map (which entity plays in which slot), and the
 last known state of every controlled light — useful when reporting a bug.
 
+> [!NOTE]
+> The file contains your real entity IDs, scene names, and area names —
+> nothing secret (no tokens or credentials), but potentially revealing about
+> your home. Review it before attaching it to a public GitHub issue.
+
 ---
 
 ## Troubleshooting
@@ -413,7 +445,33 @@ last known state of every controlled light — useful when reporting a bug.
 | Lights flash on restart | This shouldn't happen — Twilight uses boot-catch-up to avoid unwanted activation. Please [open an issue](https://github.com/bjrnptrsn/twilight/issues) |
 | Area not appearing in panel | Ensure the HA area exists and has at least one light entity assigned |
 
+### Debug Logging
+
+Go to **Settings → Devices & Services → Integrations → Twilight**, open the
+three-dot menu, and select **Enable debug logging**. No restart required —
+this only lasts until the next restart.
+
+When reporting a bug, ideally share the full log. If you'd rather not share
+unrelated data, filter it down to just Twilight's entries:
+
+```bash
+grep 'twilight' home-assistant.log > twilight.log
+```
+
+The [diagnostics download](#diagnostics) is usually more useful for
+configuration/state questions — reach for debug logging when you need to see
+the actual event-by-event decisions (why an activity didn't trigger, why a
+retry fired, etc.).
+
 ## Known Limitations
 
 - Only one illuminance sensor per area (multiple entities can feed into it)
 - No multi-language support yet (English only)
+
+## Contributing
+
+Found a bug or have an idea? [Open an issue](https://github.com/bjrnptrsn/twilight/issues) on GitHub.
+
+## License
+
+MIT License

@@ -323,18 +323,46 @@ def compute_sun_day_data(
     slot_sunrise = clamped["sunrise"]
     slot_sunset = clamped["sunset"]
 
-    if slot_sunrise is None or slot_sunset is None:
-        slot_gold_dawn = None
-        slot_gold_dusk = None
-        slot_day = None
-    elif slot_sunrise + 30 >= slot_sunset - 30:
-        slot_gold_dawn = None
-        slot_gold_dusk = None
-        slot_day = slot_sunrise
+    if slot_sunrise is not None and slot_sunset is not None:
+        if slot_sunrise + 30 >= slot_sunset - 30:
+            # Day too short for a 30-min golden band on each side.
+            slot_gold_dawn = None
+            slot_gold_dusk = None
+            slot_day = slot_sunrise
+        else:
+            slot_gold_dawn = slot_sunrise
+            slot_day = slot_sunrise + 30
+            slot_gold_dusk = slot_sunset - 30
     else:
-        slot_gold_dawn = slot_sunrise
-        slot_day = slot_sunrise + 30
-        slot_gold_dusk = slot_sunset - 30
+        # Polar transition day: only one of sunrise/sunset occurs. The two sides
+        # are independent — deriving the day zone from sunrise does not require a
+        # sunset to exist. Coupling them left the last day before polar day with a
+        # civil_dawn but no zone to ever end it, so the civil colour ran to
+        # midnight and painted a single dark column into a bright polar-day block
+        # (docs/agents/timeline.md §11e3).
+        #
+        # On a true polar day the sunrise/sunset values degenerate to an exact
+        # 0.0 placeholder rather than None — the sun is already up at midnight,
+        # so the event search yields the day boundary. Deriving a golden hour
+        # from that invents a 0–30 min gold band on days that have none
+        # (190/365 at the North Pole, where the sun sits 23° high at "sunrise").
+        #
+        # An exact 0.0 is the discriminator, not midnight elevation: on the last
+        # transition day before polar day the sun does still rise (McMurdo
+        # 2026-10-23, sunrise = 137.0) while midnight elevation has already
+        # crossed the horizon, so an elevation test would discard a real event.
+        # A genuine sunrise at exactly 00:00.000 is not representable here anyway.
+        has_real_sunrise = raw.get("sunrise") not in (None, 0.0)
+        has_real_sunset = raw.get("sunset") not in (None, 0.0)
+        slot_gold_dawn = slot_sunrise if has_real_sunrise else None
+        slot_day = (
+            slot_sunrise + 30
+            if has_real_sunrise and slot_sunrise is not None
+            else None
+        )
+        slot_gold_dusk = (
+            slot_sunset - 30 if has_real_sunset and slot_sunset is not None else None
+        )
 
     # Note on Dusk-Slot mapping (intentional asymmetry vs Dawn):
     # - slot_civil_dusk starts at sunset (slot_sunset) and covers the civil dusk period.

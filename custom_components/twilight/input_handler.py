@@ -18,10 +18,6 @@ from homeassistant.helpers.event import (
 from .const import (
     ACTIVE_STATES,
     ALL_IGNORE_SLOTS,
-    DEFAULT_LUX_IGNORE_ACTIVE,
-    DEFAULT_LUX_IGNORE_SCOPE,
-    DEFAULT_LUX_THRESHOLD,
-    DEFAULT_LUX_WATCH_WINDOW,
     MOTION_ACTIVE_STATES,
     PRIMARY_CHANNEL_ID,
     TWILIGHT_SLOTS,
@@ -30,12 +26,15 @@ from .const import (
     RetriggerMode,
     SensorType,
 )
-from .echo import is_own_echo
+from .echo import identify_echo
 from .helpers import (
     aggregate_active,
-    get_config_value,
     parse_hms_parts,
     resolve_aggregation,
+    resolve_lux_ignore_active,
+    resolve_lux_ignore_scope,
+    resolve_lux_threshold,
+    resolve_lux_watch_window,
     resolve_retrigger,
 )
 
@@ -201,10 +200,7 @@ class EventInputHandler(BaseInputHandler):
             return
 
         # Ignore state restoration or online/offline transitions at startup/reload
-        if (
-            old_state is None
-            or old_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN)
-        ):
+        if old_state is None or old_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
             return
 
         old_event_type = old_state.attributes.get("event_type")
@@ -257,10 +253,8 @@ class BinaryInputHandler(BaseInputHandler):
         self.entity_active: dict[str, bool] = {}
 
     def _resolve_aggregation(self, inp: InputConfig) -> tuple[str, int | None]:
-        """Resolve (mode, count) for a binary input via area → global → const fallback."""
-        return resolve_aggregation(
-            self.engine.hass, inp, self.engine.config, InputType.BINARY
-        )
+        """Resolve (mode, count) for a binary input via const default."""
+        return resolve_aggregation(inp, InputType.BINARY)
 
     async def async_setup(self) -> None:
         """Set up binary sensor listeners."""
@@ -473,12 +467,15 @@ class LightStateInputHandler(BaseInputHandler):
         if new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
             return
 
-        if is_own_echo(event.context, self.engine.area_id):
+        origin = identify_echo(event.context, self.engine.area_id)
+        if origin is not None:
             _LOGGER.debug(
-                "[%s] LightStateInputHandler: %s → %s (own echo)",
+                "[%s] LightStateInputHandler: %s → %s (own echo, channel=%s, suffix=%s)",
                 self.engine.area_id,
                 entity_id,
                 new_state.state,
+                origin.channel_id,
+                origin.suffix,
             )
             return
 
@@ -634,7 +631,7 @@ class MotionInputHandler(BaseInputHandler):
         timer); "first" only triggers on the input's off→on activation. This is
         not a multi-entity aggregation — any active entity keeps the input active.
         """
-        return resolve_retrigger(self.engine.hass, inp, self.engine.config)
+        return resolve_retrigger(inp)
 
     STATE_LABEL = "Motion"
 
@@ -748,14 +745,6 @@ class MotionInputHandler(BaseInputHandler):
         if not matched:
             self.engine.coordinator.update_input_active(None, active)
 
-    def _get_value(self, input_config: MotionInputConfig, key: str, default: T) -> T:
-        return cast(
-            T,
-            get_config_value(
-                self.engine.hass, [input_config, self.engine.config], key, default
-            ),
-        )
-
     def _should_ignore_lux(self, input_config: MotionInputConfig) -> bool:
         """Return True if lux check should be skipped for the current engine state."""
         from .config_model import IlluminanceSensorConfig
@@ -770,11 +759,11 @@ class MotionInputHandler(BaseInputHandler):
             # reading that can never be produced.
             return True
 
-        lux_ignore_active = self._get_value(
-            input_config, "lux_ignore_active", DEFAULT_LUX_IGNORE_ACTIVE
+        lux_ignore_active = resolve_lux_ignore_active(
+            input_config, self.engine.config
         )
-        lux_ignore_scope = self._get_value(
-            input_config, "lux_ignore_scope", DEFAULT_LUX_IGNORE_SCOPE
+        lux_ignore_scope = resolve_lux_ignore_scope(
+            input_config, self.engine.config
         )
 
         if (
@@ -798,10 +787,10 @@ class MotionInputHandler(BaseInputHandler):
     ) -> bool:
         if not any(ent in self.active_entities for ent in input_config.entity_ids):
             return False
-        lux_threshold = self._get_value(
-            input_config, "lux_threshold", DEFAULT_LUX_THRESHOLD
+        lux_threshold = resolve_lux_threshold(
+            input_config, self.engine.config
         )
-        # Note: a `null` lux_threshold never disables the gate — get_config_value
+        # Note: a `null` lux_threshold never disables the gate — resolve_lux_threshold
         # treats None as "unset" and falls through to DEFAULT_LUX_THRESHOLD. The
         # gate is disabled via _should_ignore_lux() (no illuminance sensor, or the
         # lux_ignore_active/scope options), not by clearing the threshold.
@@ -838,8 +827,8 @@ class MotionInputHandler(BaseInputHandler):
         activity = input_config.activity
         if not input_id or not activity:
             return
-        lux_watch_window = self._get_value(
-            input_config, "lux_watch_window", DEFAULT_LUX_WATCH_WINDOW
+        lux_watch_window = resolve_lux_watch_window(
+            input_config, self.engine.config
         )
 
         if self._is_disabled(input_id):

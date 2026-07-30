@@ -70,12 +70,7 @@ class InputStateManager:
                         )
                     )
                 if inp.type == InputType.BINARY:
-                    mode, count = resolve_aggregation(
-                        self._c.engine.hass,
-                        inp,
-                        self._c.engine.config,
-                        InputType.BINARY,
-                    )
+                    mode, count = resolve_aggregation(inp, InputType.BINARY)
                     active = aggregate_active(flags, mode, count)
                 else:
                     # Motion is always active if any entity is active — retrigger
@@ -89,15 +84,41 @@ class InputStateManager:
         )
         self._c.rule_manager.reevaluate()
 
-    def compute_disablers(self, active_activity: str | None) -> dict[str, list[str]]:
-        """Compute activity-based disablers for all inputs, without writing state."""
+    def compute_disablers(
+        self, active_activity: str | None, active_rules: dict[str, bool] | None = None
+    ) -> dict[str, list[str]]:
+        """Compute activity and rule-based disablers for all inputs, without writing state."""
+        if active_rules is None:
+            active_rules = self._c.run_state.active_rules
+
         new_disabled_by = dict(self._c.run_state.inputs_disabled_by)
         for input_id in list(new_disabled_by.keys()):
             new_disabled_by[input_id] = [
-                d for d in new_disabled_by[input_id] if not d.startswith("activity:")
+                d
+                for d in new_disabled_by[input_id]
+                if not d.startswith("activity:") and not d.startswith("rule:")
             ]
 
-        if active_activity:
+        matching_active_rules = [
+            rule
+            for rule in self._c.engine.config.rules
+            if rule.id
+            and active_rules.get(rule.id, False)
+            and active_activity is not None
+            and active_activity in rule.applied_activities
+        ]
+
+        if matching_active_rules:
+            # A matching active rule REPLACES the Activity's own suppress_inputs —
+            # same rule-wins semantics as get_effective_excluded_slots().
+            for rule in matching_active_rules:
+                for input_id in rule.suppressed_inputs_override:
+                    disablers = list(new_disabled_by.get(input_id, []))
+                    disabler_str = f"rule:{rule.id}"
+                    if disabler_str not in disablers:
+                        disablers.append(disabler_str)
+                    new_disabled_by[input_id] = disablers
+        elif active_activity:
             cfg = self._c.get_activity_config(active_activity)
             suppressed = cfg.suppress_inputs if cfg else ()
             for input_id in suppressed:
@@ -109,9 +130,13 @@ class InputStateManager:
 
         return new_disabled_by
 
-    def recalculate_disablers(self, active_activity: str | None) -> None:
-        """Recalculate and persist activity-based disablers for all inputs."""
-        self._c.update_state(inputs_disabled_by=self.compute_disablers(active_activity))
+    def recalculate_disablers(
+        self, active_activity: str | None, active_rules: dict[str, bool] | None = None
+    ) -> None:
+        """Recalculate and persist activity and rule-based disablers for all inputs."""
+        self._c.update_state(
+            inputs_disabled_by=self.compute_disablers(active_activity, active_rules)
+        )
 
     def update_input_active(self, input_id: str | None, active: bool) -> None:
         """Update the physical active state of an input in RunState."""

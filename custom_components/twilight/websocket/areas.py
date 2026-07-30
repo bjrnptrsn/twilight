@@ -240,34 +240,39 @@ def _ws_area_save() -> websocket_api.WebSocketCommandHandler:
                     vol.Required("name"): str,
                     vol.Optional("enabled", default=True): bool,
                     vol.Optional("transition_on_seconds"): vol.Any(None, int),
-                    vol.Optional("slots", default=[]): vol.All(
-                        [
-                            {
-                                vol.Required("id"): str,
-                                vol.Required("name"): str,
-                                vol.Optional(
-                                    "start_type", default=StartType.ASTRAL.value
-                                ): vol.In(
-                                    [StartType.ASTRAL.value, StartType.FIXED.value]
-                                ),
-                                # zone for astral slots (Primary always uses these);
-                                # fixed_time "HH:MM" for fixed slots in custom channels.
-                                vol.Optional("zone"): vol.Any(
-                                    None, vol.In(STANDARD_ZONES)
-                                ),
-                                vol.Optional("fixed_time"): vol.Any(None, _valid_hhmm),
-                                vol.Required("offset_minutes"): int,
-                                vol.Optional("scene_entity_id"): vol.Any(
-                                    None, cv.entity_id
-                                ),
-                                vol.Optional(
-                                    "configured_entities", default=[]
-                                ): cv.entity_ids,
-                            }
-                        ],
-                        # Hard cap so a channel can never exceed the slot limit (the
-                        # frontend disables Add at the limit; this is the backstop).
-                        vol.Length(max=MAX_SLOTS_PER_CHANNEL),
+                    vol.Optional("slots", default=[]): vol.Any(
+                        dict,
+                        vol.All(
+                            [
+                                {
+                                    vol.Optional("id"): str,
+                                    vol.Optional("name"): vol.Any(None, str),
+                                    vol.Optional(
+                                        "start_type", default=StartType.ASTRAL.value
+                                    ): vol.In(
+                                        [StartType.ASTRAL.value, StartType.FIXED.value]
+                                    ),
+                                    # zone for astral slots (Primary always uses these);
+                                    # fixed_time "HH:MM" for fixed slots in custom channels.
+                                    vol.Optional("zone"): vol.Any(
+                                        None, vol.In(STANDARD_ZONES)
+                                    ),
+                                    vol.Optional("fixed_time"): vol.Any(
+                                        None, _valid_hhmm
+                                    ),
+                                    vol.Optional("offset_minutes"): int,
+                                    vol.Optional("scene_entity_id"): vol.Any(
+                                        None, cv.entity_id
+                                    ),
+                                    vol.Optional(
+                                        "configured_entities", default=[]
+                                    ): cv.entity_ids,
+                                }
+                            ],
+                            # Hard cap so a channel can never exceed the slot limit (the
+                            # frontend disables Add at the limit; this is the backstop).
+                            vol.Length(max=MAX_SLOTS_PER_CHANNEL),
+                        ),
                     ),
                 }
             },

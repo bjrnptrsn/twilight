@@ -14,9 +14,9 @@ from homeassistant.util import dt as dt_util
 
 from .action_handler import (
     BaseActionHandler,
+    BlockActionHandler,
     EntityActionHandler,
     LightActionHandler,
-    NoneActionHandler,
     PresenceSimulationActionHandler,
     SlotActionHandler,
     TurnOffActionHandler,
@@ -43,12 +43,12 @@ from .const import (
     ActionType,
     ExpireCheckMode,
     InputType,
+    RuleAutoExpireMode,
 )
 from .helpers import (
     channel_entities,
     create_tracked_task,
     dispatch_entity_target,
-    get_config_value,
     get_slot_info,
     get_store,
     is_slot_excluded_effective,
@@ -98,7 +98,7 @@ class Coordinator:
             ActionType.SLOT: SlotActionHandler(self),
             ActionType.ENTITY: EntityActionHandler(self),
             ActionType.LIGHT: LightActionHandler(self),
-            ActionType.NONE: NoneActionHandler(self),
+            ActionType.BLOCK: BlockActionHandler(self),
             ActionType.TURN_OFF: TurnOffActionHandler(self),
             ActionType.SIMULATION: PresenceSimulationActionHandler(self),
         }
@@ -189,7 +189,7 @@ class Coordinator:
     def update_state(self, **kwargs: Any) -> RunState:
         """Helper to update run state.
 
-        Folding the activity-based disabler recalculation into the same
+        Folding the activity and rule-based disabler recalculation into the same
         update() call (instead of a separate follow-up update_state() call)
         keeps this a single state write / single listener notification —
         callers that also pass inputs_disabled_by explicitly are left as-is.
@@ -197,7 +197,14 @@ class Coordinator:
         if "active_activity" in kwargs and "inputs_disabled_by" not in kwargs:
             kwargs = dict(kwargs)
             kwargs["inputs_disabled_by"] = self.input_manager.compute_disablers(
-                kwargs["active_activity"]
+                kwargs["active_activity"],
+                kwargs.get("active_rules", self.run_state.active_rules),
+            )
+        elif "active_rules" in kwargs and "inputs_disabled_by" not in kwargs:
+            kwargs = dict(kwargs)
+            kwargs["inputs_disabled_by"] = self.input_manager.compute_disablers(
+                kwargs.get("active_activity", self.run_state.active_activity),
+                kwargs["active_rules"],
             )
         return self.engine.state_manager.update(**kwargs)
 
@@ -232,10 +239,6 @@ class Coordinator:
                     action, self.run_state.active_slots, transition_off=transition_off
                 )
             )
-
-    def _get_config_value(self, key: str, default: Any) -> Any:
-        """Get configuration value with fallback to global store config."""
-        return get_config_value(self.engine.hass, [self.engine.config], key, default)
 
     def _slot_active_entities(self, channel_id: str) -> list[str]:
         """Entities to turn off for the active slot of a single channel."""
@@ -301,18 +304,49 @@ class Coordinator:
                     create_tracked_task(
                         self.engine.hass,
                         dispatch_entity_target(
-                            self.engine.hass, target.entity_id, target.action
+                            self.engine.hass,
+                            self.engine.area_id,
+                            target.entity_id,
+                            target.action,
                         ),
                         self._tasks,
                     )
             return
 
         expire_secs = self._get_activity_auto_expire_seconds(name)
-        expires_at = (
-            dt_util.utcnow() + timedelta(seconds=expire_secs)
-            if expire_secs > 0
-            else None
+        effective_mode = self._get_effective_rule_auto_expire_mode(name)
+        is_frozen = (
+            effective_mode != RuleAutoExpireMode.NONE
+            or self.run_state.activity_expire_frozen_seconds is not None
         )
+
+        if is_frozen:
+            was_already_frozen = self.run_state.activity_expire_frozen_seconds is not None
+            if was_already_frozen:
+                # Re-trigger while a rule is already freezing the timer: always
+                # reset to the full duration regardless of mode (plan §1) — a
+                # fresh trigger must not leave the activity fated to expire
+                # instantly just because the active rule happens to be SUSPEND.
+                frozen_secs: float | None = (
+                    float(expire_secs) if expire_secs > 0 else None
+                )
+            else:
+                frozen_secs = (
+                    0.0
+                    if effective_mode == RuleAutoExpireMode.SUSPEND
+                    else (float(expire_secs) if expire_secs > 0 else None)
+                )
+            # While frozen, activity_expire_frozen_seconds is the source of
+            # truth (frontend + async_setup restore both key off it) —
+            # activity_expires_at must not carry a live-ticking value here.
+            expires_at = None
+        else:
+            frozen_secs = None
+            expires_at = (
+                dt_util.utcnow() + timedelta(seconds=expire_secs)
+                if expire_secs > 0
+                else None
+            )
 
         # Guard (Fix 1): If the same activity is re-requested while any channel
         # handler is still busy/retrying or settling, refresh the expire timer
@@ -336,9 +370,12 @@ class Coordinator:
                     triggered_at=dt_util.utcnow(),
                 ),
                 activity_expires_at=expires_at,
+                activity_expire_frozen_seconds=frozen_secs,
             )
             self.lux_manager.update_lux_state()
-            if expire_secs > 0:
+            if is_frozen:
+                self._cancel_auto_expire_timer()
+            elif expire_secs > 0:
                 self._start_auto_expire_timer(name, expire_secs)
             return
 
@@ -351,11 +388,14 @@ class Coordinator:
                 triggered_at=dt_util.utcnow(),
             ),
             activity_expires_at=expires_at,
+            activity_expire_frozen_seconds=frozen_secs,
         )
 
         self._apply_action(action, name)
 
-        if expire_secs > 0:
+        if is_frozen:
+            self._cancel_auto_expire_timer()
+        elif expire_secs > 0:
             self._start_auto_expire_timer(name, expire_secs)
 
     def activity_released(self, name: str) -> None:
@@ -365,6 +405,7 @@ class Coordinator:
             return
 
         self._cancel_auto_expire_timer()
+        self.update_state(activity_expire_frozen_seconds=None)
         self._apply_release_action(self._resolve_release_action(name), name)
 
     def _get_activity_auto_expire_seconds(self, name: str) -> int:
@@ -372,7 +413,7 @@ class Coordinator:
         cfg = self.get_activity_config(name)
         auto_expire = cfg.auto_expire if cfg else None
         if auto_expire is None:
-            auto_expire = self._get_config_value("auto_expire", DEFAULT_AUTO_EXPIRE)
+            auto_expire = DEFAULT_AUTO_EXPIRE
         return parse_hms(auto_expire) or 0
 
     def _get_activity_transition_off_seconds(self, name: str | None) -> int:
@@ -380,6 +421,8 @@ class Coordinator:
         if not name:
             return DEFAULT_TRANSITION_OFF_SECONDS
         cfg = self.get_activity_config(name)
+        if cfg and cfg.action and cfg.action.type in (ActionType.BLOCK, ActionType.RESET):
+            return 0
         val = cfg.transition_off_seconds if cfg else None
         if val is None:
             return DEFAULT_TRANSITION_OFF_SECONDS
@@ -397,11 +440,12 @@ class Coordinator:
         activity — the activity then always expires on schedule.
         """
         cfg = self.get_activity_config(activity_name)
+        if cfg and cfg.action and cfg.action.type == ActionType.BLOCK:
+            return False
+
         expire_check_mode = cfg.expire_check_mode if cfg else None
         if expire_check_mode is None:
-            expire_check_mode = self._get_config_value(
-                "expire_check_mode", DEFAULT_EXPIRE_CHECK_MODE
-            )
+            expire_check_mode = DEFAULT_EXPIRE_CHECK_MODE
 
         if expire_check_mode == ExpireCheckMode.DISABLED:
             return False
@@ -430,6 +474,79 @@ class Coordinator:
             if self.run_state.inputs_active.get(inp.id):
                 return True
         return False
+
+    def _get_effective_rule_auto_expire_mode(
+        self, activity_name: str
+    ) -> RuleAutoExpireMode:
+        """Calculate effective rule auto_expire mode for an activity among active rules."""
+        effective = RuleAutoExpireMode.NONE
+        for rule in self.engine.config.rules:
+            if not rule.enabled or not rule.id:
+                continue
+            if activity_name not in rule.applied_activities:
+                continue
+            if not self.run_state.active_rules.get(rule.id, False):
+                continue
+            mode = rule.auto_expire_mode
+            if mode == RuleAutoExpireMode.NONE:
+                continue
+            if mode == RuleAutoExpireMode.RESTART:
+                return RuleAutoExpireMode.RESTART
+            elif mode == RuleAutoExpireMode.PAUSE:
+                effective = RuleAutoExpireMode.PAUSE
+            elif (
+                mode == RuleAutoExpireMode.SUSPEND
+                and effective == RuleAutoExpireMode.NONE
+            ):
+                effective = RuleAutoExpireMode.SUSPEND
+        return effective
+
+    def update_rule_auto_expire_timer(self) -> None:
+        """Update auto_expire timer state based on active rules for current activity."""
+        active_act = self.run_state.active_activity
+        if not active_act:
+            if self.run_state.activity_expire_frozen_seconds is not None:
+                self.update_state(activity_expire_frozen_seconds=None)
+            return
+
+        mode = self._get_effective_rule_auto_expire_mode(active_act)
+
+        if mode == RuleAutoExpireMode.NONE:
+            if self.run_state.activity_expire_frozen_seconds is not None:
+                frozen_seconds = self.run_state.activity_expire_frozen_seconds
+                self.update_state(activity_expire_frozen_seconds=None)
+                if frozen_seconds > 0:
+                    expires_at = dt_util.utcnow() + timedelta(seconds=frozen_seconds)
+                    self.update_state(activity_expires_at=expires_at)
+                    self._start_auto_expire_timer(active_act, round(frozen_seconds))
+                else:
+                    self.update_state(activity_expires_at=None)
+                    self._on_auto_expire(active_act)
+            return
+
+        expire_secs = self._get_activity_auto_expire_seconds(active_act)
+
+        if self.run_state.activity_expire_frozen_seconds is None:
+            if mode == RuleAutoExpireMode.RESTART:
+                frozen_seconds = float(expire_secs)
+            elif mode == RuleAutoExpireMode.PAUSE:
+                if self.run_state.activity_expires_at:
+                    rem = (
+                        self.run_state.activity_expires_at - dt_util.utcnow()
+                    ).total_seconds()
+                    frozen_seconds = max(0.0, rem)
+                else:
+                    frozen_seconds = float(expire_secs)
+            else:  # SUSPEND
+                frozen_seconds = 0.0
+
+            self._cancel_auto_expire_timer()
+            self.update_state(activity_expire_frozen_seconds=frozen_seconds)
+        else:
+            if mode == RuleAutoExpireMode.RESTART:
+                self.update_state(activity_expire_frozen_seconds=float(expire_secs))
+            elif mode == RuleAutoExpireMode.SUSPEND:
+                self.update_state(activity_expire_frozen_seconds=0.0)
 
     def _start_auto_expire_timer(self, name: str, seconds: int) -> None:
         """Start auto expire timer for the active activity."""
@@ -698,29 +815,18 @@ class Coordinator:
     def _coerce_action(
         action: dict[str, Any] | ActionConfig | None, default_type: str
     ) -> ActionConfig:
-        """Normalize a raw dict / typed / missing action into a typed ActionConfig.
-
-        Guarantees a non-None `type`: a `None`/missing type resolves to
-        `default_type` while preserving any other raw fields (e.g. a slot
-        action's `excluded_slot_ids`). Shared by the apply/resolve paths so the
-        None-fallback lives in one place.
-        """
-        raw: dict[str, Any]
+        """Normalize a missing or dict action into a typed ActionConfig with default_type."""
         if isinstance(action, ActionConfig):
-            if action.type is not None:
-                return action
-            raw = dict(action.raw)
-        elif isinstance(action, dict):
-            if action.get("type") is not None:
-                return ActionConfig.from_dict(action)
-            raw = dict(action)
-        else:
-            raw = {}
-        raw["type"] = default_type
-        return ActionConfig.from_dict(raw)
+            return action
+        if isinstance(action, dict):
+            raw = action
+            if not raw.get("type"):
+                raw = {**raw, "type": default_type}
+            return ActionConfig.from_dict(raw)
+        return ActionConfig.from_dict({"type": default_type})
 
     def _apply_action(
-        self, action: dict[str, Any] | ActionConfig, name: str | None = None
+        self, action: dict[str, Any] | ActionConfig | None, name: str | None = None
     ) -> None:
         """Apply the configured start action for the activity via ActionHandlers."""
         action = self._coerce_action(action, DEFAULT_ACTION_TYPE)
@@ -747,7 +853,7 @@ class Coordinator:
         )
 
     def _apply_release_action(
-        self, release: dict[str, Any] | ActionConfig, name: str | None = None
+        self, release: dict[str, Any] | ActionConfig | None, name: str | None = None
     ) -> None:
         """Apply the configured release action for the activity via ActionHandlers."""
         release = self._coerce_action(release, DEFAULT_RELEASE_ACTION_TYPE)
@@ -808,8 +914,20 @@ class Coordinator:
 
         motion_active = bool(self.engine.motion_handler.active_entities)
 
+        frozen_secs = self.run_state.activity_expire_frozen_seconds
         expires_at = self.run_state.activity_expires_at
-        if expires_at:
+        if frozen_secs is not None and self.run_state.active_activity:
+            _LOGGER.info(
+                "[%s] Restoring auto_expire frozen state of %.1fs for activity '%s'",
+                self.engine.area_id,
+                frozen_secs,
+                self.run_state.active_activity,
+            )
+            self.input_manager.recalculate_disablers(
+                self.run_state.active_activity, self.run_state.active_rules
+            )
+            self._restore_active_handler(self.run_state.active_activity)
+        elif expires_at:
             now = dt_util.utcnow()
             delay = (expires_at - now).total_seconds()
             if delay > 0:
@@ -823,7 +941,7 @@ class Coordinator:
                         self.run_state.active_activity, int(delay)
                     )
                     self.input_manager.recalculate_disablers(
-                        self.run_state.active_activity
+                        self.run_state.active_activity, self.run_state.active_rules
                     )
                     self._restore_active_handler(self.run_state.active_activity)
             else:
@@ -840,7 +958,9 @@ class Coordinator:
                 self.lux_manager.update_lux_state()
                 self.turn_off_all_channels()
         elif self.run_state.active_activity:
-            self.input_manager.recalculate_disablers(self.run_state.active_activity)
+            self.input_manager.recalculate_disablers(
+                self.run_state.active_activity, self.run_state.active_rules
+            )
             self._restore_active_handler(self.run_state.active_activity)
 
         self.update_state(

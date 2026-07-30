@@ -290,6 +290,8 @@ def _ws_timeline_slot_times() -> websocket_api.WebSocketCommandHandler:
         primary_slots = default_primary_slots()
         if area_id:
             store = hass.data[DOMAIN].get("store")
+            # store.get_area() already materializes Primary slots into a full
+            # 10-slot list (see store.materialize_area_primary_slots).
             area_config = store.get_area(area_id) if store else None
             if area_config:
                 channels = area_config.get("channels", {})
@@ -315,7 +317,7 @@ def _ws_timeline_slot_times() -> websocket_api.WebSocketCommandHandler:
             return
 
         def _compute() -> dict[str, Any]:
-            curves: dict[str, list[int]] = {
+            curves: dict[str, list[int | None]] = {
                 s["id"]: [] for s in primary_slots if isinstance(s, dict) and "id" in s
             }
 
@@ -325,9 +327,15 @@ def _ws_timeline_slot_times() -> websocket_api.WebSocketCommandHandler:
                 d = start + dt.timedelta(days=i)
                 sun_data = compute_sun_day_data(lat, lon, tz_str, d)
                 resolved = resolve_slot_times(primary_slots, sun_data)
+                # A synthetic slot has no real sun event on this day (polar
+                # day/night) and only carries the solar-noon placeholder the
+                # scheduler needs. Emit None so the chart renders a gap instead
+                # of a fake zone boundary (docs/agents/timeline.md §11e3).
                 for slot in resolved:
                     if slot["id"] in curves:
-                        curves[slot["id"]].append(slot["start"])
+                        curves[slot["id"]].append(
+                            None if slot.get("synthetic") else slot["start"]
+                        )
 
             return {"year": year, "curves": curves}
 
@@ -339,4 +347,3 @@ def _ws_timeline_slot_times() -> websocket_api.WebSocketCommandHandler:
         connection.send_result(msg["id"], result)
 
     return handle
-

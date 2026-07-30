@@ -51,6 +51,7 @@ class RunState:
     active_rules: dict[str, bool] = field(
         default_factory=dict
     )  # active status per rule ID
+    activity_expire_frozen_seconds: float | None = None  # frozen auto_expire duration while rule active
 
 
 @dataclass(frozen=True)

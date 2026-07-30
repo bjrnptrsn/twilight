@@ -62,6 +62,7 @@ class RuleManager:
                 new_active_rules,
             )
             self._c.update_state(active_rules=new_active_rules)
+            self._c.update_rule_auto_expire_timer()
             self._c.reapply_active_activity_rules()
 
     def get_effective_excluded_slots(
@@ -71,7 +72,7 @@ class RuleManager:
     ) -> dict[str, tuple[str, ...]]:
         """Calculate effective excluded slot IDs for a given activity.
 
-        If any active rules target this activity, their slot_overrides are merged
+        If any active rules target this activity, their excluded_slots_override are merged
         using 'exclude wins' (union of all excluded slot IDs for each channel).
         If no active rules target this activity, default_excluded is returned.
         """
@@ -91,11 +92,11 @@ class RuleManager:
         if not matching_active_rules:
             return default_excluded
 
-        # Merge slot_overrides across active matching rules using exclude-wins (union)
+        # Merge excluded_slots_override across active matching rules using exclude-wins (union)
         merged_excluded: dict[str, set[str]] = {}
 
         for rule in matching_active_rules:
-            act_overrides = rule.slot_overrides.get(activity_id, {})
+            act_overrides = rule.excluded_slots_override.get(activity_id, {})
             for ch_id, excluded_slots in act_overrides.items():
                 if ch_id not in merged_excluded:
                     merged_excluded[ch_id] = set()

@@ -5,14 +5,20 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Coroutine, Iterator, Sequence
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any
 
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Context, HomeAssistant
 
 from .const import (
+    CONTEXT_PREFIX,
     DEFAULT_ACTION_TYPE,
     DEFAULT_BINARY_AGGREGATION,
+    DEFAULT_LUX_IGNORE_ACTIVE,
+    DEFAULT_LUX_IGNORE_SCOPE,
+    DEFAULT_LUX_THRESHOLD,
+    DEFAULT_LUX_WATCH_WINDOW,
     DEFAULT_MOTION_RETRIGGER,
+    DEFAULT_TRANSITION_ON_SECONDS,
     DOMAIN,
     ActionType,
     AggregationMode,
@@ -27,19 +33,16 @@ SIM_TEMPLATE_ELIGIBLE_TYPES = frozenset(
 )
 
 if TYPE_CHECKING:
-    from .config_model import AreaConfig
+    from .config_model import (
+        AreaConfig,
+        ChannelConfig,
+        InputConfig,
+        MotionInputConfig,
+    )
     from .rule_manager import RuleManager
     from .state import RunState, SlotSceneInfo
 
 _LOGGER = logging.getLogger(__name__)
-
-
-class ConfigLike(Protocol):
-    """Anything readable like a config dict — plain dicts and the typed
-    config_model dataclasses (which bridge `get()` to their raw dict)."""
-
-    def get(self, key: str, default: Any = None) -> Any:
-        """Return the raw value for `key`, or `default`."""
 
 
 def parse_hms_parts(s: str | None) -> tuple[int, int, int] | None:
@@ -196,7 +199,7 @@ _ENTITY_TARGET_SERVICES: dict[str, dict[str, tuple[str, str]]] = {
 
 
 async def dispatch_entity_target(
-    hass: HomeAssistant, entity_id: str | None, action: str | None
+    hass: HomeAssistant, area_id: str, entity_id: str | None, action: str | None
 ) -> None:
     """Call the HA service matching an EntityTargetConfig's domain/action.
 
@@ -218,8 +221,9 @@ async def dispatch_entity_target(
         )
         return
     domain_service, service_name = service
+    context = Context(id=f"{CONTEXT_PREFIX}{area_id}_reset_entity_target")
     await hass.services.async_call(
-        domain_service, service_name, {"entity_id": entity_id}
+        domain_service, service_name, {"entity_id": entity_id}, context=context
     )
 
 
@@ -262,32 +266,16 @@ def dispatch_button_input(
     return None
 
 
-def get_config_value(
-    hass: HomeAssistant | None,
-    configs: Sequence[ConfigLike | None],
-    key: str,
-    default: Any,
-) -> Any:
-    """Retrieve configuration value from a sequence of config-like objects.
-
-    Accepts raw dicts and typed config_model objects alike (see ConfigLike).
-    Falls back in order:
-      1. First non-None value found in the `configs` list.
-      2. Global configuration from the TwilightStore.
-      3. Default value provided.
-    """
-    for config in configs:
-        if config is not None and (val := config.get(key)) is not None:
-            return val
-
-    if hass is not None:
-        store = get_store(hass)
-        if store:
-            global_val = store.get_global().get(key)
-            if global_val is not None:
-                return global_val
-
-    return default
+def resolve_transition_on_seconds(
+    channel: ChannelConfig | None,
+    area: AreaConfig,
+) -> int:
+    """Resolve transition_on_seconds via channel -> area -> const default."""
+    if channel is not None and channel.transition_on_seconds is not None:
+        return int(channel.transition_on_seconds)
+    if area.transition_on_seconds is not None:
+        return int(area.transition_on_seconds)
+    return DEFAULT_TRANSITION_ON_SECONDS
 
 
 def aggregate_active(
@@ -313,41 +301,78 @@ def aggregate_active(
 
 
 def resolve_aggregation(
-    hass: HomeAssistant | None,
-    inp: ConfigLike,
-    area_config: ConfigLike,
-    input_type: InputType,
+    inp: InputConfig,
+    input_type: InputType | str,
 ) -> tuple[str, int | None]:
-    """Resolve (mode, count) for a binary input via area/input → const.
+    """Resolve (mode, count) for a binary input via input → const default.
 
     Binary inputs aggregate the state of multiple entities into one active flag
     (see aggregate_active). Motion does not use this — it uses resolve_retrigger.
     """
     if input_type != InputType.BINARY:
         raise ValueError("resolve_aggregation is binary-only")
-    mode = get_config_value(
-        hass, [inp, area_config], "aggregation", DEFAULT_BINARY_AGGREGATION
-    )
-    count = get_config_value(hass, [inp, area_config], "aggregation_count", None)
-    return mode, count
+    mode = getattr(inp, "aggregation", None) or DEFAULT_BINARY_AGGREGATION
+    count = getattr(inp, "aggregation_count", None)
+    return str(mode), count
 
 
-def resolve_retrigger(
-    hass: HomeAssistant | None,
-    inp: ConfigLike,
-    area_config: ConfigLike,
-) -> str:
+def resolve_retrigger(inp: InputConfig) -> str:
     """Resolve the re-trigger mode ("every"/"first") for a motion input.
 
     This controls whether every motion event re-triggers the activity (restarting
     the auto-expire timer) or only the first activation does — it is not a
     multi-entity aggregation.
     """
-    return str(
-        get_config_value(
-            hass, [inp, area_config], "retrigger", DEFAULT_MOTION_RETRIGGER
-        )
-    )
+    retrigger = getattr(inp, "retrigger", None)
+    return str(retrigger or DEFAULT_MOTION_RETRIGGER)
+
+
+def resolve_lux_threshold(
+    inp: MotionInputConfig | None,
+    area: AreaConfig,
+) -> float | int:
+    """Resolve lux_threshold via motion input -> area -> const default."""
+    if inp is not None and inp.lux_threshold is not None:
+        return inp.lux_threshold
+    if area.lux_threshold is not None:
+        return area.lux_threshold
+    return DEFAULT_LUX_THRESHOLD
+
+
+def resolve_lux_watch_window(
+    inp: MotionInputConfig | None,
+    area: AreaConfig,
+) -> int:
+    """Resolve lux_watch_window via motion input -> area -> const default."""
+    if inp is not None and inp.lux_watch_window is not None:
+        return inp.lux_watch_window
+    if area.lux_watch_window is not None:
+        return area.lux_watch_window
+    return DEFAULT_LUX_WATCH_WINDOW
+
+
+def resolve_lux_ignore_active(
+    inp: MotionInputConfig | None,
+    area: AreaConfig,
+) -> bool:
+    """Resolve lux_ignore_active via motion input -> area -> const default."""
+    if inp is not None and inp.lux_ignore_active is not None:
+        return inp.lux_ignore_active
+    if area.lux_ignore_active is not None:
+        return area.lux_ignore_active
+    return DEFAULT_LUX_IGNORE_ACTIVE
+
+
+def resolve_lux_ignore_scope(
+    inp: MotionInputConfig | None,
+    area: AreaConfig,
+) -> str:
+    """Resolve lux_ignore_scope via motion input -> area -> const default."""
+    if inp is not None and inp.lux_ignore_scope is not None:
+        return str(inp.lux_ignore_scope)
+    if area.lux_ignore_scope is not None:
+        return str(area.lux_ignore_scope)
+    return DEFAULT_LUX_IGNORE_SCOPE
 
 
 def is_slot_excluded(
@@ -359,7 +384,7 @@ def is_slot_excluded(
     """Whether a channel's slot is excluded from the running activity's slot action.
 
     Only the `action` phase of a `slot`-type activity action supports
-    `excluded_slot_ids` (see SlotActionConfig) — `release_action` always applies
+    `excluded_slots` (see SlotActionConfig) — `release_action` always applies
     all channels/slots regardless. Free function (not a Coordinator method) so
     websocket/subscribe.py can call it from an engine/state snapshot alone.
     """
@@ -375,16 +400,10 @@ def is_slot_excluded(
     if action_type != "slot":
         return False
 
-    # A `type: "slot"` action parses to SlotActionConfig (typed attribute); a
-    # `type: None` action that only defaults to "slot" here stays a base
-    # ActionConfig without the attribute, so fall back to the raw dict.
-    excluded_slot_ids = getattr(action, "excluded_slot_ids", None)
-    if excluded_slot_ids is None:
-        excluded_slot_ids = action.get("excluded_slot_ids")
-
-    if not excluded_slot_ids:
+    excluded_slots = getattr(action, "excluded_slots", None)
+    if not excluded_slots:
         return False
-    return slot_id in excluded_slot_ids.get(channel_id, ())
+    return slot_id in excluded_slots.get(channel_id, ())
 
 
 def is_slot_excluded_effective(
@@ -411,7 +430,7 @@ def is_slot_excluded_effective(
 
     activity = config.activity_by_id(activity_id)
     action = activity.action if activity else None
-    default_excluded = getattr(action, "excluded_slot_ids", None) or {}
+    default_excluded = getattr(action, "excluded_slots", None) or {}
 
     effective = rule_manager.get_effective_excluded_slots(activity_id, default_excluded)
     return slot_id in effective.get(channel_id, ())

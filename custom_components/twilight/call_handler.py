@@ -21,7 +21,7 @@ from homeassistant.util.color import color_temperature_mired_to_kelvin
 from .config_model import ActionConfig, LightActionConfig
 from .const import CONTEXT_PREFIX, DEFAULT_RETRY_DELAYS, ECHO_SETTLE_WINDOW_SECONDS
 from .deviation import check_entity_deviation, deviating_attrs
-from .echo import is_own_echo
+from .echo import identify_echo
 from .helpers import (
     create_tracked_task,
     get_slot_info,
@@ -220,7 +220,11 @@ class BaseCallHandler(ABC):
         light.turn_on — used by the blind-retry and reaction-retry paths).
         """
         context_prefix = "check_retry_" if style == "check" else "retry_"
-        context = Context(id=self._make_context_id(f"{context_prefix}{attempt}"))
+        context = Context(
+            id=self._make_context_id(
+                f"{self._context_suffix()}_{context_prefix}{attempt}"
+            )
+        )
         service_data: dict[str, Any]
         domain = entity_id.split(".", 1)[0]
 
@@ -229,7 +233,9 @@ class BaseCallHandler(ABC):
                 # Non-light entities (e.g. switch.*) have no brightness/color to
                 # blind-reapply — always drive them via their own on/off service.
                 service = "turn_on" if expected.get("state") == STATE_ON else "turn_off"
-                call_domain = domain if domain in ("light", "switch") else "homeassistant"
+                call_domain = (
+                    domain if domain in ("light", "switch") else "homeassistant"
+                )
                 self._create_task(
                     self.hass.services.async_call(
                         call_domain,
@@ -489,7 +495,7 @@ class BaseCallHandler(ABC):
                 deviates = check_entity_deviation(new_state, expected)
                 if not deviates:
                     self._reached_target_entities.add(entity_id)
-                elif not is_own_echo(context, self.engine.area_id):
+                elif identify_echo(context, self.engine.area_id) is None:
                     if self._retry_active:
                         _LOGGER.info(
                             "[%s] External deviation detected on %s: %s (stopping retries)",

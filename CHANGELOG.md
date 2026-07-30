@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.0 - 2026-07-30
+
+### ✨ Features
+
+*   **Area Template Slot Editing**: Primary-Channel slots and offsets can now be configured directly in the Area Template (Settings tab) to serve as default values for new areas.
+
+*   **Rule Auto-Expire Controls**: Rules can now pause, suspend, or restart an Activity's auto-expire timer while active.
+
+*   **Rule Input Suppression**: Rules can now temporarily suppress specific inputs (e.g. motion sensors) while active, overriding the target activity's default suppression settings.
+
+### 🎨 Improvements
+
+*   **Interface polish**: various refinements to layout, labels and chart rendering across the panel.
+
 ## 0.3.0 - 2026-07-27
 
 ### ✨ Features

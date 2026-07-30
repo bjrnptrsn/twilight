@@ -6,27 +6,38 @@ import copy
 import logging
 import secrets
 from enum import StrEnum
-from typing import Any
+from typing import Any, cast
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
+from .config_model import (
+    _ACTION_CONFIG_TYPES,
+    _INPUT_CONFIG_TYPES,
+    _SENSOR_CONFIG_TYPES,
+    ActionConfig,
+    ActivityConfig,
+    InputConfig,
+    RuleConfig,
+    SensorConfig,
+)
 from .const import (
     BACKUP_VERSION,
     DEFAULT_AREA_TEMPLATE,
     PRIMARY_CHANNEL_ID,
-    STANDARD_NAMES,
     STANDARD_ZONES,
+    STORAGE_VERSION,
+    ActionType,
     AggregationMode,
     RetriggerMode,
     StartType,
     default_channels,
+    materialize_primary_slots,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 STORAGE_KEY = "twilight"
-STORAGE_VERSION = 1
 
 # Top-level area keys managed as plain values (vs. the structured "channels"/
 # "inputs"/"activities"/"_state" handled separately by _normalize_area_config).
@@ -92,9 +103,8 @@ def _normalize_channels(config: dict[str, Any]) -> bool:
 
     Guarantees:
       - a "channels" dict exists with a complete Primary channel
-      - Primary has exactly the 10 fixed astral slots, in order; only
-        scene_entity_id/offset_minutes/name carry over from existing slots
-      - every Primary slot has start_type=astral and a configured_entities list
+      - Primary slots are stored as a sparse dict keyed by standard zone ID, containing
+        only non-default overrides (offset_minutes != 0, scene_entity_id set, or configured_entities non-empty)
       - custom channels keep their free slot lists; slots get start_type
         defaulted to astral and configured_entities defaulted to []
     """
@@ -111,47 +121,21 @@ def _normalize_channels(config: dict[str, Any]) -> bool:
             channel["transition_on_seconds"] = None
             modified = True
 
-    # --- Primary channel: rebuild the 10 fixed slots in order ---
+    # --- Primary channel: sparse dict for non-default zone overrides ---
     primary = channels.get(PRIMARY_CHANNEL_ID)
     if not isinstance(primary, dict):
-        primary = {"name": "Primary", "enabled": True, "slots": []}
+        primary = {"name": "Primary", "enabled": True, "slots": {}}
         channels[PRIMARY_CHANNEL_ID] = primary
         modified = True
 
-    existing_primary_slots = primary.get("slots")
-    if not isinstance(existing_primary_slots, list):
-        existing_primary_slots = []
+    existing_primary_slots = cast(Any, primary.get("slots"))
+    new_sparse_slots = normalize_primary_slots_sparse(existing_primary_slots)
 
-    slot_by_zone: dict[str, dict[str, Any]] = {}
-    for slot in existing_primary_slots:
-        if not isinstance(slot, dict):
-            continue
-        # Use id only when zone is genuinely absent (None), not when it is an
-        # empty string — `or` would wrongly fall through on zone="".
-        zone = slot.get("zone")
-        if zone is None:
-            zone = slot.get("id")
-        if isinstance(zone, str) and zone in STANDARD_ZONES:
-            slot_by_zone[zone] = slot
-
-    new_primary_slots: list[dict[str, Any]] = []
-    for zone in STANDARD_ZONES:
-        src = slot_by_zone.get(zone)
-        new_primary_slots.append(
-            {
-                "id": zone,
-                "name": (src.get("name") if src else None) or STANDARD_NAMES[zone],
-                "start_type": StartType.ASTRAL.value,
-                "zone": zone,
-                "offset_minutes": src.get("offset_minutes") if src else 0,
-                "scene_entity_id": src.get("scene_entity_id") if src else None,
-                "configured_entities": (src.get("configured_entities") if src else [])
-                or [],
-            }
-        )
-
-    if new_primary_slots != existing_primary_slots:
-        primary["slots"] = new_primary_slots
+    if (
+        not isinstance(existing_primary_slots, dict)
+        or new_sparse_slots != existing_primary_slots
+    ):
+        primary["slots"] = new_sparse_slots
         modified = True
     if primary.get("enabled") is not True:
         primary["enabled"] = True
@@ -162,6 +146,52 @@ def _normalize_channels(config: dict[str, Any]) -> bool:
 
     # --- Custom channels: default start_type / configured_entities / stable ID / canonical order ---
     return _normalize_custom_channels(channels) or modified
+
+
+def normalize_primary_slots_sparse(
+    raw_slots: dict[str, Any] | list[dict[str, Any]] | None,
+) -> dict[str, dict[str, Any]]:
+    """Normalize raw primary slots (dict or list) into a sparse override dict."""
+    override_by_zone: dict[str, dict[str, Any]] = {}
+    if isinstance(raw_slots, list):
+        for slot in raw_slots:
+            if not isinstance(slot, dict):
+                continue
+            zone = slot.get("zone") or slot.get("id")
+            if isinstance(zone, str) and zone in STANDARD_ZONES:
+                override_by_zone[zone] = slot
+    elif isinstance(raw_slots, dict):
+        for zone, slot in raw_slots.items():
+            if (
+                isinstance(zone, str)
+                and zone in STANDARD_ZONES
+                and isinstance(slot, dict)
+            ):
+                override_by_zone[zone] = slot
+
+    new_sparse_slots: dict[str, dict[str, Any]] = {}
+    for zone in STANDARD_ZONES:
+        src = override_by_zone.get(zone)
+        if not src or not isinstance(src, dict):
+            continue
+
+        offset_mins = src.get("offset_minutes")
+        scene_id = src.get("scene_entity_id")
+        entities = src.get("configured_entities")
+
+        # Prune defaults: offset=0, scene_entity_id=None, configured_entities=[]
+        zone_override: dict[str, Any] = {}
+        if isinstance(offset_mins, (int, float)) and int(offset_mins) != 0:
+            zone_override["offset_minutes"] = int(offset_mins)
+        if isinstance(scene_id, str) and scene_id.strip():
+            zone_override["scene_entity_id"] = scene_id
+        if isinstance(entities, (list, tuple)) and len(entities) > 0:
+            zone_override["configured_entities"] = list(entities)
+
+        if zone_override:
+            new_sparse_slots[zone] = zone_override
+
+    return new_sparse_slots
 
 
 def _normalize_custom_channels(channels: dict[str, Any]) -> bool:
@@ -244,8 +274,8 @@ def _normalize_typed_choice(
     """Backfill a missing enum-valued key to None, and reset invalid values.
 
     A missing key becomes `None`; an unknown/typo'd value (e.g. hand-edited
-    config) also resets to `None` so `get_config_value()` falls through to the
-    global/const default. Returns whether the dict was modified.
+    config) also resets to `None` so the field's resolve_*() helper falls
+    through to its const default. Returns whether the dict was modified.
     """
     if key not in inp:
         inp[key] = None
@@ -274,22 +304,19 @@ def _normalize_input(inp: dict[str, Any], existing_ids: set[str]) -> bool:
         inp["id"] = candidate
         modified = True
 
-    # Backfill entity_ids for non-button inputs (buttons have no entities; the
-    # button block below strips the key).
-    if inp.get("type") != "button" and "entity_ids" not in inp:
-        inp["entity_ids"] = []
+    if "type" not in inp:
+        inp["type"] = "motion"
         modified = True
 
-    # Backfill activity and rule keys
-    if "activity" not in inp:
-        inp["activity"] = None
-        modified = True
-    if "rule" not in inp:
-        inp["rule"] = None
-        modified = True
+    inp_type = inp.get("type")
+    subclass = (
+        _INPUT_CONFIG_TYPES.get(inp_type, InputConfig)
+        if isinstance(inp_type, str)
+        else InputConfig
+    )
+    modified = subclass.prune_and_default(inp, keep={"id"}) or modified
 
     # Normalization of re-trigger (motion) / aggregation (binary) options
-    inp_type = inp.get("type")
     if inp_type == "motion":
         modified = _normalize_typed_choice(inp, "retrigger", RetriggerMode) or modified
     elif inp_type == "binary":
@@ -308,33 +335,13 @@ def _normalize_input(inp: dict[str, Any], existing_ids: set[str]) -> bool:
         )
         count = inp.get("aggregation_count")
         count_invalid = count is not None and (not isinstance(count, int) or count < 1)
-        if "aggregation_count" not in inp or count_invalid:
+        if count_invalid:
             inp["aggregation_count"] = None
             modified = True
 
-    # Button-specific normalization
-    if inp_type == "button":
-        if "button_mode" not in inp:
-            inp["button_mode"] = "click"
-            modified = True
-        if "entity_ids" in inp:
-            del inp["entity_ids"]
-            modified = True
-        if "create_entity" not in inp:
-            inp["create_entity"] = False
-            modified = True
-    elif "create_entity" in inp:
-        del inp["create_entity"]
-        modified = True
-
-    # Timer-specific normalization
-    if inp_type == "timer":
-        if "trigger_time" not in inp:
-            inp["trigger_time"] = "00:00:00"
-            modified = True
-    elif "trigger_time" in inp:
-        # trigger_time is only for timer inputs
-        inp.pop("trigger_time")
+    # Button-specific normalization (buttons have no entity_ids in store)
+    if inp_type == "button" and "entity_ids" in inp:
+        del inp["entity_ids"]
         modified = True
 
     return modified
@@ -352,40 +359,28 @@ def _normalize_activity(act: dict[str, Any], existing_ids: set[str]) -> bool:
         act["id"] = candidate
         modified = True
 
-    if "name" not in act or not act["name"]:
-        act["name"] = act.get("id", "").capitalize() if act.get("id") else None
-        modified = True
+    modified = ActivityConfig.prune_and_default(act, keep={"id"}) or modified
 
-    if "auto_expire" not in act:
-        act["auto_expire"] = None
-        modified = True
-
-    if "expire_check_mode" not in act:
-        act["expire_check_mode"] = None
-        modified = True
-
-    if "suppress_inputs" not in act:
+    if not isinstance(act.get("suppress_inputs"), list):
         act["suppress_inputs"] = []
         modified = True
-    if "action" not in act:
-        act["action"] = {"type": None}
-        modified = True
-    elif isinstance(act["action"], dict) and "type" not in act["action"]:
-        act["action"]["type"] = None
-        modified = True
-    if "release_action" not in act:
-        act["release_action"] = {"type": None}
-        modified = True
-    elif (
-        isinstance(act["release_action"], dict) and "type" not in act["release_action"]
-    ):
-        act["release_action"]["type"] = None
-        modified = True
 
-    if "transition_off_seconds" not in act:
-        # None → coordinator falls back to DEFAULT_TRANSITION_OFF_SECONDS.
-        act["transition_off_seconds"] = None
-        modified = True
+    for action_key in ("action", "release_action"):
+        action_raw = act.get(action_key)
+        if not isinstance(action_raw, dict):
+            act[action_key] = {"type": None}
+            modified = True
+        else:
+            if "type" not in action_raw:
+                action_raw["type"] = None
+                modified = True
+            action_type = action_raw.get("type")
+            action_cls = (
+                _ACTION_CONFIG_TYPES.get(action_type, ActionConfig)
+                if isinstance(action_type, str)
+                else ActionConfig
+            )
+            modified = action_cls.prune_and_default(action_raw) or modified
 
     return modified
 
@@ -408,27 +403,29 @@ def _normalize_sensor(sensor: dict[str, Any], existing_ids: set[str]) -> bool:
         sensor["type"] = "illuminance"
         modified = True
 
-    # Backfill entity_ids
-    if "entity_ids" not in sensor:
+    s_type = sensor.get("type")
+    subclass = (
+        _SENSOR_CONFIG_TYPES.get(s_type, SensorConfig)
+        if isinstance(s_type, str)
+        else SensorConfig
+    )
+    modified = subclass.prune_and_default(sensor, keep={"id"}) or modified
+
+    if not isinstance(sensor.get("entity_ids"), list):
         sensor["entity_ids"] = []
         modified = True
 
-    s_type = sensor.get("type")
-    if s_type == "illuminance":
-        if "aggregation" not in sensor:
+    if s_type == "illuminance" and sensor.get("aggregation") is not None:
+        valid_modes = ("min", "max", "mean", "median")
+        if sensor["aggregation"] not in valid_modes:
             sensor["aggregation"] = None
             modified = True
-        elif sensor["aggregation"] is not None:
-            valid_modes = ("min", "max", "mean", "median")
-            if sensor["aggregation"] not in valid_modes:
-                sensor["aggregation"] = None
-                modified = True
 
     return modified
 
 
 def _normalize_rule(rule: dict[str, Any], existing_ids: set[str]) -> bool:
-    """Normalize a single rule dict (id, name, enabled, applied_activities, slot_overrides).
+    """Normalize a single rule dict (id, name, enabled, applied_activities, excluded_slots_override).
 
     Trigger inputs are configured on the input side (InputConfig.rule), not here —
     a rule never lists its own trigger inputs.
@@ -443,22 +440,16 @@ def _normalize_rule(rule: dict[str, Any], existing_ids: set[str]) -> bool:
         rule["id"] = candidate
         modified = True
 
-    if "name" not in rule:
-        rule["name"] = ""
-        modified = True
+    modified = RuleConfig.prune_and_default(rule, keep={"id"}) or modified
 
-    if "enabled" not in rule:
-        rule["enabled"] = True
-        modified = True
-
-    if "applied_activities" not in rule or not isinstance(
-        rule["applied_activities"], list
-    ):
+    if not isinstance(rule.get("applied_activities"), list):
         rule["applied_activities"] = []
         modified = True
-
-    if "slot_overrides" not in rule or not isinstance(rule["slot_overrides"], dict):
-        rule["slot_overrides"] = {}
+    if not isinstance(rule.get("excluded_slots_override"), dict):
+        rule["excluded_slots_override"] = {}
+        modified = True
+    if not isinstance(rule.get("suppressed_inputs_override"), list):
+        rule["suppressed_inputs_override"] = []
         modified = True
 
     return modified
@@ -541,6 +532,36 @@ def _normalize_config_lists(config: dict[str, Any]) -> bool:
             continue
         modified = _normalize_rule(r, existing_rule_ids) or modified
 
+    # 5. Cross-reference cleanup: self-suppression prevention
+    rule_trigger_inputs: dict[str, set[str]] = {}
+    for inp in inputs:
+        if isinstance(inp, dict):
+            rule_id = inp.get("rule")
+            inp_id = inp.get("id")
+            if (
+                isinstance(rule_id, str)
+                and rule_id
+                and isinstance(inp_id, str)
+                and inp_id
+            ):
+                rule_trigger_inputs.setdefault(rule_id, set()).add(inp_id)
+
+    for r in rules:
+        if not isinstance(r, dict):
+            continue
+        r_id = r.get("id")
+        suppressed = r.get("suppressed_inputs_override")
+        if (
+            isinstance(r_id, str)
+            and r_id in rule_trigger_inputs
+            and isinstance(suppressed, list)
+        ):
+            triggers = rule_trigger_inputs[r_id]
+            cleaned = [inp_id for inp_id in suppressed if inp_id not in triggers]
+            if len(cleaned) != len(suppressed):
+                r["suppressed_inputs_override"] = cleaned
+                modified = True
+
     return modified
 
 
@@ -556,10 +577,97 @@ def _normalize_area_config(config: dict[str, Any]) -> bool:
     return modified
 
 
+def materialize_area_primary_slots(area_config: dict[str, Any]) -> dict[str, Any]:
+    """Return a copy of area_config with Primary Channel slots materialized into a 10-slot list."""
+    area = copy.deepcopy(area_config)
+    channels = area.get("channels")
+    if isinstance(channels, dict):
+        primary = channels.get(PRIMARY_CHANNEL_ID)
+        if isinstance(primary, dict):
+            primary["slots"] = materialize_primary_slots(primary.get("slots"))
+    return area
+
+
+def _migrate_store_data(data: dict[str, Any]) -> bool:
+    """Migrate store data to current STORAGE_VERSION.
+
+    Returns True if data was modified during migration.
+    """
+    version = data.get("version", 1)
+    if version >= STORAGE_VERSION:
+        return False
+
+    modified = False
+
+    if version < 2:
+        _LOGGER.info("Migrating TwilightStore data from version %s to 2", version)
+
+        def _migrate_activities(activities: Any) -> None:
+            nonlocal modified
+            if not isinstance(activities, list):
+                return
+            for act in activities:
+                if not isinstance(act, dict):
+                    continue
+                action = act.get("action")
+                if not isinstance(action, dict):
+                    continue
+
+                # --- 1. ActionType.NONE -> ActionType.BLOCK migration ---
+                if action.get("type") == "none":
+                    action["type"] = ActionType.BLOCK.value
+                    modified = True
+
+                # --- 2. BLOCK Activity field cleanup (transition_off_seconds / expire_check_mode) ---
+                if action.get("type") == ActionType.BLOCK.value:
+                    if act.get("transition_off_seconds") is not None:
+                        act["transition_off_seconds"] = None
+                        modified = True
+                    if act.get("expire_check_mode") is not None:
+                        act["expire_check_mode"] = None
+                        modified = True
+
+        # Migrate global area_template
+        global_cfg = data.get("global")
+        if isinstance(global_cfg, dict):
+            area_tpl = global_cfg.get("area_template")
+            if isinstance(area_tpl, dict):
+                _migrate_activities(area_tpl.get("activities"))
+
+        # Migrate all areas
+        areas = data.get("areas")
+        if isinstance(areas, dict):
+            for area_cfg in areas.values():
+                if isinstance(area_cfg, dict):
+                    _migrate_activities(area_cfg.get("activities"))
+
+        data["version"] = 2
+        modified = True
+
+    return modified
+
+
+class TwilightHAStore(Store[dict[str, Any]]):
+    """Custom Store for Twilight with migration support."""
+
+    async def _async_migrate_func(
+        self, old_major_version: int, old_minor_version: int, old_data: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Migrate store data from old_major_version to current STORAGE_VERSION."""
+        _LOGGER.info(
+            "Migrating Twilight storage from version %s.%s to %s.1",
+            old_major_version,
+            old_minor_version,
+            STORAGE_VERSION,
+        )
+        _migrate_store_data(old_data)
+        return old_data
+
+
 class TwilightStore:
     def __init__(self, hass: HomeAssistant) -> None:
         self._hass = hass
-        self.store: Store[dict[str, Any]] = Store(hass, STORAGE_VERSION, STORAGE_KEY)
+        self.store: Store[dict[str, Any]] = TwilightHAStore(hass, STORAGE_VERSION, STORAGE_KEY)
         self.data: dict[str, Any] = {}
 
     async def async_load(self) -> None:
@@ -569,12 +677,16 @@ class TwilightStore:
         updated = False
         if stored is None:
             self.data = {
+                "version": STORAGE_VERSION,
                 "areas": {},
                 "global": {},
             }
             updated = True
         else:
             self.data = stored
+
+        if _migrate_store_data(self.data):
+            updated = True
 
         self.data.setdefault("areas", {})
 
@@ -612,6 +724,12 @@ class TwilightStore:
             if isinstance(custom_ch, dict) and _normalize_custom_channels(custom_ch):
                 updated = True
 
+            primary_slots = area_template.get("primary_slots")
+            norm_primary = normalize_primary_slots_sparse(primary_slots)
+            if not isinstance(primary_slots, dict) or norm_primary != primary_slots:
+                area_template["primary_slots"] = norm_primary
+                updated = True
+
             rules = area_template.get("rules")
             if not isinstance(rules, list) or not rules:
                 area_template["rules"] = copy.deepcopy(
@@ -640,7 +758,7 @@ class TwilightStore:
         for area_id, config in self.data["areas"].items():
             area_config = dict(config)
             area_config.pop("_state", None)
-            result[area_id] = area_config
+            result[area_id] = materialize_area_primary_slots(area_config)
         return result
 
     def get_area(self, area_id: str) -> dict[str, Any] | None:
@@ -649,7 +767,7 @@ class TwilightStore:
             return None
         area_config = dict(area)
         area_config.pop("_state", None)
-        return area_config
+        return materialize_area_primary_slots(area_config)
 
     def get_area_state(self, area_id: str) -> dict[str, Any] | None:
         area = self.data["areas"].get(area_id)
@@ -693,6 +811,17 @@ class TwilightStore:
                         and ch_id not in cleaned_config["channels"]
                     ):
                         cleaned_config["channels"][ch_id] = copy.deepcopy(ch_cfg)
+            primary_tpl = stored_tpl.get("primary_slots")
+            if isinstance(primary_tpl, dict) and primary_tpl:
+                if "channels" not in cleaned_config or not isinstance(
+                    cleaned_config["channels"], dict
+                ):
+                    cleaned_config["channels"] = default_channels()
+                primary_ch = cleaned_config["channels"].setdefault(
+                    PRIMARY_CHANNEL_ID, {"name": "Primary", "enabled": True, "slots": {}}
+                )
+                if isinstance(primary_ch, dict) and not primary_ch.get("slots"):
+                    primary_ch["slots"] = copy.deepcopy(primary_tpl)
 
         # Normalize inputs/activities
         _normalize_area_config(cleaned_config)
@@ -722,6 +851,9 @@ class TwilightStore:
     def generate_new_area_draft(self, area_id: str) -> dict[str, Any]:
         stored_tpl = self.data["global"].get("area_template", DEFAULT_AREA_TEMPLATE)
         channels = default_channels()
+        primary_tpl = stored_tpl.get("primary_slots")
+        if isinstance(primary_tpl, dict) and primary_tpl:
+            channels[PRIMARY_CHANNEL_ID]["slots"] = copy.deepcopy(primary_tpl)
         custom_ch = stored_tpl.get(
             "custom_channels", DEFAULT_AREA_TEMPLATE.get("custom_channels", {})
         )
@@ -765,10 +897,12 @@ class TwilightStore:
         # that mutation would leak into the caller's payload and vice versa.
         config = copy.deepcopy(config)
         area_template = config.get("area_template")
-        if isinstance(area_template, dict) and isinstance(
-            area_template.get("custom_channels"), dict
-        ):
-            _normalize_custom_channels(area_template["custom_channels"])
+        if isinstance(area_template, dict):
+            raw_primary = area_template.get("primary_slots")
+            area_template["primary_slots"] = normalize_primary_slots_sparse(raw_primary)
+            if isinstance(area_template.get("custom_channels"), dict):
+                _normalize_custom_channels(area_template["custom_channels"])
+            _normalize_config_lists(area_template)
         self.data["global"] = config
         await self.store.async_save(self.data)
 
@@ -819,6 +953,8 @@ class TwilightStore:
 
         area_template = new_global.get("area_template")
         if isinstance(area_template, dict):
+            raw_primary = area_template.get("primary_slots")
+            area_template["primary_slots"] = normalize_primary_slots_sparse(raw_primary)
             custom_ch = area_template.get("custom_channels")
             if not isinstance(custom_ch, dict) or not custom_ch:
                 area_template["custom_channels"] = copy.deepcopy(

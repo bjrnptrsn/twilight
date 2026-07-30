@@ -1,16 +1,9 @@
 """Typed configuration model for Twilight areas.
 
 Parsed once per engine from the (store-normalized) raw config dict. All
-structural data — channels, slots, inputs, activities — is exposed as frozen
-dataclasses so consumers get attribute access and IDE/mypy coverage instead of
-`.get()` chains with hand-rolled `isinstance` guards (the root cause of a past
-binary-input matching bug from missing type guards).
-
-Scalar settings (lux_threshold, retry_send, transition_seconds, …) deliberately
-stay in the raw dict and are read through `get(key)`: their `None means
-"inherit"` semantics drive the 3-level fallback in `helpers.get_config_value`
-(area → global → const default), which duck-types on `.get()`. Every dataclass
-here therefore offers a dict-compatible `get()` bridging to its raw dict.
+configuration data — channels, slots, inputs, activities, rules, sensors — is
+exposed as typed frozen dataclasses so consumers get attribute access and
+IDE/mypy coverage.
 
 The model is immutable by design: mutating config after engine setup is not
 supported — rebuild the engine (that is what `area/save` does).
@@ -18,30 +11,70 @@ supported — rebuild the engine (that is what `area/save` does).
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import copy
+from dataclasses import MISSING, dataclass, field, fields
+from enum import StrEnum
 from typing import Any, cast
 
-from .const import ActionType, InputType, SensorType, StartType
+from .const import (
+    DEFAULT_ACTION_TYPE,
+    DEFAULT_RELEASE_ACTION_TYPE,
+    PRIMARY_CHANNEL_ID,
+    ActionType,
+    InputType,
+    RuleAutoExpireMode,
+    SensorType,
+    StartType,
+    materialize_primary_slots,
+)
 
 
-class _RawGetMixin:
-    """Dict-compatible `get()` bridge shared by all config dataclasses.
+class BaseConfig:
+    """Base class for typed config dataclasses with store normalization helpers."""
 
-    Each concrete class supplies `raw` as its own frozen dataclass field (so
-    field ordering stays under the subclass's control). The mixin deliberately
-    does not annotate `raw` — a plain annotation conflicts with the read-only
-    frozen field, and a runtime descriptor would shadow it — so it reads the
-    field reflectively for the `get_config_value` / legacy-call-site bridge.
-    """
+    @classmethod
+    def prune_and_default(
+        cls,
+        raw: dict[str, Any],
+        *,
+        keep: set[str] | frozenset[str] = frozenset(),
+    ) -> bool:
+        """Whitelist-prune unknown keys and backfill missing keys with dataclass defaults."""
+        if not isinstance(raw, dict):
+            return False
 
-    def get(self, key: str, default: Any = None) -> Any:
-        """Dict-compatible bridge for get_config_value / legacy call sites."""
-        raw = cast("dict[str, Any]", getattr(self, "raw", {}))
-        return raw.get(key, default)
+        modified = False
+        allowed_fields = {f.name for f in fields(cast(Any, cls))} | set(keep)
+
+        # 1. Prune unknown keys
+        for key in list(raw):
+            if key not in allowed_fields:
+                del raw[key]
+                modified = True
+
+        # 2. Backfill missing keys with default values
+        for f in fields(cast(Any, cls)):
+            if f.name not in raw:
+                if f.default is not MISSING:
+                    val = copy.deepcopy(f.default)
+                elif f.default_factory is not MISSING:
+                    val = f.default_factory()
+                else:
+                    continue
+
+                if isinstance(val, tuple):
+                    val = list(val)
+                elif isinstance(val, StrEnum):
+                    val = val.value
+
+                raw[f.name] = val
+                modified = True
+
+        return modified
 
 
 @dataclass(frozen=True)
-class SlotConfig(_RawGetMixin):
+class SlotConfig(BaseConfig):
     """One slot of a channel (astral zone or fixed local time)."""
 
     id: str | None
@@ -52,7 +85,6 @@ class SlotConfig(_RawGetMixin):
     offset_minutes: int
     scene_entity_id: str | None
     configured_entities: tuple[str, ...]
-    raw: dict[str, Any] = field(repr=False, compare=False, default_factory=dict)
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> SlotConfig:
@@ -66,12 +98,11 @@ class SlotConfig(_RawGetMixin):
             offset_minutes=raw.get("offset_minutes") or 0,
             scene_entity_id=raw.get("scene_entity_id"),
             configured_entities=tuple(raw.get("configured_entities") or ()),
-            raw=raw,
         )
 
 
 @dataclass(frozen=True)
-class ChannelConfig(_RawGetMixin):
+class ChannelConfig(BaseConfig):
     """One channel of an area (Primary or custom)."""
 
     id: str
@@ -79,7 +110,6 @@ class ChannelConfig(_RawGetMixin):
     enabled: bool
     slots: tuple[SlotConfig, ...]
     transition_on_seconds: int | None = None
-    raw: dict[str, Any] = field(repr=False, compare=False, default_factory=dict)
 
     def slot(self, slot_id: str | None) -> SlotConfig | None:
         """Look up a slot by id, or None."""
@@ -94,38 +124,39 @@ class ChannelConfig(_RawGetMixin):
     def from_dict(cls, channel_id: str, raw: dict[str, Any]) -> ChannelConfig:
         """Parse a channel dict; non-dict slot entries are skipped."""
         slots_raw = raw.get("slots")
-        slots = tuple(
-            SlotConfig.from_dict(s)
-            for s in (slots_raw if isinstance(slots_raw, list) else [])
-            if isinstance(s, dict)
-        )
+        if channel_id == PRIMARY_CHANNEL_ID:
+            materialized = materialize_primary_slots(slots_raw)
+            slots = tuple(SlotConfig.from_dict(s) for s in materialized)
+        else:
+            slots = tuple(
+                SlotConfig.from_dict(s)
+                for s in (slots_raw if isinstance(slots_raw, list) else [])
+                if isinstance(s, dict)
+            )
         return cls(
             id=channel_id,
             name=raw.get("name"),
             enabled=raw.get("enabled", True),
             slots=slots,
             transition_on_seconds=raw.get("transition_on_seconds"),
-            raw=raw,
         )
 
 
 @dataclass(frozen=True)
-class SensorConfig(_RawGetMixin):
+class SensorConfig(BaseConfig):
     """One sensor mapping (e.g. illuminance)."""
 
     id: str | None
-    type: str
     name: str | None = None
-    raw: dict[str, Any] = field(repr=False, compare=False, default_factory=dict)
+    type: str = ""
 
     @classmethod
     def _base_kwargs(cls, raw: dict[str, Any]) -> dict[str, Any]:
         """Shared field parsing, reused by every subclass's from_dict()."""
         return dict(
             id=raw.get("id"),
-            type=raw.get("type") or "",
             name=raw.get("name"),
-            raw=raw,
+            type=raw.get("type") or "",
         )
 
     @classmethod
@@ -177,7 +208,7 @@ _SENSOR_CONFIG_TYPES: dict[str, type[SensorConfig]] = {
 
 
 @dataclass(frozen=True)
-class InputConfig(_RawGetMixin):
+class InputConfig(BaseConfig):
     """One input mapping (motion/binary/event/timer/button → activity or rule).
 
     `enabled` keeps three states on purpose: `False` means explicitly disabled
@@ -186,13 +217,12 @@ class InputConfig(_RawGetMixin):
     """
 
     id: str | None
-    type: str
-    entity_ids: tuple[str, ...]
-    activity: str | None
-    enabled: bool | None
-    rule: str | None = None
     name: str | None = None
-    raw: dict[str, Any] = field(repr=False, compare=False, default_factory=dict)
+    type: str = ""
+    entity_ids: tuple[str, ...] = ()
+    activity: str | None = None
+    enabled: bool | None = None
+    rule: str | None = None
 
     @property
     def entity_id(self) -> str | None:
@@ -212,7 +242,6 @@ class InputConfig(_RawGetMixin):
             rule=raw.get("rule"),
             enabled=raw.get("enabled"),
             name=raw.get("name"),
-            raw=raw,
         )
 
     @classmethod
@@ -274,7 +303,7 @@ class EventInputConfig(InputConfig):
 class TimerInputConfig(InputConfig):
     """Timer input configuration."""
 
-    trigger_time: str | None = None
+    trigger_time: str | None = "00:00:00"
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any] | None) -> TimerInputConfig:
@@ -289,9 +318,9 @@ class TimerInputConfig(InputConfig):
 class ButtonInputConfig(InputConfig):
     """Button input configuration."""
 
-    button_mode: str | None = None
+    button_mode: str | None = "click"
     label: str | None = None
-    create_entity: bool | None = None
+    create_entity: bool | None = False
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any] | None) -> ButtonInputConfig:
@@ -333,16 +362,15 @@ _INPUT_CONFIG_TYPES: dict[str, type[InputConfig]] = {
 
 
 @dataclass(frozen=True)
-class ActionConfig(_RawGetMixin):
+class ActionConfig(BaseConfig):
     """Base class for all activity actions."""
 
-    type: str | None
-    raw: dict[str, Any] = field(repr=False, compare=False, default_factory=dict)
+    type: str | None = None
 
     @classmethod
     def _base_kwargs(cls, raw: dict[str, Any]) -> dict[str, Any]:
         """Shared field parsing, reused by every subclass's from_dict()."""
-        return dict(type=raw.get("type"), raw=raw)
+        return dict(type=raw.get("type"))
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any] | None) -> ActionConfig:
@@ -406,28 +434,28 @@ class LightActionConfig(ActionConfig):
 class SlotActionConfig(ActionConfig):
     """Action that schedules slots."""
 
-    excluded_slot_ids: dict[str, tuple[str, ...]] | None = None
+    excluded_slots: dict[str, tuple[str, ...]] | None = None
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any] | None) -> SlotActionConfig:
         if not raw:
             raw = {}
-        excluded_slot_ids = raw.get("excluded_slot_ids")
+        excluded_slots = raw.get("excluded_slots")
         return cls(
             **ActionConfig._base_kwargs(raw),
-            excluded_slot_ids={
+            excluded_slots={
                 channel_id: tuple(slot_ids)
-                for channel_id, slot_ids in excluded_slot_ids.items()
+                for channel_id, slot_ids in excluded_slots.items()
                 if isinstance(slot_ids, list | tuple)
             }
-            if isinstance(excluded_slot_ids, dict)
+            if isinstance(excluded_slots, dict)
             else None,
         )
 
 
 @dataclass(frozen=True)
-class NoneActionConfig(ActionConfig):
-    """No-op action."""
+class BlockActionConfig(ActionConfig):
+    """Block action (no light action on start)."""
 
 
 @dataclass(frozen=True)
@@ -464,7 +492,7 @@ class SimulationActionConfig(ActionConfig):
 
 
 @dataclass(frozen=True)
-class EntityTargetConfig:
+class EntityTargetConfig(BaseConfig):
     """A single additional entity to act on, e.g. as part of a `reset` action."""
 
     entity_id: str | None = None
@@ -499,7 +527,7 @@ _ACTION_CONFIG_TYPES: dict[str, type[ActionConfig]] = {
     ActionType.SLOT: SlotActionConfig,
     ActionType.ENTITY: EntityActionConfig,
     ActionType.LIGHT: LightActionConfig,
-    ActionType.NONE: NoneActionConfig,
+    ActionType.BLOCK: BlockActionConfig,
     ActionType.TURN_OFF: TurnOffActionConfig,
     ActionType.SIMULATION: SimulationActionConfig,
     ActionType.RESET: ResetActionConfig,
@@ -507,7 +535,7 @@ _ACTION_CONFIG_TYPES: dict[str, type[ActionConfig]] = {
 
 
 @dataclass(frozen=True)
-class ActivityConfig(_RawGetMixin):
+class ActivityConfig(BaseConfig):
     """One activity definition (freely named, referenced by inputs).
 
     `action`/`release_action` are parsed to ActionConfig objects, and
@@ -515,38 +543,49 @@ class ActivityConfig(_RawGetMixin):
     """
 
     id: str
-    name: str | None
-    suppress_inputs: tuple[str, ...]
-    auto_expire: str | None
-    expire_check_mode: str | None
-    action: ActionConfig | None
-    release_action: ActionConfig | None
-    transition_off_seconds: int | None
-    raw: dict[str, Any] = field(repr=False, compare=False, default_factory=dict)
+    name: str | None = None
+    suppress_inputs: tuple[str, ...] = ()
+    auto_expire: str | None = None
+    expire_check_mode: str | None = None
+    action: ActionConfig | None = None
+    release_action: ActionConfig | None = None
+    transition_off_seconds: int | None = None
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> ActivityConfig:
         """Parse an activity dict (store-normalized or test-provided)."""
-        action = raw.get("action")
-        release = raw.get("release_action")
+        action_raw = raw.get("action")
+        if isinstance(action_raw, dict):
+            if not action_raw.get("type"):
+                action_raw = {**action_raw, "type": DEFAULT_ACTION_TYPE}
+            parsed_action = ActionConfig.from_dict(action_raw)
+        else:
+            parsed_action = None
+
+        release_raw = raw.get("release_action")
+        if isinstance(release_raw, dict):
+            if not release_raw.get("type"):
+                release_raw = {**release_raw, "type": DEFAULT_RELEASE_ACTION_TYPE}
+            parsed_release = ActionConfig.from_dict(release_raw)
+        else:
+            parsed_release = None
+
         act_id = raw.get("id") or ""
+        is_block_or_reset = isinstance(parsed_action, (BlockActionConfig, ResetActionConfig))
         return cls(
             id=act_id,
             name=raw.get("name") or act_id.capitalize(),
             suppress_inputs=tuple(raw.get("suppress_inputs") or ()),
-            auto_expire=raw.get("auto_expire"),
-            expire_check_mode=raw.get("expire_check_mode"),
-            action=ActionConfig.from_dict(action) if isinstance(action, dict) else None,
-            release_action=ActionConfig.from_dict(release)
-            if isinstance(release, dict)
-            else None,
-            transition_off_seconds=raw.get("transition_off_seconds"),
-            raw=raw,
+            auto_expire=raw.get("auto_expire") if not isinstance(parsed_action, ResetActionConfig) else None,
+            expire_check_mode=None if is_block_or_reset else raw.get("expire_check_mode"),
+            action=parsed_action,
+            release_action=parsed_release,
+            transition_off_seconds=None if is_block_or_reset else raw.get("transition_off_seconds"),
         )
 
 
 @dataclass(frozen=True)
-class HeatmapProfileConfig(_RawGetMixin):
+class HeatmapProfileConfig(BaseConfig):
     """Saved heatmap snapshot profile configuration."""
 
     id: str
@@ -556,7 +595,6 @@ class HeatmapProfileConfig(_RawGetMixin):
     created_at: str
     updated_at: str
     motion_buckets: dict[str, list[float]]
-    raw: dict[str, Any] = field(repr=False, compare=False, default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert the heatmap profile config to a dictionary representation."""
@@ -581,29 +619,29 @@ class HeatmapProfileConfig(_RawGetMixin):
             created_at=raw.get("created_at") or "",
             updated_at=raw.get("updated_at") or "",
             motion_buckets=raw.get("motion_buckets") or {},
-            raw=raw,
         )
 
 
 @dataclass(frozen=True)
-class RuleConfig(_RawGetMixin):
+class RuleConfig(BaseConfig):
     """Configuration for a parallel Rule (v1: slot schedule override)."""
 
     id: str
     name: str
     enabled: bool = True
     applied_activities: tuple[str, ...] = ()
-    slot_overrides: dict[str, dict[str, tuple[str, ...]]] = field(default_factory=dict)
-    raw: dict[str, Any] = field(default_factory=dict)
+    excluded_slots_override: dict[str, dict[str, tuple[str, ...]]] = field(default_factory=dict)
+    auto_expire_mode: RuleAutoExpireMode = RuleAutoExpireMode.NONE
+    suppressed_inputs_override: tuple[str, ...] = ()
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any] | None) -> RuleConfig:
         if not raw:
             raw = {}
         applied_activities = raw.get("applied_activities")
-        raw_overrides = raw.get("slot_overrides")
+        raw_overrides = raw.get("excluded_slots_override")
 
-        slot_overrides: dict[str, dict[str, tuple[str, ...]]] = {}
+        excluded_slots_override: dict[str, dict[str, tuple[str, ...]]] = {}
         if isinstance(raw_overrides, dict):
             for act_id, ch_dict in raw_overrides.items():
                 if isinstance(ch_dict, dict):
@@ -611,7 +649,17 @@ class RuleConfig(_RawGetMixin):
                     for ch_id, slot_list in ch_dict.items():
                         if isinstance(slot_list, (list, tuple)):
                             ch_map[ch_id] = tuple(slot_list)
-                    slot_overrides[act_id] = ch_map
+                    excluded_slots_override[act_id] = ch_map
+
+        raw_mode = raw.get("auto_expire_mode")
+        try:
+            auto_expire_mode = (
+                RuleAutoExpireMode(raw_mode) if raw_mode else RuleAutoExpireMode.NONE
+            )
+        except ValueError:
+            auto_expire_mode = RuleAutoExpireMode.NONE
+
+        suppressed_inputs_override = raw.get("suppressed_inputs_override")
 
         return cls(
             id=raw.get("id") or "",
@@ -620,19 +668,17 @@ class RuleConfig(_RawGetMixin):
             applied_activities=tuple(applied_activities)
             if isinstance(applied_activities, (list, tuple))
             else (),
-            slot_overrides=slot_overrides,
-            raw=raw,
+            excluded_slots_override=excluded_slots_override,
+            auto_expire_mode=auto_expire_mode,
+            suppressed_inputs_override=tuple(suppressed_inputs_override)
+            if isinstance(suppressed_inputs_override, (list, tuple))
+            else (),
         )
 
 
 @dataclass(frozen=True)
-class AreaConfig(_RawGetMixin):
-    """The full typed configuration of one Twilight area.
-
-    Replaces the raw dict as `engine.config`. Structural access goes through
-    the typed fields/helpers below; scalar settings and unknown keys go through
-    `get()` (raw dict), preserving the 3-level fallback semantics.
-    """
+class AreaConfig(BaseConfig):
+    """The full typed configuration of one Twilight area."""
 
     area_id: str | None
     name: str | None
@@ -644,7 +690,11 @@ class AreaConfig(_RawGetMixin):
     activities: tuple[ActivityConfig, ...]
     rules: tuple[RuleConfig, ...] = ()
     heatmap_profiles: tuple[HeatmapProfileConfig, ...] = ()
-    raw: dict[str, Any] = field(repr=False, compare=False, default_factory=dict)
+    lux_threshold: float | int | None = None
+    lux_watch_window: int | None = None
+    transition_on_seconds: float | int | None = None
+    lux_ignore_active: bool | None = None
+    lux_ignore_scope: str | None = None
 
     # ── Structural lookups ──
 
@@ -751,11 +801,15 @@ class AreaConfig(_RawGetMixin):
             name=raw.get("name"),
             enabled=raw.get("enabled", True),
             manual_only=bool(raw.get("manual_only", False)),
+            lux_threshold=raw.get("lux_threshold"),
+            lux_watch_window=raw.get("lux_watch_window"),
+            transition_on_seconds=raw.get("transition_on_seconds"),
+            lux_ignore_active=raw.get("lux_ignore_active"),
+            lux_ignore_scope=raw.get("lux_ignore_scope"),
             sensors=sensors,
             channels=channels,
             inputs=inputs,
             activities=activities,
             rules=rules,
             heatmap_profiles=heatmap_profiles,
-            raw=raw,
         )

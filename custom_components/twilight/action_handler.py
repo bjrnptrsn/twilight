@@ -114,9 +114,9 @@ def apply_slot_action_over_channels(
     they diverge too much (e.g. LightActionHandler's STATE_OFF branch) to share
     without hiding behaviour behind flags.
     """
-    default_excluded = cast(SlotActionConfig, action).excluded_slot_ids or {}
+    default_excluded = cast(SlotActionConfig, action).excluded_slots or {}
     activity_id = coordinator.run_state.active_activity
-    excluded_slot_ids = (
+    excluded_slots = (
         coordinator.rule_manager.get_effective_excluded_slots(
             activity_id, default_excluded
         )
@@ -127,7 +127,7 @@ def apply_slot_action_over_channels(
         slot_id = active_slots.get(channel_id)
         if not slot_id:
             continue
-        if slot_id in excluded_slot_ids.get(channel_id, ()):
+        if slot_id in excluded_slots.get(channel_id, ()):
             if not _channel_already_off(coordinator, channel_id):
                 coordinator.turn_off_channel(channel_id, transition_off=transition_off)
         elif not was_activated:
@@ -319,7 +319,7 @@ class LightActionHandler(BaseActionHandler):
         c.swap_channel_handler(PRIMARY_CHANNEL_ID, handler, targets, action)
 
 
-class NoneActionHandler(BaseActionHandler):
+class BlockActionHandler(BaseActionHandler):
     """Handler that does not affect light states on start, keeping standard release."""
 
     async def start(
@@ -487,7 +487,7 @@ class PresenceSimulationActionHandler(BaseActionHandler):
             primary_slot = c.run_state.active_slots.get(PRIMARY_CHANNEL_ID)
             return primary_slot in TWILIGHT_SLOTS
         # THRESHOLD: real comparison against the configured lux threshold
-        lux_threshold = c._get_config_value("lux_threshold", None)
+        lux_threshold = c.engine.config.lux_threshold
         if lux_threshold is None:
             return True
         lux = c.lux_manager.get_current_lux()

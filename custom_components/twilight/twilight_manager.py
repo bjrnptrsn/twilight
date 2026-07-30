@@ -13,8 +13,7 @@ from typing import TYPE_CHECKING, Any
 from homeassistant.core import callback
 from homeassistant.helpers.event import async_call_later
 
-from .const import DEFAULT_TRANSITION_ON_SECONDS
-from .helpers import create_tracked_task, get_config_value
+from .helpers import create_tracked_task, resolve_transition_on_seconds
 from .slot_calc import resolve_slot_times
 from .sun_calc import compute_sun_day_data
 
@@ -354,10 +353,4 @@ class TwilightManager:
     def _get_transition_seconds_for_channel(self, channel_id: str) -> int:
         """Get transition seconds for a channel (falling back to area/const.py)."""
         channel = self.engine.config.channel(channel_id)
-        val = get_config_value(
-            None,
-            [channel, self.engine.config],
-            "transition_on_seconds",
-            DEFAULT_TRANSITION_ON_SECONDS,
-        )
-        return int(val) if val is not None else DEFAULT_TRANSITION_ON_SECONDS
+        return resolve_transition_on_seconds(channel, self.engine.config)
