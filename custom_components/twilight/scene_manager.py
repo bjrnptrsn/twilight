@@ -26,6 +26,24 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
+def palette_is_dynamic(palette: Any) -> bool:
+    """Return True if a Hue scene palette can drive a dynamic rotation.
+
+    Mirrors HueSceneEntity.is_dynamic in HA core
+    (homeassistant/components/hue/scene.py): a palette needs MORE THAN ONE
+    color, or more than one color temperature, to actually rotate. A
+    single-entry palette is a static scene — the Bridge would just hold that
+    one value.
+    """
+    if not palette:
+        return False
+    colors = getattr(palette, "color", None)
+    if colors and len(colors) > 1:
+        return True
+    color_temps = getattr(palette, "color_temperature", None)
+    return bool(color_temps and len(color_temps) > 1)
+
+
 class SceneManager:
     """Scene coordination – classification and extraction."""
 
@@ -54,11 +72,19 @@ class SceneManager:
             return None
 
         scene_type = self._classify_scene(scene_entity_id)
+        supports_dynamic = self._supports_dynamic(scene_entity_id)
         configured = frozenset(slot.configured_entities)
         extracted, expected = await self._async_extract_scene(
             scene_entity_id, scene_type
         )
 
+        # NOTE: expected_states are deliberately kept for hue_activate_dynamic
+        # slots. The palette rotation runs in the lamp firmware and never
+        # updates the Bridge's light resource, so it emits no state_changed
+        # events at all (hue_scenes.md §2, live-verified) — the deviation
+        # watcher has nothing to react to and the retry loop reaches its
+        # target on the first check. Clearing them would only strip the
+        # anticipatory fade, which resolves its targets from this very dict.
         return SlotSceneInfo(
             channel_id=channel_id,
             scene_entity_id=scene_entity_id,
@@ -66,6 +92,7 @@ class SceneManager:
             extracted_entities=frozenset(extracted),
             configured_entities=configured,
             expected_states=expected,
+            supports_dynamic=supports_dynamic,
         )
 
     async def async_setup(self) -> None:
@@ -177,6 +204,20 @@ class SceneManager:
                 max_retries,
             )
 
+            # Re-detect Hue scenes before re-processing. _classify_scene() reads
+            # hue_manager.hue_scenes, which was only ever populated during
+            # async_setup — a Hue scene whose entity registry entry appeared
+            # after boot (Hue integration still starting up) stayed classified
+            # as PLAIN_SCENE forever, so extraction kept returning nothing and
+            # the slot never got deviation checks, retries, or a fade.
+            self.engine.hue_manager.detect_hue_scenes(
+                [
+                    slot.scene_entity_id
+                    for _ch, slot in all_slots
+                    if slot.scene_entity_id
+                ]
+            )
+
             for channel_id, slot_id, slot in incomplete_slots:
                 # Re-processing in case integration registries updated
                 info = await self._process_slot(channel_id, slot)
@@ -258,6 +299,23 @@ class SceneManager:
                 return SceneType.HUE_SCENE
 
         return SceneType.PLAIN_SCENE
+
+    def _supports_dynamic(self, entity_id: str) -> bool:
+        """Return True if the scene entity supports dynamic palette playback."""
+        if entity_id in self.engine.hue_manager.hue_scenes:
+            scene_info = self.engine.hue_manager.hue_scenes.get(entity_id)
+            if scene_info:
+                api = self.engine.hue_manager.get_bridge_api(
+                    scene_info["config_entry_id"]
+                )
+                if api and hasattr(api, "scenes"):
+                    unique_id = scene_info["unique_id"]
+                    for scene_obj in api.scenes:
+                        if getattr(scene_obj, "id", None) == unique_id:
+                            return palette_is_dynamic(
+                                getattr(scene_obj, "palette", None)
+                            )
+        return False
 
     async def _async_extract_scene(
         self, entity_id: str, scene_type: SceneType

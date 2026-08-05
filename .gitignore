@@ -56,3 +56,6 @@ custom_components/twilight/frontend/twilight-dev-panel.js
 
 # Temporary scratch files
 data/blueprints/.temp/
+
+# Fetched HA logs (scripts/fetch_logs.sh)
+logs/

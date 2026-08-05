@@ -11,16 +11,17 @@ from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
-from .. import button as twilight_button
-from .. import switch as twilight_switch
-from ..config_model import AreaConfig
 from ..const import (
     DOMAIN,
     MIN_SLOT_DISTANCE_MINUTES,
     PLACEHOLDER_DEFAULTS,
     SIGNAL_ENGINES_CHANGED,
 )
-from ..engine import TwilightEngine
+from ..engine_registry import (
+    area_wants_engine,
+    async_clear_area_entities,
+    async_start_engine,
+)
 from ..slot_calc import compute_dynamic_min_slot_distance
 from ..store import GLOBAL_DEFAULTS, TwilightStore
 
@@ -49,42 +50,13 @@ async def _async_reload_all_engines(hass: HomeAssistant, store: TwilightStore) -
     new_areas = store.get_areas()
 
     for area_id, config in new_areas.items():
-        has_slots = any(
-            ch.get("slots")
-            for ch in config.get("channels", {}).values()
-            if isinstance(ch, dict)
-        )
-        if config.get("enabled") and has_slots:
-            engine = TwilightEngine(hass, area_id, config)
-            try:
-                await engine.async_setup()
-            except Exception:
-                _LOGGER.exception(
-                    "[%s] Engine setup failed during reload-all — area config is "
-                    "persisted but no engine is registered",
-                    area_id,
-                )
-                continue
-            engines[area_id] = engine
-            await twilight_button.async_sync_button_entities(
-                hass, area_id, engine.config
-            )
-            await twilight_switch.async_sync_switch_entities(
-                hass, area_id, engine.config
-            )
+        if area_wants_engine(config):
+            await async_start_engine(hass, area_id, config)
         else:
-            empty_config = AreaConfig.from_dict({"area_id": area_id})
-            await twilight_button.async_sync_button_entities(
-                hass, area_id, empty_config
-            )
-            await twilight_switch.async_sync_switch_entities(
-                hass, area_id, empty_config
-            )
+            await async_clear_area_entities(hass, area_id)
 
     for area_id in previous_area_ids - new_areas.keys():
-        empty_config = AreaConfig.from_dict({"area_id": area_id})
-        await twilight_button.async_sync_button_entities(hass, area_id, empty_config)
-        await twilight_switch.async_sync_switch_entities(hass, area_id, empty_config)
+        await async_clear_area_entities(hass, area_id)
 
     async_dispatcher_send(hass, SIGNAL_ENGINES_CHANGED)
 

@@ -6,7 +6,7 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from .const import SceneType
 
@@ -52,6 +52,7 @@ class RunState:
         default_factory=dict
     )  # active status per rule ID
     activity_expire_frozen_seconds: float | None = None  # frozen auto_expire duration while rule active
+    activity_expire_source: Literal["activity", "rule"] | None = None  # source of the active auto_expire timer
 
 
 @dataclass(frozen=True)
@@ -68,6 +69,7 @@ class SlotSceneInfo:
     expected_states: dict[
         str, dict[str, Any]
     ]  # entity_id -> expected state attributes dict
+    supports_dynamic: bool = False  # True if Hue scene has dynamic palette colors
 
 
 @dataclass
@@ -75,6 +77,7 @@ class ActivityProfile:
     """Aggregated activity profile data for the simulated occupancy heatmap."""
 
     motion_buckets: dict[str, list[float]] = field(default_factory=dict)
+    motion_presence_buckets: dict[str, list[float]] = field(default_factory=dict)
     light_buckets: dict[str, list[float]] = field(default_factory=dict)
     last_updated: float | None = None
 
@@ -82,6 +85,7 @@ class ActivityProfile:
         """Convert the profile to a dictionary representation."""
         return {
             "motion_buckets": self.motion_buckets,
+            "motion_presence_buckets": self.motion_presence_buckets,
             "light_buckets": self.light_buckets,
             "last_updated": self.last_updated,
         }
@@ -91,6 +95,7 @@ class ActivityProfile:
         """Instantiate an ActivityProfile from a dictionary."""
         return cls(
             motion_buckets=data.get("motion_buckets", {}),
+            motion_presence_buckets=data.get("motion_presence_buckets", {}),
             light_buckets=data.get("light_buckets", {}),
             last_updated=data.get("last_updated"),
         )

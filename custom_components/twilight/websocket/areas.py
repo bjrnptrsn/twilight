@@ -11,9 +11,7 @@ from homeassistant.core import Context, HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
-from .. import button as twilight_button
-from .. import switch as twilight_switch
-from ..config_model import AreaConfig
+from ..config_model import AreaConfig, RuleAutoExpireMode, RuleConfig
 from ..const import (
     CONTEXT_PREFIX,
     DOMAIN,
@@ -26,9 +24,18 @@ from ..const import (
     StartType,
 )
 from ..engine import TwilightEngine
+from ..engine_registry import (
+    area_wants_engine,
+    async_clear_area_entities,
+    async_start_engine,
+)
 from ..helpers import (
     channel_entities,
     detect_channel_collisions,
+    get_activity_supports_auto_expire,
+    get_activity_supports_borrowed_auto_expire,
+    get_activity_supports_excluded_slots,
+    get_activity_supports_input_suppression,
     get_area_lock,
     partition_by_domain,
     simulation_template_eligible,
@@ -204,6 +211,52 @@ async def _async_turn_off_entities(
         )
 
 
+def _disable_mismatched_rules(config: dict[str, Any]) -> list[str]:
+    """Disable rules whose configured fields no longer match target activity capabilities (docs/architecture/rules.md §8b). Return list of disabled rule IDs."""
+    raw_rules = config.get("rules")
+    raw_activities = config.get("activities")
+    if not isinstance(raw_rules, list) or not isinstance(raw_activities, list):
+        return []
+
+    parsed_area = AreaConfig.from_dict(config)
+    disabled_ids: list[str] = []
+
+    for rule_dict in raw_rules:
+        if not isinstance(rule_dict, dict):
+            continue
+        rule_cfg = RuleConfig.from_dict(rule_dict)
+        if not rule_cfg.enabled:
+            continue
+
+        for act_id in rule_cfg.applied_activities:
+            act_cfg = parsed_area.activity_by_id(act_id)
+            if not act_cfg:
+                continue
+
+            mismatch = False
+            if rule_cfg.excluded_slots_override and not get_activity_supports_excluded_slots(act_cfg):
+                mismatch = True
+            if rule_cfg.auto_expire_mode != RuleAutoExpireMode.NONE and not get_activity_supports_auto_expire(act_cfg):
+                mismatch = True
+            if (rule_cfg.auto_expire_enabled is True or rule_cfg.auto_expire is not None) and not get_activity_supports_borrowed_auto_expire(act_cfg):
+                mismatch = True
+            if rule_cfg.suppressed_inputs_override and not get_activity_supports_input_suppression(act_cfg):
+                mismatch = True
+
+            if mismatch:
+                _LOGGER.info(
+                    "Rule '%s' disabled due to capability mismatch with target activity '%s'",
+                    rule_cfg.id,
+                    act_id,
+                )
+                rule_dict["enabled"] = False
+                rule_dict["auto_disabled_reason"] = "mismatch"
+                disabled_ids.append(rule_cfg.id)
+                break
+
+    return disabled_ids
+
+
 def _ws_area_save() -> websocket_api.WebSocketCommandHandler:
     @websocket_api.websocket_command(
         {
@@ -237,7 +290,11 @@ def _ws_area_save() -> websocket_api.WebSocketCommandHandler:
             ),
             vol.Optional("channels", default=dict): {
                 str: {
-                    vol.Required("name"): str,
+                    # Optional on purpose: the store's _normalize_channels()
+                    # backfills a missing/empty name (Primary gets "Primary"),
+                    # so requiring it here only rejected otherwise-valid
+                    # payloads — e.g. a channel dict assembled by a script.
+                    vol.Optional("name"): vol.Any(None, str),
                     vol.Optional("enabled", default=True): bool,
                     vol.Optional("transition_on_seconds"): vol.Any(None, int),
                     vol.Optional("slots", default=[]): vol.Any(
@@ -267,6 +324,17 @@ def _ws_area_save() -> websocket_api.WebSocketCommandHandler:
                                     vol.Optional(
                                         "configured_entities", default=[]
                                     ): cv.entity_ids,
+                                    vol.Optional(
+                                        "hue_activate_dynamic", default=False
+                                    ): bool,
+                                    vol.Optional(
+                                        "hue_dynamic_speed", default=None
+                                    ): vol.Any(
+                                        None,
+                                        vol.All(
+                                            vol.Coerce(int), vol.Range(min=0, max=100)
+                                        ),
+                                    ),
                                 }
                             ],
                             # Hard cap so a channel can never exceed the slot limit (the
@@ -333,6 +401,8 @@ def _ws_area_save() -> websocket_api.WebSocketCommandHandler:
             "heatmap_profiles": msg.get("heatmap_profiles", []),
         }
 
+        disabled_rule_ids = _disable_mismatched_rules(config)
+
         async with get_area_lock(hass, area_id):
             await store.async_save_area(area_id, config)
 
@@ -342,13 +412,7 @@ def _ws_area_save() -> websocket_api.WebSocketCommandHandler:
             engines = hass.data[DOMAIN].setdefault("engines", {})
             existing_engine = engines.get(area_id)
 
-            has_slots = any(
-                ch.get("slots")
-                for ch in (saved_area or {}).get("channels", {}).values()
-                if isinstance(ch, dict)
-            )
-
-            if saved_area and saved_area.get("enabled") and has_slots:
+            if saved_area and area_wants_engine(saved_area):
                 initial_state = None
                 if existing_engine:
                     initial_state = existing_engine.run_state
@@ -371,46 +435,30 @@ def _ws_area_save() -> websocket_api.WebSocketCommandHandler:
                     await existing_engine.async_teardown()
                     engines.pop(area_id, None)
 
-                engine = TwilightEngine(
+                # Unlike the other call sites, area/save must report the failure
+                # back to the client — async_start_engine() logs it and returns
+                # None without registering the engine.
+                engine = await async_start_engine(
                     hass, area_id, saved_area, initial_state=initial_state
                 )
-                try:
-                    await engine.async_setup()
-                except Exception:
-                    _LOGGER.exception(
-                        "[%s] Engine setup failed after area/save — area config is "
-                        "persisted but no engine is registered",
-                        area_id,
-                    )
-                    async_dispatcher_send(hass, SIGNAL_ENGINES_CHANGED)
+                async_dispatcher_send(hass, SIGNAL_ENGINES_CHANGED)
+                if engine is None:
                     connection.send_error(
                         msg["id"], "engine_setup_failed", "Engine setup failed"
                     )
                     return
-                engines[area_id] = engine
-                await twilight_button.async_sync_button_entities(
-                    hass, area_id, engine.config
-                )
-                await twilight_switch.async_sync_switch_entities(
-                    hass, area_id, engine.config
-                )
-                async_dispatcher_send(hass, SIGNAL_ENGINES_CHANGED)
             else:
                 if existing_engine:
                     await existing_engine.async_teardown()
                     engines.pop(area_id, None)
                     async_dispatcher_send(hass, SIGNAL_ENGINES_CHANGED)
                 store.save_area_state(area_id, {})
-                empty_config = AreaConfig.from_dict({"area_id": area_id})
-                await twilight_button.async_sync_button_entities(
-                    hass, area_id, empty_config
-                )
-                await twilight_switch.async_sync_switch_entities(
-                    hass, area_id, empty_config
-                )
+                await async_clear_area_entities(hass, area_id)
 
             clear_timeline_slot_cache()
-            connection.send_result(msg["id"], saved_area)
+            res = dict(saved_area) if saved_area else {}
+            res["disabled_rule_ids"] = disabled_rule_ids
+            connection.send_result(msg["id"], res)
 
     return handle
 
@@ -446,13 +494,7 @@ def _ws_area_delete() -> websocket_api.WebSocketCommandHandler:
                 engines.pop(area_id, None)
                 async_dispatcher_send(hass, SIGNAL_ENGINES_CHANGED)
 
-            empty_config = AreaConfig.from_dict({"area_id": area_id})
-            await twilight_button.async_sync_button_entities(
-                hass, area_id, empty_config
-            )
-            await twilight_switch.async_sync_switch_entities(
-                hass, area_id, empty_config
-            )
+            await async_clear_area_entities(hass, area_id)
 
             clear_timeline_slot_cache()
 

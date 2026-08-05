@@ -14,11 +14,9 @@ from __future__ import annotations
 import copy
 from dataclasses import MISSING, dataclass, field, fields
 from enum import StrEnum
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 from .const import (
-    DEFAULT_ACTION_TYPE,
-    DEFAULT_RELEASE_ACTION_TYPE,
     PRIMARY_CHANNEL_ID,
     ActionType,
     InputType,
@@ -85,10 +83,14 @@ class SlotConfig(BaseConfig):
     offset_minutes: int
     scene_entity_id: str | None
     configured_entities: tuple[str, ...]
+    hue_activate_dynamic: bool = False
+    hue_dynamic_speed: int | None = None
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> SlotConfig:
         """Parse a slot dict (store-normalized or test-provided)."""
+        speed_raw = raw.get("hue_dynamic_speed")
+        speed = int(speed_raw) if speed_raw is not None else None
         return cls(
             id=raw.get("id"),
             name=raw.get("name"),
@@ -98,6 +100,8 @@ class SlotConfig(BaseConfig):
             offset_minutes=raw.get("offset_minutes") or 0,
             scene_entity_id=raw.get("scene_entity_id"),
             configured_entities=tuple(raw.get("configured_entities") or ()),
+            hue_activate_dynamic=bool(raw.get("hue_activate_dynamic", False)),
+            hue_dynamic_speed=speed,
         )
 
 
@@ -476,6 +480,7 @@ class SimulationActionConfig(ActionConfig):
     mode: str | None = None
     template_activity: str | None = None
     lux_mode: str | None = None
+    frequency_mode: str | None = None
     heatmap_profile_id: str | None = None
 
     @classmethod
@@ -487,6 +492,7 @@ class SimulationActionConfig(ActionConfig):
             mode=raw.get("mode"),
             template_activity=raw.get("template_activity"),
             lux_mode=raw.get("lux_mode"),
+            frequency_mode=raw.get("frequency_mode"),
             heatmap_profile_id=raw.get("heatmap_profile_id"),
         )
 
@@ -538,15 +544,15 @@ _ACTION_CONFIG_TYPES: dict[str, type[ActionConfig]] = {
 class ActivityConfig(BaseConfig):
     """One activity definition (freely named, referenced by inputs).
 
-    `action`/`release_action` are parsed to ActionConfig objects, and
-    `None`-typed actions fall back to the global default in the coordinator.
+    `action`/`release_action` are parsed to ActionConfig objects. A `None`-typed
+    action means the activity does nothing — there is no implicit type default.
     """
 
     id: str
     name: str | None = None
     suppress_inputs: tuple[str, ...] = ()
+    auto_expire_enabled: bool = True
     auto_expire: str | None = None
-    expire_check_mode: str | None = None
     action: ActionConfig | None = None
     release_action: ActionConfig | None = None
     transition_off_seconds: int | None = None
@@ -555,29 +561,33 @@ class ActivityConfig(BaseConfig):
     def from_dict(cls, raw: dict[str, Any]) -> ActivityConfig:
         """Parse an activity dict (store-normalized or test-provided)."""
         action_raw = raw.get("action")
-        if isinstance(action_raw, dict):
-            if not action_raw.get("type"):
-                action_raw = {**action_raw, "type": DEFAULT_ACTION_TYPE}
-            parsed_action = ActionConfig.from_dict(action_raw)
-        else:
-            parsed_action = None
+        parsed_action = (
+            ActionConfig.from_dict(action_raw)
+            if isinstance(action_raw, dict)
+            else None
+        )
 
         release_raw = raw.get("release_action")
-        if isinstance(release_raw, dict):
-            if not release_raw.get("type"):
-                release_raw = {**release_raw, "type": DEFAULT_RELEASE_ACTION_TYPE}
-            parsed_release = ActionConfig.from_dict(release_raw)
-        else:
-            parsed_release = None
+        parsed_release = (
+            ActionConfig.from_dict(release_raw)
+            if isinstance(release_raw, dict)
+            else None
+        )
 
         act_id = raw.get("id") or ""
         is_block_or_reset = isinstance(parsed_action, (BlockActionConfig, ResetActionConfig))
+        is_reset = isinstance(parsed_action, ResetActionConfig)
+        # A missing flag means "enabled" — that is the pre-flag behaviour, so old
+        # stores keep their timer without a migration.
+        auto_expire_enabled = raw.get("auto_expire_enabled")
         return cls(
             id=act_id,
             name=raw.get("name") or act_id.capitalize(),
             suppress_inputs=tuple(raw.get("suppress_inputs") or ()),
-            auto_expire=raw.get("auto_expire") if not isinstance(parsed_action, ResetActionConfig) else None,
-            expire_check_mode=None if is_block_or_reset else raw.get("expire_check_mode"),
+            auto_expire_enabled=(
+                False if is_reset else auto_expire_enabled is not False
+            ),
+            auto_expire=raw.get("auto_expire") if not is_reset else None,
             action=parsed_action,
             release_action=parsed_release,
             transition_off_seconds=None if is_block_or_reset else raw.get("transition_off_seconds"),
@@ -595,6 +605,7 @@ class HeatmapProfileConfig(BaseConfig):
     created_at: str
     updated_at: str
     motion_buckets: dict[str, list[float]]
+    motion_presence_buckets: dict[str, list[float]]
 
     def to_dict(self) -> dict[str, Any]:
         """Convert the heatmap profile config to a dictionary representation."""
@@ -606,6 +617,7 @@ class HeatmapProfileConfig(BaseConfig):
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "motion_buckets": self.motion_buckets,
+            "motion_presence_buckets": self.motion_presence_buckets,
         }
 
     @classmethod
@@ -619,6 +631,7 @@ class HeatmapProfileConfig(BaseConfig):
             created_at=raw.get("created_at") or "",
             updated_at=raw.get("updated_at") or "",
             motion_buckets=raw.get("motion_buckets") or {},
+            motion_presence_buckets=raw.get("motion_presence_buckets") or {},
         )
 
 
@@ -632,7 +645,15 @@ class RuleConfig(BaseConfig):
     applied_activities: tuple[str, ...] = ()
     excluded_slots_override: dict[str, dict[str, tuple[str, ...]]] = field(default_factory=dict)
     auto_expire_mode: RuleAutoExpireMode = RuleAutoExpireMode.NONE
+    auto_expire_enabled: bool | None = None
+    auto_expire: str | None = None
     suppressed_inputs_override: tuple[str, ...] = ()
+    # Set only by _disable_mismatched_rules() (websocket/areas.py) when it flips
+    # `enabled` to False — distinguishes an auto-disabled rule from one the user
+    # disabled themselves (docs/architecture/rules.md §8b). Any explicit save
+    # through rule-row-editor.ts clears it again (see makeNewRule()/_save()),
+    # since re-saving means the user has taken control of the enabled state.
+    auto_disabled_reason: Literal["mismatch"] | None = None
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any] | None) -> RuleConfig:
@@ -661,6 +682,11 @@ class RuleConfig(BaseConfig):
 
         suppressed_inputs_override = raw.get("suppressed_inputs_override")
 
+        raw_disabled_reason = raw.get("auto_disabled_reason")
+        auto_disabled_reason: Literal["mismatch"] | None = (
+            "mismatch" if raw_disabled_reason == "mismatch" else None
+        )
+
         return cls(
             id=raw.get("id") or "",
             name=raw.get("name") or "",
@@ -670,9 +696,16 @@ class RuleConfig(BaseConfig):
             else (),
             excluded_slots_override=excluded_slots_override,
             auto_expire_mode=auto_expire_mode,
+            auto_expire_enabled=raw.get("auto_expire_enabled")
+            if isinstance(raw.get("auto_expire_enabled"), bool)
+            else None,
+            auto_expire=raw.get("auto_expire")
+            if isinstance(raw.get("auto_expire"), str)
+            else None,
             suppressed_inputs_override=tuple(suppressed_inputs_override)
             if isinstance(suppressed_inputs_override, (list, tuple))
             else (),
+            auto_disabled_reason=auto_disabled_reason,
         )
 
 

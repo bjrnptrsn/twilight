@@ -495,7 +495,12 @@ class BaseCallHandler(ABC):
                 deviates = check_entity_deviation(new_state, expected)
                 if not deviates:
                     self._reached_target_entities.add(entity_id)
-                elif identify_echo(context, self.engine.area_id) is None:
+                elif (
+                    identify_echo(
+                        context, self.engine.area_id, self.engine.config.channels
+                    )
+                    is None
+                ):
                     if self._retry_active:
                         _LOGGER.info(
                             "[%s] External deviation detected on %s: %s (stopping retries)",
@@ -537,6 +542,50 @@ class _SceneCallHandler(BaseCallHandler):
 
     def _should_retry(self) -> bool:
         return bool(self.scene_info and self.scene_info.extracted_entities)
+
+    def _is_dynamic_slot(self, slot_id: str | None) -> bool:
+        """True if the slot is opted into Bridge-side dynamic playback.
+
+        Requires both the opt-in AND a scene that actually supports it: the
+        UI only offers the toggle for dynamic-capable Hue scenes, but the WS
+        schema accepts the flag on any slot. Without this guard a flag set via
+        the API on a plain HA scene would produce a failing hue.activate_scene
+        call and silently skip the normal per-light path.
+        """
+        if not slot_id:
+            return False
+        slot = self.engine.config.slot(self.channel_id, slot_id)
+        if not slot or not slot.hue_activate_dynamic:
+            return False
+        return bool(self.scene_info and self.scene_info.supports_dynamic)
+
+    def _dynamic_scene_call(
+        self, slot_id: str | None, transition: int | None = None
+    ) -> CallSpec | None:
+        """Build the hue.activate_scene call for a slot opted into dynamic playback.
+
+        Returns None if the slot is not configured for dynamic playback or its
+        scene is not a scene entity. `transition` lets the Bridge fade into the
+        scene itself instead of Twilight stepping the lights individually.
+        """
+        if not self._is_dynamic_slot(slot_id):
+            return None
+        slot = self.engine.config.slot(self.channel_id, slot_id)
+        if not slot:
+            return None
+
+        scene_id = slot.scene_entity_id
+        if self.scene_info and self.scene_info.scene_entity_id:
+            scene_id = self.scene_info.scene_entity_id
+        if not scene_id or not scene_id.startswith("scene."):
+            return None
+
+        sdata: dict[str, Any] = {"entity_id": scene_id, "dynamic": True}
+        if slot.hue_dynamic_speed is not None:
+            sdata["speed"] = slot.hue_dynamic_speed
+        if transition is not None and transition > 0:
+            sdata["transition"] = transition
+        return CallSpec("hue", "activate_scene", sdata)
 
     def _watched_target_states(self, entities: list[str]) -> dict[str, dict[str, Any]]:
         """Expected states of the given entities that have one defined."""
@@ -605,6 +654,13 @@ class SlotDirectCallHandler(_SceneCallHandler):
             return []
         return list(self.scene_info.extracted_entities)
 
+    def _should_retry(self) -> bool:
+        # See SlotTransitionCallHandler._should_retry: retries re-send per-light
+        # calls, which would pull a Bridge-side rotation back to static values.
+        if self._is_dynamic_slot(self.slot_id):
+            return False
+        return super()._should_retry()
+
     def _setup_deviation_watcher(self, entities: list[str]) -> None:
         if self.scene_info and self.scene_info.expected_states:
             self._start_deviation_watcher(dict(self.scene_info.expected_states))
@@ -634,6 +690,10 @@ class SlotDirectCallHandler(_SceneCallHandler):
         if domain == "script":
             return [CallSpec("script", object_id, {})]
         if domain == "scene":
+            # Direct activation: no transition — the slot is entered right now.
+            if dynamic_call := self._dynamic_scene_call(self.slot_id):
+                return [dynamic_call]
+
             st = self.hass.states.get(scene_id)
             is_dynamic = bool(st and st.attributes.get("is_dynamic"))
             if (
@@ -676,6 +736,15 @@ class SlotTransitionCallHandler(_SceneCallHandler):
         """Cancel all running tasks/timers and reset Phase A/B reaction state."""
         super().cancel()
         self._reaction_mode = False
+
+    def _should_retry(self) -> bool:
+        # Retries always re-send per-light calls (see _send_retry_call), which
+        # would drag a Bridge-side rotation back onto static values. The single
+        # hue.activate_scene call carries its own transition, so there is
+        # nothing to reapply.
+        if self._is_dynamic_slot(self.target_slot_id):
+            return False
+        return super()._should_retry()
 
     def _setup_deviation_watcher(self, entities: list[str]) -> None:
         target_states = self._watched_target_states(entities)
@@ -726,7 +795,14 @@ class SlotTransitionCallHandler(_SceneCallHandler):
     def _build_calls(
         self, entities: list[str], _params: dict[str, Any] | ActionConfig | None
     ) -> list[CallSpec]:
-        return self._build_scene_calls(entities, self._transition_on_seconds())
+        transition = self._transition_on_seconds()
+        # Dynamic target slot: let the Bridge fade into the scene itself and
+        # start the rotation, instead of stepping each light to a static
+        # target. Stepping lights individually would fade to the palette's
+        # first frame and only start moving at T_target.
+        if dynamic_call := self._dynamic_scene_call(self.target_slot_id, transition):
+            return [dynamic_call]
+        return self._build_scene_calls(entities, transition)
 
 
 class SlotChangeCallHandler(_SceneCallHandler):
@@ -818,6 +894,22 @@ class TurnOffCallHandler(BaseCallHandler):
 
     def _reapply_transition(self) -> int | None:
         return self.transition_off
+
+    def _retry_delays(self) -> list[float]:
+        """Delay the retry loop past the fade instead of firing during it.
+
+        A light stays `on` for the whole `transition` duration, so the default
+        delays (1.2–6.0s) all land mid-fade, see a deviation from the {"state":
+        "off"} target, and re-send turn_off with a *fresh* full transition —
+        restarting the fade on every attempt. Shifting the whole schedule past
+        the fade means the first check happens once the light has actually had
+        time to reach off. Zero/absent transition keeps the default timing.
+        """
+        delays = super()._retry_delays()
+        fade = self.transition_off or 0
+        if fade <= 0:
+            return delays
+        return [fade + delay for delay in delays]
 
     def _context_suffix(self) -> str:
         active_slot = self.engine.run_state.active_slots.get(self.channel_id)

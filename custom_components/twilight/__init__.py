@@ -23,7 +23,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from . import button as twilight_button
 from . import switch as twilight_switch
 from .const import DOMAIN, SIGNAL_ENGINES_CHANGED
-from .engine import TwilightEngine
+from .engine_registry import area_wants_engine, async_start_engine
 from .helpers import dispatch_button_input
 from .store import TwilightStore
 from .websocket import async_register_commands
@@ -50,6 +50,25 @@ async def async_setup(hass: HomeAssistant, _config: dict[str, Any]) -> bool:
          (scene extraction, Hue) does not block/race the HA boot sequence.
     """
     hass.data.setdefault(DOMAIN, {})
+
+    # A reload (homeassistant.reload_custom_component, or async_setup being
+    # re-entered for any other reason) must tear down engines from the
+    # previous setup before replacing the dict — otherwise their listeners
+    # and timers are orphaned while a second set is set up on top, causing
+    # duplicate light control and a growing STOP-listener chain.
+    old_engines = list(hass.data[DOMAIN].get("engines", {}).values())
+    if old_engines:
+        _LOGGER.info(
+            "Twilight is being re-set up — tearing down %d existing engine(s) first",
+            len(old_engines),
+        )
+        for engine in old_engines:
+            try:
+                await engine.async_teardown()
+            except Exception:
+                _LOGGER.exception(
+                    "Error tearing down TwilightEngine for area: %s", engine.area_id
+                )
 
     # Initialize and load the HA Storage-backed persistence store
     store = TwilightStore(hass)
@@ -93,23 +112,14 @@ async def async_setup(hass: HomeAssistant, _config: dict[str, Any]) -> bool:
         for area_id, config in areas.items():
             if area_id in hass.data[DOMAIN]["engines"]:
                 continue
-            has_slots = any(
-                ch.get("slots")
-                for ch in config.get("channels", {}).values()
-                if isinstance(ch, dict)
-            )
-            if config.get("enabled") and has_slots:
+            if area_wants_engine(config):
                 _LOGGER.info("Setting up TwilightEngine for area: %s", area_id)
-                engine = TwilightEngine(hass, area_id, config)
-                await engine.async_setup()
-                hass.data[DOMAIN]["engines"][area_id] = engine
-                await twilight_button.async_sync_button_entities(
-                    hass, area_id, engine.config
-                )
-                await twilight_switch.async_sync_switch_entities(
-                    hass, area_id, engine.config
-                )
-                engines_created = True
+                # async_start_engine() logs and returns None on failure: one
+                # area's bad config (or a transient failure, e.g. Hue bridge
+                # unreachable) must not leave every subsequent area without
+                # light control.
+                if await async_start_engine(hass, area_id, config):
+                    engines_created = True
 
         # Subscriptions opened before the deferred boot setup finished (e.g. a
         # panel that reconnected right after HA restart) have an empty entity

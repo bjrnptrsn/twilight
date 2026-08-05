@@ -467,7 +467,9 @@ class LightStateInputHandler(BaseInputHandler):
         if new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
             return
 
-        origin = identify_echo(event.context, self.engine.area_id)
+        origin = identify_echo(
+            event.context, self.engine.area_id, self.engine.config.channels
+        )
         if origin is not None:
             _LOGGER.debug(
                 "[%s] LightStateInputHandler: %s → %s (own echo, channel=%s, suffix=%s)",
@@ -711,6 +713,12 @@ class MotionInputHandler(BaseInputHandler):
                 # lux drop rather than waiting out the full lux_watch_window.
                 self.lux_watches.pop(inp.id).stop()
 
+            # NOTE: no activity_released() on the off-edge — a PIR going quiet
+            # is not an end signal, it would turn the light off seconds after
+            # it came on. Motion activities end via auto_expire, or not at all
+            # when it is disabled. Binary/button/timer inputs do release:
+            # "door closed" is a real end signal, motion is not.
+
             if active:
                 if inp.id and self._is_disabled(inp.id):
                     _LOGGER.debug(
@@ -782,9 +790,7 @@ class MotionInputHandler(BaseInputHandler):
             return primary_slot in ALL_IGNORE_SLOTS
         return False
 
-    def _evaluate(
-        self, input_config: MotionInputConfig, ignore_lux: bool = False
-    ) -> bool:
+    def _evaluate(self, input_config: MotionInputConfig) -> bool:
         if not any(ent in self.active_entities for ent in input_config.entity_ids):
             return False
         lux_threshold = resolve_lux_threshold(
@@ -794,20 +800,16 @@ class MotionInputHandler(BaseInputHandler):
         # treats None as "unset" and falls through to DEFAULT_LUX_THRESHOLD. The
         # gate is disabled via _should_ignore_lux() (no illuminance sensor, or the
         # lux_ignore_active/scope options), not by clearing the threshold.
-        if ignore_lux or self._should_ignore_lux(input_config):
+        if self._should_ignore_lux(input_config):
             return True
         lux = self._read_lux()
         return lux is not None and lux <= lux_threshold
 
-    def get_motion_state(
-        self, input_config: MotionInputConfig, ignore_lux: bool = False
-    ) -> bool:
+    def get_motion_state(self, input_config: MotionInputConfig) -> bool:
         """Check if motion is active."""
-        return self._evaluate(input_config, ignore_lux)
+        return self._evaluate(input_config)
 
-    def has_active_motion_for_activity(
-        self, activity_name: str, ignore_lux: bool = False
-    ) -> bool:
+    def has_active_motion_for_activity(self, activity_name: str) -> bool:
         """Check if any enabled motion input triggering this activity is currently active."""
         for inp in cast(
             "tuple[MotionInputConfig, ...]",
@@ -817,7 +819,7 @@ class MotionInputHandler(BaseInputHandler):
                 continue
             if self._is_disabled(inp.id):
                 continue
-            if self.get_motion_state(inp, ignore_lux=ignore_lux):
+            if self.get_motion_state(inp):
                 return True
         return False
 

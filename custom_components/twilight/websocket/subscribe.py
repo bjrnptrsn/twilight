@@ -316,6 +316,7 @@ def _build_state_dict(
         if state.activity_expires_at
         else None,
         "activity_expire_frozen_seconds": state.activity_expire_frozen_seconds,
+        "activity_expire_source": state.activity_expire_source,
         "startup_time": state.startup_time,
         "light_states": light_states,
         "deviated_entities": deviated_entities_from_map(light_states)

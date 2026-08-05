@@ -11,6 +11,8 @@ from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
+from ..scene_manager import palette_is_dynamic
+
 _LAB_ENTITY_DOMAINS = {"light", "switch", "scene", "script"}
 
 
@@ -72,12 +74,59 @@ def _ws_lab_area_entities() -> websocket_api.WebSocketCommandHandler:
             in_area = entry.area_id == area_id or (
                 entry.area_id is None and entry.device_id in area_device_ids
             )
+
+            scene_type = None
+            supports_dynamic = False
+            scene_speed = None
+            if domain == "script":
+                scene_type = "SCRIPT"
+            elif domain == "scene":
+                if entry.platform == "hue":
+                    scene_type = "HUE_SCENE"
+                    config_entry = (
+                        hass.config_entries.async_get_entry(entry.config_entry_id)
+                        if entry.config_entry_id
+                        else None
+                    )
+                    bridge = getattr(config_entry, "runtime_data", None) if config_entry else None
+                    api = getattr(bridge, "api", None) if bridge else None
+                    if api and hasattr(api, "scenes"):
+                        try:
+                            from aiohue.v2.models.smart_scene import SmartScene
+                        except ImportError:
+                            SmartScene = None
+                        unique_id = entry.unique_id
+                        for scene_obj in api.scenes:
+                            if getattr(scene_obj, "id", None) == unique_id:
+                                if SmartScene is not None and isinstance(
+                                    scene_obj, SmartScene
+                                ):
+                                    scene_type = "HUE_SMART_SCENE"
+                                else:
+                                    supports_dynamic = palette_is_dynamic(
+                                        getattr(scene_obj, "palette", None)
+                                    )
+                                    if supports_dynamic:
+                                        # aiohue reports speed as 0.0-1.0, the
+                                        # hue.activate_scene service takes 0-100.
+                                        raw_speed = getattr(scene_obj, "speed", None)
+                                        if isinstance(raw_speed, (int, float)):
+                                            scene_speed = round(raw_speed * 100)
+                                break
+                    elif state and "is_active" in state.attributes and "is_dynamic" not in state.attributes:
+                        scene_type = "HUE_SMART_SCENE"
+                else:
+                    scene_type = "PLAIN_SCENE"
+
             entities.append(
                 {
                     "entity_id": entry.entity_id,
                     "name": friendly_name,
                     "domain": domain,
                     "in_area": in_area,
+                    "scene_type": scene_type,
+                    "supports_dynamic": supports_dynamic,
+                    "scene_speed": scene_speed,
                 }
             )
 

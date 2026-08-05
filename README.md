@@ -24,15 +24,17 @@
   🔄 Multiple channels per area — separate light groups, independent schedules.<br>
   🧠 Input-driven activities — motion, binary sensors, timers, buttons, events.<br>
   🎯 Scene-based execution — plain scenes, Hue scenes, scripts.<br>
+  ⚡ Dynamic rules & priority overrides — N-active layers & temporary slot exclusions.<br>
+  🔍 Live deviation tracking — real-time monitoring of manual overrides & scene states.<br>
+  🌡️ Heatmaps & presence simulation — realistic occupancy replay based on usage history.<br>
   📊 Built-in analytics — uPlot charts with real Recorder data.<br>
   🕸️ Full Web UI — no YAML config needed after setup.
 </p>
 
-> [!CAUTION]
-> **Experimental** — functional but not feature-complete, and not yet validated for long-term
-> live use. The configuration model is still changing; expect breaking changes between
-> versions with no migration path. Best suited for tinkerers and early adopters.
-> Feedback welcome via [GitHub Issues](https://github.com/bjrnptrsn/twilight/issues).
+> [!NOTE]
+> **Beta / Active Development** — functional, tested, and proven in daily live use.
+> The configuration model may still evolve; expect occasional breaking changes between
+> versions. Feedback welcome via [GitHub Issues](https://github.com/bjrnptrsn/twilight/issues).
 
 ---
 
@@ -136,14 +138,14 @@ request activities, and exactly one activity at a time controls the lights on
 each channel.
 
 ```
-Sensors  →  Inputs  →  Coordinator (one active_activity)  →  Action  →  Channels/Slots  →  Lights
+Sensors  →  Inputs  →  Coordinator (one active activity)  →  Action  →  Channels/Slots  →  Lights
 ```
 
 **No activity active → lights are off.** A time slot only decides *which
 scene would play* — the schedule alone never turns anything on. Something has
 to request an activity first (motion, a button, a timer, …). This is the most
 common point of confusion when setting up a new area: if nothing reacts, check
-whether an input is actually configured to trigger the `motion`/`manual`
+whether an input is actually configured to trigger the Motion or Manual
 activity, not whether the slot has a scene assigned.
 
 ### Areas
@@ -181,7 +183,7 @@ the crossfade time when moving from one slot to the next.
 Twilight supports different scene sources, assigned per slot:
 
 - **Plain Scenes** — standard Home Assistant scenes created via the HA UI or `configuration.yaml`
-- **Hue Scenes** — Hue scenes from your Hue Bridge (requires [Hue Integration](https://www.home-assistant.io/integrations/hue/))
+- **Hue Scenes** — Hue scenes from your Hue Bridge (requires [Hue Integration](https://www.home-assistant.io/integrations/hue/)). Scenes with multi-color or temperature palettes can optionally enable dynamic playback with configurable rotation speed.
 - **Scripts** — any Home Assistant script that can control lights
 
 ---
@@ -206,7 +208,7 @@ and can be configured in the UI.
 
 | Input Type | Triggers on | Notes |
 |------------|-------------|-------|
-| **Motion** | Any of its `binary_sensor.*`/`device_tracker.*` entities turning `on`/`home` | Optional illuminance threshold; re-trigger mode (every flip / first flip); optional lux watch window to retry after being blocked by light |
+| **Motion** | Any of its `binary_sensor.*`/`device_tracker.*` entities turning `on`/`home` | No release when the sensor goes quiet — a motion sensor drops within seconds, so the activity ends on its timer instead. Optional illuminance threshold; re-trigger mode (every flip / first flip); optional lux watch window to retry after being blocked by light |
 | **Binary** | Any/all/count of its `binary_sensor.*`/`input_boolean.*` entities (configurable aggregation) | Sends a release when turned off |
 | **Event** | A `event.*` entity's state change, optionally filtered to an event type | Fires once per matching event, no release |
 | **Timer** | A daily fixed clock time (`HH:MM:SS`) | No entity needed — useful for a nightly reset |
@@ -225,8 +227,8 @@ whatever was active before.
 | Option | Description |
 |---|---|
 | **Suppressed Inputs** | List of inputs to ignore while this activity is active (e.g. a sleep activity suppressing the motion input) |
-| **Auto-Expire Timer** | Duration (`HH:MM:SS`) after which the activity ends automatically; empty = only ends on an explicit release |
-| **Expiry Check Mode** | What happens right when the timer would expire: Disabled (always ends), Respect Lux (renews the timer if motion is active and passes lux check), Ignore Lux (renews if motion is active regardless of lux). |
+| **Enable Auto-Expire** | Whether the activity runs a timer at all. Unchecked, it ends only when a binary input turns off, a toggle button is switched off, or another activity takes over. |
+| **Auto-Expire Duration** | How long the timer runs, once enabled. Empty uses the default of 3 hours. |
 
 #### Actions & Release Actions
 
@@ -234,16 +236,24 @@ What actually happens to the lights on start (action) and on end (release action
 
 | Action type | Effect | Applies to |
 |---|---|---|
-| **Schedule** (default) | Plays the current channel/slot's scene; allows selecting active channels and slots | Action |
+| **Schedule** | Plays the current channel/slot's scene; allows selecting active channels and slots | Action |
 | **Entity/Script** | Activates one chosen scene or script directly, ignoring the schedule | Action |
 | **Light Control** | Sets specific light entities directly — on/off, brightness, color temperature, or RGB | Action |
 | **Block** | Does nothing to the lights ("Block Only / No Action") | Action |
-| **Turn Off** | Turns off all of this activity's slot entities | Release (default) |
+| **Turn Off** | Turns off all of this activity's slot entities | Release |
 | **Reset Command** | Sends a fixed command (`on`/`off`/`toggle`/`activate`) to `input_boolean`, `switch`, or `script` entities you choose — for driving something other than lights | Action (no release phase) |
 | **Presence Simulation** | Simulates presence by playing back an activity's light behavior timed by historical or profile heatmap probabilities | Action |
 
-If you don't configure an `action`, an activity defaults to playing the
-current slot scene on start and turning all its lights off on release.
+New activities in the editor start pre-filled with **Schedule**/**Turn Off** as a
+convenient starting point, but this is not a backend fallback: if you explicitly
+clear an activity's action or release action, it does nothing on that phase —
+there is no implicit default.
+
+#### Channel & Slot Selection
+
+For **Schedule** actions you can choose per channel and slot in the UI which
+sections are active. If a slot is unchecked for a channel, that channel stays
+off during that period.
 
 #### Presence Simulation
 
@@ -252,23 +262,36 @@ by re-creating realistic lighting patterns. You select an existing activity
 (such as your standard motion activity) to copy its light behavior and duration,
 and Twilight triggers it based on motion density probabilities throughout the day:
 
-- **Data source**: evaluate dynamic live recorder history (a rolling 30-day window) or pick one of up to **5 saved heatmap profiles** per area (saved from the Heatmap card, where you choose the range `1w`–`6m` and resolution).
+- **Data source**: evaluate live recorder history (a rolling 30-day window) or pick one of up to **5 saved heatmap profiles** per area (saved from the Heatmap card, where you choose the range `1w`–`6m` and resolution).
 - **Lux gating**: choose when simulated motion may turn lights on (Dusk/Dawn [default], illuminance threshold, or Always).
 - **Eligible activities**: any activity that controls lights (Schedule, Entity, or Light).
+- **Frequency**: scale how often simulated triggers fire, from very low to very high, relative to the measured motion density.
+
+Trigger probabilities are based on how many days actually saw activity at a
+given time, so a room used every evening is simulated more often than one used
+once. A running simulation resumes automatically after a Home Assistant restart.
 
 #### Default Activities
 
 Four activities are preconfigured on every new area (from the default
 [area template](#settings--area-template)):
 
-- **`motion`** — triggered by a `motion` input, `auto_expire: 00:05:00`, `expire_check_mode: respect_lux`
-- **`manual`** — triggered by a manual override input, suppresses `motion` while active, `auto_expire: 00:00:00` (release-only)
-- **`sleep`** — triggered by a `binary` input, suppresses `motion` while active, `auto_expire: 03:00:00` (overnight safety net)
-- **`reset`** — triggered by a button input, runs a `reset` action (no light control)
+- **Motion** — triggered by the motion input, runs for 5 minutes by default (auto-prolonged while motion is still detected)
+- **Manual** — triggered by the manual trigger input, suppresses motion while active, no timer
+- **Sleep** — triggered by the binary sleep input, suppresses motion while active, no timer (ends when the switch goes off)
+- **Reset** — triggered by the reset button, sends a reset command (no light control, never expires)
 
 Edit or replace them via the area template, and add your own for anything
-else — a `guest` mode, extra motion inputs with different lux thresholds, and
+else — a guest mode, extra motion inputs with different lux thresholds, and
 so on.
+
+#### Auto-Expire & Input Prolongation
+
+Auto-Expire determines how long an activity remains active after being triggered:
+
+- **Explicit Timer Switch**: Use **Enable Auto-Expire** to turn the timer on or off explicitly. Unchecked, an activity runs indefinitely until explicitly released (e.g. a binary input turning off, a toggle button switching off, or another activity taking over). A manual override or sleep activity typically has Auto-Expire disabled.
+- **Automatic Prolongation**: When the auto-expire timer runs out, Twilight automatically checks whether any of its triggering inputs are still active (e.g., a motion sensor holding `on`, a binary contact, or an active toggle button). If active, the timer restarts for the full duration instead of ending the activity. The configured duration is a **minimum lifetime**, not a hard deadline — as long as you remain active in the room, the activity stays on.
+- **Lux-Aware Prolongation**: For motion inputs, prolongation re-evaluates daylight levels using the exact same illuminance threshold as initial activation. If natural daylight has filled the room above the threshold, the timer will not extend and the light turns off naturally.
 
 ### Manual Triggers (Button Inputs)
 
@@ -297,12 +320,14 @@ Today there is one Rule type:
 
 | Rule Type | Overrides | Trigger & Condition |
 |---|---|---|
-| **Activity Rule** | The channel and slot selection of a target Activity | Triggered by binary or toggle button input; active only when target Activity is running |
+| **Activity Rule** | Channel/slot selection, auto-expire behavior, and input suppression of a target Activity | Triggered by binary or toggle button input; active only when target Activity is running |
 
 An **Activity Rule** affects exactly one Activity. While active, its settings
 override the Activity's own settings: **what is checked in the Rule applies.**
 If multiple Rules target the same Activity, "exclude wins" — a slot is active for a
 channel only if it is checked in all active Rules.
+
+When configuring an Activity Rule in the editor, options for Auto-Expire behavior, channel slots, or input suppression are dynamically displayed only if applicable to the selected target activity.
 
 An Activity Rule can also optionally control what happens to the target
 Activity's **auto-expire** countdown while the Rule is active ("Auto-Expire
@@ -314,6 +339,26 @@ Behavior"):
 | **Pause** | Freezes the timer at its current remaining time; resumes with that same remaining time once the Rule ends. |
 | **Suspend** | Freezes the timer at zero; the Activity expires immediately once the Rule ends (unless another condition, like active motion, still holds it open). |
 | **Restart** | Freezes the timer at the full configured duration; the Activity gets a fresh full timer once the Rule ends. |
+
+If the target Activity has auto-expire disabled, there is no timer to freeze and
+all four modes do nothing.
+
+**Rule-Granted Auto-Expire**: for a target Activity that has no timer of its own
+(Auto-Expire disabled), a Rule can instead *lend* it one — enable **Auto-Expire**
+and set a duration directly on the Rule. The timer starts once the Rule
+activates and keeps running on its own after the Rule ends, so the Activity
+still turns off cleanly instead of running forever. Re-triggering the Activity
+while the Rule is still active resets the loan to its full duration; a
+re-trigger after the Rule has ended no longer has a duration to draw from and
+runs unbounded, like any other Activity without Auto-Expire. This is mutually
+exclusive with the Auto-Expire Behavior modes above — a Rule only ever uses
+one or the other, depending on whether its target Activity already has a
+timer.
+
+If a Rule's target Activity is edited afterwards and no longer supports one of
+the Rule's configured options (e.g. Auto-Expire Behavior on an Activity that
+gained its own timer), the Rule is automatically disabled and flagged with a
+warning in the Rules list until reconfigured.
 
 A Rule can also suppress other inputs while it is active — e.g. an "Ambient" Rule
 that ignores the motion sensor input for its duration. While a matching Rule is active,
@@ -365,10 +410,11 @@ correlate light changes with actual sensor activity.
 ### Settings & Area Template
 
 The **Area template** setting is the blueprint used to seed every *new* area:
-its default inputs (motion, manual override, reset, a binary sleep trigger, a
-manual-trigger button), default activities (`motion`, `manual`, `sleep`,
-`reset`), default [Rules](#rules), default custom channels, and the default
-Primary-channel slots (per-zone offsets and scenes). Edit it once
+its default inputs (motion, a manual trigger, a reset trigger, a binary sleep
+trigger, a reset button, and an ambient rule trigger), default activities
+(**Motion**, **Manual**, **Sleep**, **Reset**), a default [Ambient rule](#rules),
+an Ambient example custom channel, and the default Primary-channel slots
+(per-zone offsets and scenes). Edit it once
 in **Settings** and every area you create afterwards starts pre-wired instead
 of empty — existing areas are unaffected. A granular **Reset to System
 Defaults** dialog lets you restore individual inputs/activities/rules/channels
@@ -443,7 +489,7 @@ last known state of every controlled light — useful when reporting a bug.
 | Scene shows no lights | Check if the scene still exists and is reachable; if it involves a Hue Smart Scene, ensure the Hue Integration is loaded |
 | Motion sensors not responding | Verify the lux threshold in the motion input — it may be suppressed by high ambient light; check the aggregated lux value on the area's status card |
 | Lights flash on restart | This shouldn't happen — Twilight uses boot-catch-up to avoid unwanted activation. Please [open an issue](https://github.com/bjrnptrsn/twilight/issues) |
-| Area not appearing in panel | Ensure the HA area exists and has at least one light entity assigned |
+| Area not appearing in panel | Ensure the HA area exists and it was saved — new areas stay a draft until you click Save |
 
 ### Debug Logging
 

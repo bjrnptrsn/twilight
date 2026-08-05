@@ -66,6 +66,7 @@ def _ws_heatmap_profile_save() -> websocket_api.WebSocketCommandHandler:
             vol.Optional("profile_id"): str,
         }
     )
+    @websocket_api.require_admin
     @websocket_api.async_response
     async def handle(
         hass: HomeAssistant,
@@ -123,6 +124,7 @@ def _ws_heatmap_profile_save() -> websocket_api.WebSocketCommandHandler:
                 "created_at": created_at,
                 "updated_at": now_iso,
                 "motion_buckets": profile.motion_buckets,
+                "motion_presence_buckets": profile.motion_presence_buckets,
             }
 
             if existing_idx >= 0:
@@ -146,6 +148,7 @@ def _ws_heatmap_profile_delete() -> websocket_api.WebSocketCommandHandler:
             vol.Required("profile_id"): str,
         }
     )
+    @websocket_api.require_admin
     @websocket_api.async_response
     async def handle(
         hass: HomeAssistant,
@@ -173,6 +176,18 @@ def _ws_heatmap_profile_delete() -> websocket_api.WebSocketCommandHandler:
                 if isinstance(p, dict) and p.get("id") != msg["profile_id"]
             ]
             area["heatmap_profiles"] = profiles
+
+            for act in area.get("activities", []):
+                if not isinstance(act, dict):
+                    continue
+                action = act.get("action")
+                if (
+                    isinstance(action, dict)
+                    and action.get("type") == "simulation"
+                    and action.get("heatmap_profile_id") == msg["profile_id"]
+                ):
+                    action["heatmap_profile_id"] = None
+
             await store.async_save_area(msg["area_id"], area)
 
         connection.send_result(msg["id"], {"success": True})

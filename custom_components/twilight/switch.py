@@ -14,6 +14,7 @@ from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_component import EntityComponent
 
@@ -56,7 +57,7 @@ class TwilightSwitchEntity(TwilightEntity, SwitchEntity):
     def name(self) -> str | None:
         inp = self._get_input_config()
         if isinstance(inp, ButtonInputConfig):
-            return inp.name or inp.label or self._input_id
+            return inp.label or inp.name or self._input_id
         return self._input_id
 
     @property
@@ -125,7 +126,15 @@ async def async_sync_switch_entities(
 
     for input_id, entity in existing_entities.items():
         if input_id not in wanted_ids:
-            await component.async_remove_entity(entity.entity_id)
+            entity_id = entity.entity_id
+            await component.async_remove_entity(entity_id)
+            # async_remove_entity() alone leaves a disabled-looking "zombie"
+            # behind in the entity registry (Entity.async_remove() without
+            # force_remove only marks it unavailable) — drop the registry
+            # entry too so a deleted toggle input actually disappears.
+            registry = er.async_get(hass)
+            if registry.async_get(entity_id):
+                registry.async_remove(entity_id)
         else:
             # Reflect a possible name change (area/input save) immediately
             # instead of waiting for the entity's next unrelated state write.

@@ -77,12 +77,24 @@ class TwilightEngine:
                 expires_at = (
                     dt_util.parse_datetime(expires_str) if expires_str else None
                 )
-                # active_slots is not restored: the boot catch-up (is_boot=True) recomputes
-                # every channel's active slot without activating a scene. Only the activity
-                # lifecycle (for timer restoration) needs to survive a restart.
+                # A rule-frozen timer has no activity_expires_at at all — the
+                # pending duration lives solely in activity_expire_frozen_seconds
+                # (see Coordinator.activity_requested). Restoring it is what lets
+                # Coordinator.async_setup() take the frozen branch instead of
+                # leaving the activity running with no timer at all.
+                frozen_raw = saved_state.get("activity_expire_frozen_seconds")
+                frozen_secs = (
+                    float(frozen_raw) if isinstance(frozen_raw, (int, float)) else None
+                )
+                source_raw = saved_state.get("activity_expire_source")
+                source = (
+                    source_raw if source_raw in ("activity", "rule") else None
+                )
                 initial_state = RunState(
                     activity_expires_at=expires_at,
                     active_activity=saved_state.get("active_activity"),
+                    activity_expire_frozen_seconds=frozen_secs,
+                    activity_expire_source=source,
                 )
 
         # Initialize StateManager and core Coordinator

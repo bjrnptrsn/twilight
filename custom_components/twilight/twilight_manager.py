@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 from homeassistant.core import callback
 from homeassistant.helpers.event import async_call_later
 
+from .const import SLOT_RECOVERY_RETRY_SECONDS
 from .helpers import create_tracked_task, resolve_transition_on_seconds
 from .slot_calc import resolve_slot_times
 from .sun_calc import compute_sun_day_data
@@ -59,6 +60,7 @@ class TwilightManager:
         self.timer_unsub: Callable[[], None] | None = None
         self._schedules: dict[str, ChannelSlotSchedule] = {}
         self._tasks: set[asyncio.Task[Any]] = set()
+        self._torn_down = False
 
     async def async_setup(self) -> None:
         """Set up the slot scheduler and calculate initial state."""
@@ -74,7 +76,21 @@ class TwilightManager:
         await self._update_slots_and_schedule(is_boot=is_boot)
 
     async def async_teardown(self) -> None:
-        """Tear down the scheduler and cancel active timers."""
+        """Tear down the scheduler and cancel active timers.
+
+        A cancelled `_async_on_slot_transition()` task can still run its
+        `finally` block to completion (an `await` inside `finally` is not
+        re-cancelled by the same CancelledError) — including the call to
+        `_update_slots_and_schedule()` that arms a *new* `self.timer_unsub`.
+        Without `_torn_down`, that new timer is set after this method has
+        already cleared/awaited the old one and is never cancelled: it fires
+        later on the torn-down engine and issues real light service calls
+        against the stale config. Set the flag before cancelling so the
+        in-flight `finally` sees it before it can re-arm, and re-check
+        `timer_unsub` after the gather as a defensive backstop in case a new
+        timer was set anyway while the gather was awaiting completion.
+        """
+        self._torn_down = True
         if self.timer_unsub:
             self.timer_unsub()
             self.timer_unsub = None
@@ -83,6 +99,9 @@ class TwilightManager:
             task.cancel()
         if pending:
             await asyncio.gather(*pending, return_exceptions=True)
+        if self.timer_unsub:
+            self.timer_unsub()
+            self.timer_unsub = None
         self._tasks.clear()
         _LOGGER.debug("[%s] TwilightManager torn down", self.engine.area_id)
 
@@ -210,12 +229,37 @@ class TwilightManager:
 
         return active_slots, active_slots_start, next_slots
 
+    def _has_schedulable_slots(self) -> bool:
+        """True if any enabled channel has at least one slot configured.
+
+        Distinguishes a transient failure (slots exist, resolution failed — worth
+        retrying) from a genuinely empty config (nothing to schedule, ever).
+        """
+        return any(
+            channel.slots
+            for channel in self.engine.config.channels.values()
+            if channel.enabled
+        )
+
     async def _update_slots_and_schedule(self, is_boot: bool = False) -> None:
         """Determine active slot and schedule next transition.
 
         is_boot is forwarded to the coordinator so the boot catch-up never
         activates a scene (engine_relationships.md §8).
+
+        Bails out early if the manager has already been torn down — reached
+        when this runs from a slot-transition task's `finally` block that
+        survived cancellation (see async_teardown()'s docstring). Without
+        this guard a torn-down engine could still arm a new timer that fires
+        later and issues stale light service calls.
         """
+        if self._torn_down:
+            _LOGGER.debug(
+                "[%s] Skipping slot schedule update — manager already torn down",
+                self.engine.area_id,
+            )
+            return
+
         if self.timer_unsub:
             self.timer_unsub()
             self.timer_unsub = None
@@ -228,9 +272,39 @@ class TwilightManager:
         ) = await self._find_active_slots_and_next_transition(now)
 
         if not active_slots:
-            _LOGGER.warning(
-                "[%s] No active slots could be determined", self.engine.area_id
-            )
+            # Cancelling the timer above and returning here used to kill the
+            # scheduler permanently: no timer stayed armed, so no slot ever
+            # changed again until HA restarted.
+            #
+            # The realistic trigger is a broken time zone — compute_sun_day_data
+            # raises ZoneInfoNotFoundError for an unknown/empty tz_str, which
+            # _calculate_slot_start_times catches into an empty result. Polar
+            # conditions do NOT land here: astral's ValueError is already
+            # handled in sun_calc.py and resolves to the solar-noon placeholder
+            # (verified for pole/Longyearbyen/equator across solstices).
+            #
+            # So this is self-healing after a config fix, not recovery from a
+            # flaky computation — a long interval is deliberate, since a
+            # persistently broken config would otherwise just spam the log.
+            # Only re-arm when the area actually has slots to schedule, so a
+            # genuinely empty config doesn't spin a pointless timer forever.
+            if self._has_schedulable_slots():
+                _LOGGER.warning(
+                    "[%s] No active slots could be determined — retrying in %ds",
+                    self.engine.area_id,
+                    SLOT_RECOVERY_RETRY_SECONDS,
+                )
+                self.timer_unsub = async_call_later(
+                    self.engine.hass,
+                    SLOT_RECOVERY_RETRY_SECONDS,
+                    self._on_slot_transition,
+                )
+            else:
+                _LOGGER.warning(
+                    "[%s] No active slots could be determined and no channel has "
+                    "any slots configured — scheduler idle",
+                    self.engine.area_id,
+                )
             return
 
         # 1. Update schedules (preserving fade_started state)

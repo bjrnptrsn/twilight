@@ -22,6 +22,7 @@ class LuxManager:
         """Initialize the LuxManager."""
         self._c = coordinator
         self.hass = coordinator.engine.hass
+        self._warned_multi_sensor = False
 
     def get_current_lux(self) -> float | None:
         """Get the aggregated lux value across all configured lux sensors."""
@@ -32,7 +33,19 @@ class LuxManager:
         if not illuminance_sensors:
             return None
 
-        # Twilight supports at most one illuminance sensor entry per area at this time
+        # Twilight supports at most one illuminance sensor entry per area at this
+        # time. The frontend and WS schema enforce that, but a hand-edited or
+        # imported store can carry more — warn instead of dropping them silently.
+        # Once per engine: this runs on every lux reading.
+        if len(illuminance_sensors) > 1 and not self._warned_multi_sensor:
+            self._warned_multi_sensor = True
+            _LOGGER.warning(
+                "[%s] %d illuminance sensor entries configured, but only one is "
+                "supported — using %r and ignoring the rest",
+                self._c.engine.area_id,
+                len(illuminance_sensors),
+                illuminance_sensors[0].id,
+            )
         sensor = illuminance_sensors[0]
         if not isinstance(sensor, IlluminanceSensorConfig):
             return None

@@ -9,9 +9,9 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.core import Context, HomeAssistant
 
+from .config_model import SlotActionConfig
 from .const import (
     CONTEXT_PREFIX,
-    DEFAULT_ACTION_TYPE,
     DEFAULT_BINARY_AGGREGATION,
     DEFAULT_LUX_IGNORE_ACTIVE,
     DEFAULT_LUX_IGNORE_SCOPE,
@@ -25,15 +25,13 @@ from .const import (
     InputType,
 )
 
-# Action types a presence-simulation template activity may use: only those that
-# switch a light *on* (PRESENCE_SIMULATION_PLAN.md §5.6). none/turn_off/reset/
-# simulation are excluded (nothing to play back / recursion).
 SIM_TEMPLATE_ELIGIBLE_TYPES = frozenset(
     {ActionType.SLOT, ActionType.ENTITY, ActionType.LIGHT}
 )
 
 if TYPE_CHECKING:
     from .config_model import (
+        ActivityConfig,
         AreaConfig,
         ChannelConfig,
         InputConfig,
@@ -151,12 +149,16 @@ def detect_channel_collisions(scene_map: SceneMap) -> dict[str, list[str]]:
 
 def get_store(hass: HomeAssistant) -> Any | None:
     """Return the TwilightStore from hass.data, or None if not registered yet."""
-    return hass.data.get(DOMAIN, {}).get("store")
+    domain_data = hass.data.get(DOMAIN)
+    if isinstance(domain_data, dict):
+        return domain_data.get("store")
+    return None
 
 
 def get_area_lock(hass: HomeAssistant, area_id: str) -> asyncio.Lock:
     """Return the per-area asyncio.Lock, serializing save/delete for one area_id."""
-    locks: dict[str, asyncio.Lock] = hass.data[DOMAIN].setdefault("area_locks", {})
+    domain_data: dict[str, Any] = hass.data.setdefault(DOMAIN, {})
+    locks: dict[str, asyncio.Lock] = domain_data.setdefault("area_locks", {})
     return locks.setdefault(area_id, asyncio.Lock())
 
 
@@ -395,15 +397,10 @@ def is_slot_excluded(
     if action is None:
         return False
 
-    action_type = action.type or DEFAULT_ACTION_TYPE
-
-    if action_type != "slot":
+    if not isinstance(action, SlotActionConfig) or not action.excluded_slots:
         return False
 
-    excluded_slots = getattr(action, "excluded_slots", None)
-    if not excluded_slots:
-        return False
-    return slot_id in excluded_slots.get(channel_id, ())
+    return slot_id in action.excluded_slots.get(channel_id, ())
 
 
 def is_slot_excluded_effective(
@@ -430,7 +427,9 @@ def is_slot_excluded_effective(
 
     activity = config.activity_by_id(activity_id)
     action = activity.action if activity else None
-    default_excluded = getattr(action, "excluded_slots", None) or {}
+    default_excluded = (
+        action.excluded_slots if isinstance(action, SlotActionConfig) and action.excluded_slots else {}
+    )
 
     effective = rule_manager.get_effective_excluded_slots(activity_id, default_excluded)
     return slot_id in effective.get(channel_id, ())
@@ -440,8 +439,8 @@ def simulation_template_eligible(config: AreaConfig, template: str | None) -> bo
     """Whether an activity may serve as a presence-simulation template.
 
     Eligible = it exists and its start action switches a light on
-    (slot/entity/light). A `None`-typed action defaults to `slot`, which is
-    eligible. See PRESENCE_SIMULATION_PLAN.md §5.6.
+    (slot/entity/light). No implicit type default — a `None`-typed action is
+    not eligible. See PRESENCE_SIMULATION_PLAN.md §5.6.
     """
     if not template:
         return False
@@ -449,5 +448,51 @@ def simulation_template_eligible(config: AreaConfig, template: str | None) -> bo
     if activity is None:
         return False
     action = activity.action
-    action_type = (action.type if action else None) or DEFAULT_ACTION_TYPE
+    action_type = action.type if action else None
     return action_type in SIM_TEMPLATE_ELIGIBLE_TYPES
+
+
+def get_activity_supports_excluded_slots(activity: ActivityConfig | None) -> bool:
+    """Whether an activity supports excluded slots overrides."""
+    if not activity or not activity.action:
+        return False
+    return activity.action.type == ActionType.SLOT
+
+
+def get_activity_supports_auto_expire(activity: ActivityConfig | None) -> bool:
+    """Whether an activity supports auto_expire_mode overrides (native timer enabled)."""
+    if not activity:
+        return False
+    if activity.action and activity.action.type == ActionType.RESET:
+        return False
+    return activity.auto_expire_enabled is not False
+
+
+def get_activity_supports_borrowed_auto_expire(
+    activity: ActivityConfig | None,
+) -> bool:
+    """Whether an activity supports borrowed auto_expire duration from a rule."""
+    if not activity:
+        return False
+    if activity.action and activity.action.type == ActionType.RESET:
+        return False
+    return activity.auto_expire_enabled is False
+
+
+def get_activity_supports_input_suppression(activity: ActivityConfig | None) -> bool:
+    """Whether an activity supports input suppression overrides."""
+    if not activity:
+        return False
+    return not (activity.action and activity.action.type == ActionType.RESET)
+
+
+def get_activity_has_rule_support(activity: ActivityConfig | None) -> bool:
+    """Whether an activity supports any rule override feature."""
+    if not activity:
+        return False
+    return (
+        get_activity_supports_excluded_slots(activity)
+        or get_activity_supports_auto_expire(activity)
+        or get_activity_supports_borrowed_auto_expire(activity)
+        or get_activity_supports_input_suppression(activity)
+    )

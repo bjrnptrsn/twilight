@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.5.0 - 2026-08-05
+
+### ⚠️ Breaking Changes
+
+*   **Auto-Expire is now switched on or off explicitly**: A zero duration no longer means "no timer" — untick "Enable Auto-Expire" instead. Activities previously set to `00:00:00` need to be checked.
+
+*   **Expiry Check Mode removed**: An activity is now always held open while one of its triggering inputs is still on, including Block activities. For motion inputs this follows the input's own brightness settings.
+
+### ✨ Features
+
+*   **Enable Auto-Expire**: Activities can run without any timer, ending only on release or when another activity takes over.
+
+*   **Rule-Granted Auto-Expire**: Rules can now temporarily give an auto-expire timer to an activity that normally has none, keeping it running for the rest of that duration even after the rule ends.
+
+*   **Dynamic Hue Scenes**: Slots using Philips Hue scenes can now opt into dynamic color rotation with configurable playback speed in the slot editor.
+
+*   **Presence Simulation Frequency**: Added wider frequency options ranging from very low to very high for presence simulation.
+
+### 🎨 Improvements
+
+*   **Smart Rule Editor**: The Rule editor now only displays configuration fields (such as Auto-Expire, channel slots, or input suppression) that apply to the selected target activity.
+
+*   **Rule Mismatch Warnings**: If a rule's settings no longer fit its target activity after an edit, the rule is automatically disabled and clearly flagged in the Rules list.
+
+*   **Alphabetical UI Lists**: Lights, entities, and state lists across cards are now sorted alphabetically by name.
+
+### 🔧 Fixes
+
+*   **Presence Simulation**: Fixed simulation trigger timing and restored automatic resumption after Home Assistant restarts.
+
 ## 0.4.0 - 2026-07-30
 
 ### ✨ Features

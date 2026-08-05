@@ -87,6 +87,7 @@ async def async_compute_heatmap(
     for w in range(7):
         w_key = str(w)
         profile.motion_buckets[w_key] = [0.0] * buckets_per_day
+        profile.motion_presence_buckets[w_key] = [0.0] * buckets_per_day
         profile.light_buckets[w_key] = [0.0] * buckets_per_day
 
     if not motion_sensors:
@@ -98,7 +99,9 @@ async def async_compute_heatmap(
         d = (start_time + timedelta(days=i)).date()
         weekday_counts[d.weekday()] += 1
 
-    # Fetch states from recorder in executor
+    # Fetch states from recorder in executor. no_attributes=True: only motion
+    # binary_sensor states are read below (on/off) — their attributes are
+    # never used, so skip loading them from the state_attributes join.
     states_by_entity: dict[str, list[Any]] = await get_instance(
         hass
     ).async_add_executor_job(
@@ -111,7 +114,7 @@ async def async_compute_heatmap(
         True,
         False,
         False,
-        False,
+        True,
         True,
     )
 
@@ -120,6 +123,11 @@ async def async_compute_heatmap(
 
     # Sum active seconds per weekday and bucket index
     sums: dict[str, list[float]] = {str(w): [0.0] * buckets_per_day for w in range(7)}
+    # Distinct calendar dates (per weekday+bucket) that saw at least one active
+    # interval — used for motion_presence_buckets, see _distribute_interval().
+    active_dates: dict[str, list[set[Any]]] = {
+        str(w): [set() for _ in range(buckets_per_day)] for w in range(7)
+    }
 
     for entity_id in motion_sensors:
         states = states_by_entity.get(entity_id, [])
@@ -139,13 +147,18 @@ async def async_compute_heatmap(
             else:
                 if active_start is not None:
                     _distribute_interval(
-                        active_start, dt_s, res_mins, buckets_per_day, sums
+                        active_start,
+                        dt_s,
+                        res_mins,
+                        buckets_per_day,
+                        sums,
+                        active_dates,
                     )
                     active_start = None
 
         if active_start is not None and active_start < end_time:
             _distribute_interval(
-                active_start, end_time, res_mins, buckets_per_day, sums
+                active_start, end_time, res_mins, buckets_per_day, sums, active_dates
             )
 
     # Normalize sums by weekday occurrence count and slot duration
@@ -158,6 +171,10 @@ async def async_compute_heatmap(
         for b_idx in range(buckets_per_day):
             fraction = sums[w_key][b_idx] / total_possible_sec
             profile.motion_buckets[w_key][b_idx] = round(min(1.0, fraction), 4)
+            presence = len(active_dates[w_key][b_idx]) / count
+            profile.motion_presence_buckets[w_key][b_idx] = round(
+                min(1.0, presence), 4
+            )
 
     return profile
 
@@ -168,8 +185,16 @@ def _distribute_interval(
     res_mins: int,
     buckets_per_day: int,
     sums: dict[str, list[float]],
+    active_dates: dict[str, list[set[Any]]],
 ) -> None:
-    """Distribute an active interval across weekday bucket sums."""
+    """Distribute an active interval across weekday bucket sums.
+
+    Also records the calendar date in `active_dates[weekday][bucket]` for every
+    bucket the interval touches, used to derive motion_presence_buckets (the
+    fraction of days with *any* motion in the bucket, vs. `sums`' fraction of
+    active seconds — PIR sensors are only on for a few seconds per trigger, so
+    the seconds-fraction alone understates how often presence actually occurs).
+    """
     if end <= start:
         return
 
@@ -194,5 +219,6 @@ def _distribute_interval(
         duration_sec = (overlap_end - overlap_start).total_seconds()
         if duration_sec > 0 and bucket_idx < buckets_per_day:
             sums[weekday_key][bucket_idx] += duration_sec
+            active_dates[weekday_key][bucket_idx].add(curr.date())
 
         curr = bucket_end

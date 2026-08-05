@@ -21,7 +21,9 @@ An attr-entry is None (→ card shows "—") or:
 
 Comparison (exact by default; tolerances in const.py, 0 = exact):
   - state (on/off): string equality
-  - brightness: integer equality on HA 0–255 scale; label rendered as %
+  - brightness: integer equality on HA 0–255 scale; label rendered as % via
+    _pct() — a nonzero raw value never rounds down to a "0%" label, which
+    would misleadingly read as off for a light that is on but very dim.
   - color: compare in xy whenever both sides have xy, else color_temp (mireds),
     else hs. RGB is display-only, never the comparison basis.
 """
@@ -73,7 +75,12 @@ def build_light_states(
                 if entry.get(key):
                     entry[key]["deviates"] = False
         result[entity_id] = entry
-    return result
+    return dict(
+        sorted(
+            result.items(),
+            key=lambda item: (item[1].get("name") or item[0]).lower(),
+        )
+    )
 
 
 def check_entity_deviation(ha_state: Any | None, expected: dict[str, Any]) -> bool:
@@ -170,7 +177,16 @@ def _compare_brightness(
             }
         return None
 
-    diff = abs(int(actual_brightness) - int(target_brightness))
+    try:
+        diff = abs(int(actual_brightness) - int(target_brightness))
+    except (TypeError, ValueError):
+        return {
+            "actual": "—",
+            "target": _pct(target_brightness),
+            "actual_swatch": None,
+            "target_swatch": None,
+            "deviates": True,
+        }
     return {
         "actual": _pct(actual_brightness),
         "target": _pct(target_brightness),
@@ -260,13 +276,20 @@ def _compare_color(
 
         compare_temp = _clamp_target_mireds(target_temp, attrs)
 
+        try:
+            temp_deviates = (
+                actual_temp is None
+                or abs(int(actual_temp) - compare_temp) > TEMP_TOLERANCE
+            )
+        except (TypeError, ValueError):
+            temp_deviates = True
+
         return {
             "actual": _kelvin_label(actual_temp),
             "target": _kelvin_label(target_temp),
             "actual_swatch": _temp_css(actual_temp),
             "target_swatch": _temp_css(target_temp),
-            "deviates": actual_temp is None
-            or abs(int(actual_temp) - compare_temp) > TEMP_TOLERANCE,
+            "deviates": temp_deviates,
         }
 
     # --- hs path ---
@@ -297,7 +320,16 @@ def _compare_color(
 
 
 def _pct(brightness_255: Any) -> str:
-    return f"{round(int(brightness_255) / 2.55)}%"
+    """Format a 0-255 brightness as a percent label.
+
+    A nonzero raw value never rounds down to 0% — that would read as "off"
+    for a light that is actually on, just very dim (e.g. raw=1 -> 0.4%,
+    rounds to 0 but the light is lit).
+    """
+    raw = int(brightness_255)
+    if raw <= 0:
+        return "0%"
+    return f"{max(1, round(raw / 2.55))}%"
 
 
 def _rgb_label(rgb: tuple[int, int, int] | None) -> str:

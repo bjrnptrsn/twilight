@@ -86,12 +86,6 @@ class LuxIgnoreScope(StrEnum):
     ALL_SLOTS = "all_slots"
 
 
-class SimulationMode(StrEnum):
-    """Umbrella modes for the `simulation` action. Only presence_heatmap in v1."""
-
-    PRESENCE_HEATMAP = "presence_heatmap"
-
-
 class SimLuxMode(StrEnum):
     """When the presence simulation is allowed to switch lights on.
 
@@ -102,6 +96,21 @@ class SimLuxMode(StrEnum):
     THRESHOLD = "threshold"  # only when current lux <= lux_threshold
     DUSK_DAWN = "dusk_dawn"  # only when the primary slot is in TWILIGHT_SLOTS
     ALWAYS = "always"  # no condition
+
+
+class SimFrequencyMode(StrEnum):
+    """Frequency / probability multiplier mode for presence simulation.
+
+    Geometric progression (each step doubles/halves), symmetric around
+    NORMAL — not linear, so the felt intensity step is consistent regardless
+    of which end of the scale you're on.
+    """
+
+    VERY_LOW = "very_low"  # 25% probability scaling
+    LOW = "low"  # 50% probability scaling
+    NORMAL = "normal"  # 100% probability scaling (1:1 history)
+    HIGH = "high"  # 200% probability scaling
+    VERY_HIGH = "very_high"  # 400% probability scaling
 
 
 class AggregationMode(StrEnum):
@@ -122,14 +131,6 @@ class RetriggerMode(StrEnum):
 
     EVERY = "every"  # every motion event re-triggers → restarts the timer
     FIRST = "first"  # only the first motion (off→on for the whole input) triggers
-
-
-class ExpireCheckMode(StrEnum):
-    """Whether/how motion & binary inputs postpone an activity's auto-expire."""
-
-    DISABLED = "disabled"
-    RESPECT_LUX = "respect_lux"
-    IGNORE_LUX = "ignore_lux"
 
 
 class RuleAutoExpireMode(StrEnum):
@@ -176,9 +177,6 @@ DEFAULT_AUTO_EXPIRE = (
     "03:00:00"  # HH:MM:SS — overnight safety net (e.g. "Guest" left active)
 )
 DEFAULT_LUX_WATCH_WINDOW = 10  # seconds
-DEFAULT_EXPIRE_CHECK_MODE = ExpireCheckMode.RESPECT_LUX
-DEFAULT_ACTION_TYPE = ActionType.SLOT
-DEFAULT_RELEASE_ACTION_TYPE = ActionType.TURN_OFF
 DEFAULT_TRANSITION_ON_SECONDS = 60
 DEFAULT_TRANSITION_OFF_SECONDS = 0
 DEFAULT_LUX_AGGREGATION = "min"
@@ -187,9 +185,21 @@ DEFAULT_BINARY_AGGREGATION = AggregationMode.ANY
 DEFAULT_RETRY_DELAYS = (1.2, 2.4, 3.6, 4.8, 6.0)
 ECHO_SETTLE_WINDOW_SECONDS = 1.0
 
+# Re-arm delay when the slot scheduler could not determine any active slot
+# (in practice: a broken time zone, which makes the sun calculation raise).
+# Without a retry the scheduler would stay dormant until the next HA restart.
+# Long on purpose — the cause is a config error that stays broken until fixed,
+# so a short interval would only spam the log. See TwilightManager.
+SLOT_RECOVERY_RETRY_SECONDS = 300
+
 # Presence simulation defaults (PRESENCE_SIMULATION_PLAN.md)
-DEFAULT_SIMULATION_MODE = SimulationMode.PRESENCE_HEATMAP
-DEFAULT_SIM_LUX_MODE = SimLuxMode.DUSK_DAWN
+SIM_FREQUENCY_FACTORS: dict[str, float] = {
+    SimFrequencyMode.VERY_LOW.value: 0.25,
+    SimFrequencyMode.LOW.value: 0.5,
+    SimFrequencyMode.NORMAL.value: 1.0,
+    SimFrequencyMode.HIGH.value: 2.0,
+    SimFrequencyMode.VERY_HIGH.value: 4.0,
+}
 SIM_LOOP_TICK_S = 60.0  # fallback loop tick when the template has no auto_expire
 # (normally the tick is dynamic: 0.4 * auto_expire, see presence_simulation.md §3)
 SIM_DEFAULT_RESOLUTION = "15m"  # dynamic recorder window bucket size
@@ -338,6 +348,8 @@ def materialize_primary_slots(
                     "offset_minutes": item.get("offset_minutes"),
                     "scene_entity_id": item.get("scene_entity_id"),
                     "configured_entities": item.get("configured_entities"),
+                    "hue_activate_dynamic": item.get("hue_activate_dynamic"),
+                    "hue_dynamic_speed": item.get("hue_dynamic_speed"),
                 }
     elif raw_slots is not None:
         _LOGGER.warning(
@@ -383,6 +395,8 @@ def materialize_primary_slots(
             "offset_minutes",
             "scene_entity_id",
             "configured_entities",
+            "hue_activate_dynamic",
+            "hue_dynamic_speed",
         }
         if unknown_keys:
             _LOGGER.warning(
@@ -391,6 +405,7 @@ def materialize_primary_slots(
                 zone,
             )
 
+        speed_val = override.get("hue_dynamic_speed")
         result.append(
             {
                 "id": zone,
@@ -400,6 +415,8 @@ def materialize_primary_slots(
                 "offset_minutes": int(offset_mins) if offset_mins is not None else 0,
                 "scene_entity_id": scene_id,
                 "configured_entities": list(entities) if entities is not None else [],
+                "hue_activate_dynamic": bool(override.get("hue_activate_dynamic", False)),
+                "hue_dynamic_speed": int(speed_val) if isinstance(speed_val, (int, float)) else None,
             }
         )
     return result
@@ -459,9 +476,9 @@ DEFAULT_AREA_TEMPLATE = {
             "type": "binary",
             "entity_ids": [],
             "activity": "activity_c3abaeee",
-            "enabled": None,
+            "enabled": True,
             "rule": None,
-            "aggregation": None,
+            "aggregation": "any",
             "aggregation_count": None,
         },
         {
@@ -483,7 +500,7 @@ DEFAULT_AREA_TEMPLATE = {
             "activity": None,
             "enabled": True,
             "rule": "rule_92bf6f67",
-            "aggregation": None,
+            "aggregation": "any",
             "aggregation_count": None,
         },
     ],
@@ -492,54 +509,54 @@ DEFAULT_AREA_TEMPLATE = {
             "id": "activity_b04fef97",
             "name": "Motion",
             "suppress_inputs": [],
+            "auto_expire_enabled": True,
             "auto_expire": "00:05:00",
-            "expire_check_mode": ExpireCheckMode.RESPECT_LUX.value,
             "action": {
                 "type": "slot",
-              "excluded_slots": {
-                "primary": [],
-                "channel_e0c3dd6b": [
-                  "custom_80635c06",
-                  "custom_ea7c9f51",
-                  "custom_631b9f14",
-                  "custom_5cb9c9a3",
-                  "custom_8148b20b",
-                  "custom_159cacc9",
-                  "custom_489cd4cb"
-                ]
-              }
+                "excluded_slots": {
+                    "primary": [],
+                    "channel_e0c3dd6b": [
+                        "custom_80635c06",
+                        "custom_ea7c9f51",
+                        "custom_631b9f14",
+                        "custom_5cb9c9a3",
+                        "custom_8148b20b",
+                        "custom_159cacc9",
+                        "custom_489cd4cb"
+                    ]
+                }
             },
-            "release_action": {"type": None},
+            "release_action": {"type": "turn_off"},
             "transition_off_seconds": 0,
         },
         {
             "id": "activity_a7ae5492",
             "name": "Manual",
             "suppress_inputs": ["motion_4011420a"],
-            "auto_expire": "00:00:00",
-            "expire_check_mode": None,
-            "action": {"type": None},
-            "release_action": {"type": None},
+            "auto_expire_enabled": False,
+            "auto_expire": None,
+            "action": {"type": "slot", "excluded_slots": None},
+            "release_action": {"type": "turn_off"},
             "transition_off_seconds": 0,
         },
         {
             "id": "activity_1c5fd855",
             "name": "Reset",
             "suppress_inputs": [],
+            "auto_expire_enabled": False,
             "auto_expire": None,
-            "expire_check_mode": None,
             "action": {"type": ActionType.RESET.value, "entity_targets": []},
-            "release_action": {"type": None},
+            "release_action": {"type": "none"},
             "transition_off_seconds": 0,
         },
         {
             "id": "activity_c3abaeee",
             "name": "Sleep",
             "suppress_inputs": ["motion_4011420a"],
-            "auto_expire": "03:00:00",
-            "expire_check_mode": None,
+            "auto_expire_enabled": False,
+            "auto_expire": None,
             "action": {"type": ActionType.BLOCK.value},
-            "release_action": {"type": None},
+            "release_action": {"type": "turn_off"},
             "transition_off_seconds": None,
         },
     ],
@@ -639,7 +656,10 @@ DEFAULT_AREA_TEMPLATE = {
             "applied_activities": ["activity_b04fef97"],
             "excluded_slots_override": {},
             "auto_expire_mode": RuleAutoExpireMode.NONE.value,
+            "auto_expire_enabled": None,
+            "auto_expire": None,
             "suppressed_inputs_override": [],
+            "auto_disabled_reason": None,
         }
     ],
 }

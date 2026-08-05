@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import copy
 import logging
 import secrets
@@ -187,6 +188,11 @@ def normalize_primary_slots_sparse(
             zone_override["scene_entity_id"] = scene_id
         if isinstance(entities, (list, tuple)) and len(entities) > 0:
             zone_override["configured_entities"] = list(entities)
+        if src.get("hue_activate_dynamic"):
+            zone_override["hue_activate_dynamic"] = True
+        speed = src.get("hue_dynamic_speed")
+        if isinstance(speed, (int, float)):
+            zone_override["hue_dynamic_speed"] = int(speed)
 
         if zone_override:
             new_sparse_slots[zone] = zone_override
@@ -460,7 +466,7 @@ def _normalize_config_lists(config: dict[str, Any]) -> bool:
 
     Shared by _normalize_area_config and the area_template normalization so both
     backfill the same input/activity/sensor/rule defaults (retrigger, trigger_time,
-    expire_check_mode, stable ids, …).
+    auto_expire, stable ids, …).
     """
     modified = False
 
@@ -618,14 +624,16 @@ def _migrate_store_data(data: dict[str, Any]) -> bool:
                     action["type"] = ActionType.BLOCK.value
                     modified = True
 
-                # --- 2. BLOCK Activity field cleanup (transition_off_seconds / expire_check_mode) ---
-                if action.get("type") == ActionType.BLOCK.value:
-                    if act.get("transition_off_seconds") is not None:
-                        act["transition_off_seconds"] = None
-                        modified = True
-                    if act.get("expire_check_mode") is not None:
-                        act["expire_check_mode"] = None
-                        modified = True
+                # --- 2. BLOCK Activity field cleanup (transition_off_seconds) ---
+                # The former expire_check_mode cleanup is gone with the field
+                # itself — BaseConfig.prune_and_default() drops it from old
+                # stores because it is no longer a dataclass field.
+                if (
+                    action.get("type") == ActionType.BLOCK.value
+                    and act.get("transition_off_seconds") is not None
+                ):
+                    act["transition_off_seconds"] = None
+                    modified = True
 
         # Migrate global area_template
         global_cfg = data.get("global")
@@ -669,6 +677,15 @@ class TwilightStore:
         self._hass = hass
         self.store: Store[dict[str, Any]] = TwilightHAStore(hass, STORAGE_VERSION, STORAGE_KEY)
         self.data: dict[str, Any] = {}
+        # Serializes the two store-wide writers (async_save_global,
+        # async_import_all) against each other — both replace self.data["global"]
+        # (and async_import_all also self.data["areas"]) wholesale, so two
+        # concurrent calls could otherwise interleave and leave a mixed result.
+        # Does not cover per-area area/save|delete (helpers.get_area_lock) —
+        # serializing a whole-store import against every individual area write
+        # would require holding this lock across each area's engine reload too,
+        # a larger change than this fix's scope.
+        self._global_write_lock = asyncio.Lock()
 
     async def async_load(self) -> None:
         stored = await self.store.async_load()
@@ -903,8 +920,9 @@ class TwilightStore:
             if isinstance(area_template.get("custom_channels"), dict):
                 _normalize_custom_channels(area_template["custom_channels"])
             _normalize_config_lists(area_template)
-        self.data["global"] = config
-        await self.store.async_save(self.data)
+        async with self._global_write_lock:
+            self.data["global"] = config
+            await self.store.async_save(self.data)
 
     # --- Backup & Restore ---
 
@@ -932,38 +950,44 @@ class TwilightStore:
         if not isinstance(areas_in, dict):
             areas_in = {}
 
-        new_areas: dict[str, Any] = {}
-        for area_id, area_cfg in areas_in.items():
-            if not isinstance(area_cfg, dict):
-                continue
-            cleaned = dict(area_cfg)
-            cleaned.pop("_state", None)
-            cleaned["area_id"] = area_id
-            _normalize_area_config(cleaned)
-            existing = self.data["areas"].get(area_id)
-            if existing and "_state" in existing:
-                cleaned["_state"] = existing["_state"]
-            new_areas[area_id] = cleaned
+        async with self._global_write_lock:
+            # Deep-copy each incoming area dict — a shallow dict() still shares
+            # nested lists/dicts (channels, inputs, activities, ...) with the
+            # caller's payload; _normalize_area_config() mutates in place, which
+            # would otherwise leak into (or be corrupted by) the caller's copy.
+            new_areas: dict[str, Any] = {}
+            for area_id, area_cfg in areas_in.items():
+                if not isinstance(area_cfg, dict):
+                    continue
+                cleaned = copy.deepcopy(area_cfg)
+                cleaned.pop("_state", None)
+                cleaned["area_id"] = area_id
+                _normalize_area_config(cleaned)
+                existing = self.data["areas"].get(area_id)
+                if existing and "_state" in existing:
+                    cleaned["_state"] = existing["_state"]
+                new_areas[area_id] = cleaned
 
-        self.data["areas"] = new_areas
+            global_in = payload.get("global")
+            new_global = (
+                copy.deepcopy(global_in) if isinstance(global_in, dict) else {}
+            )
+            _prune_and_default(new_global, GLOBAL_DEFAULTS)
 
-        global_in = payload.get("global")
-        new_global = dict(global_in) if isinstance(global_in, dict) else {}
-        _prune_and_default(new_global, GLOBAL_DEFAULTS)
+            area_template = new_global.get("area_template")
+            if isinstance(area_template, dict):
+                raw_primary = area_template.get("primary_slots")
+                area_template["primary_slots"] = normalize_primary_slots_sparse(raw_primary)
+                custom_ch = area_template.get("custom_channels")
+                if not isinstance(custom_ch, dict) or not custom_ch:
+                    area_template["custom_channels"] = copy.deepcopy(
+                        DEFAULT_AREA_TEMPLATE.get("custom_channels", {})
+                    )
+                    custom_ch = area_template["custom_channels"]
+                if isinstance(custom_ch, dict):
+                    _normalize_custom_channels(custom_ch)
+                _normalize_config_lists(area_template)
 
-        area_template = new_global.get("area_template")
-        if isinstance(area_template, dict):
-            raw_primary = area_template.get("primary_slots")
-            area_template["primary_slots"] = normalize_primary_slots_sparse(raw_primary)
-            custom_ch = area_template.get("custom_channels")
-            if not isinstance(custom_ch, dict) or not custom_ch:
-                area_template["custom_channels"] = copy.deepcopy(
-                    DEFAULT_AREA_TEMPLATE.get("custom_channels", {})
-                )
-                custom_ch = area_template["custom_channels"]
-            if isinstance(custom_ch, dict):
-                _normalize_custom_channels(custom_ch)
-            _normalize_config_lists(area_template)
-
-        self.data["global"] = new_global
-        await self.store.async_save(self.data)
+            self.data["areas"] = new_areas
+            self.data["global"] = new_global
+            await self.store.async_save(self.data)

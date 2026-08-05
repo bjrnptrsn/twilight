@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, cast
 
 from homeassistant.const import STATE_OFF, STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.core import callback as ha_callback
 from homeassistant.helpers.event import async_call_later
 from homeassistant.util import dt as dt_util
 
@@ -31,9 +32,11 @@ from .const import (
     PRIMARY_CHANNEL_ID,
     SIM_DEFAULT_RANGE,
     SIM_DEFAULT_RESOLUTION,
+    SIM_FREQUENCY_FACTORS,
     SIM_LOOP_TICK_S,
     TWILIGHT_SLOTS,
     ActionType,
+    SimFrequencyMode,
     SimLuxMode,
 )
 from .deviation import check_entity_deviation
@@ -79,12 +82,13 @@ def apply_release_over_channels(
     that this function deliberately does not perform.
 
     A release action is only turn_off | slot | none (ReleaseActionType in
-    types.ts; the UI offers only these). The else branch handles ``none`` —
-    whose correct behaviour is to do nothing to the lights (just clear
-    scene_activated_at, no service call). entity/light can never be a release
-    type, so "the else issues no call" is intended, not a bug.
+    types.ts; the UI offers only these). The else branch handles ``none``
+    and a `None`-typed release (no implicit type default) — whose correct
+    behaviour is to do nothing to the lights (just clear scene_activated_at,
+    no service call). entity/light can never be a release type, so "the else
+    issues no call" is intended, not a bug.
     """
-    t = release.type or ActionType.TURN_OFF
+    t = release.type
     if t == ActionType.SLOT:
         coordinator.update_state(scene_activated_at=datetime.now(UTC))
         coordinator.lux_manager.update_lux_state()
@@ -191,6 +195,7 @@ class BaseActionHandler(ABC):
     def _start_timer(self, delay: float, callback: Callable[[], Any]) -> None:
         """Start a timer in the event loop that schedules a coroutine callback."""
 
+        @ha_callback
         def _fire(_now: datetime) -> None:
             self._start_task(callback())
 
@@ -372,6 +377,7 @@ class PresenceSimulationActionHandler(BaseActionHandler):
         self._off_unsub: Callable[[], None] | None = None
         self._template: str | None = None
         self._lux_mode: str = SimLuxMode.DUSK_DAWN
+        self._frequency_mode: str = SimFrequencyMode.NORMAL
 
     async def start(
         self,
@@ -395,7 +401,18 @@ class PresenceSimulationActionHandler(BaseActionHandler):
             self._template = None
             return
         self._lux_mode = sim.lux_mode or SimLuxMode.DUSK_DAWN
+        self._frequency_mode = sim.frequency_mode or SimFrequencyMode.NORMAL
         self._motion_buckets = await self._load_buckets(sim)
+        _LOGGER.info(
+            "[%s] Presence simulation started: template=%s lux_mode=%s "
+            "frequency_mode=%s weekdays_with_data=%s tick_interval=%.1fs",
+            c.engine.area_id,
+            self._template,
+            self._lux_mode,
+            self._frequency_mode,
+            sorted(k for k, v in self._motion_buckets.items() if any(v)),
+            self._get_tick_interval_seconds(),
+        )
         # Tick once immediately so the simulation reacts at activation instead of
         # only after the first LOOP_TICK_S; the tick re-schedules the loop itself.
         await self._tick()
@@ -403,11 +420,20 @@ class PresenceSimulationActionHandler(BaseActionHandler):
     async def _load_buckets(
         self, sim: SimulationActionConfig
     ) -> dict[str, list[float]]:
-        """Resolve motion buckets once: saved profile if set, else dynamic recorder window."""
+        """Resolve presence buckets once: saved profile if set, else dynamic recorder window.
+
+        Uses `motion_presence_buckets` (fraction of days with *any* motion in
+        the bucket) rather than `motion_buckets` (fraction of active seconds)
+        as the trigger-probability basis — PIR sensors are only on for a few
+        seconds per trigger, so the seconds-fraction is structurally tiny even
+        during genuinely active hours and understates real presence. Profiles
+        saved before this field existed fall back to `motion_buckets` so they
+        keep working until recalculated.
+        """
         c = self._coordinator
         profile = c.engine.config.heatmap_profile_by_id(sim.heatmap_profile_id)
         if profile is not None:
-            return dict(profile.motion_buckets)
+            return dict(profile.motion_presence_buckets or profile.motion_buckets)
         try:
             computed = await async_compute_heatmap(
                 c.engine.hass,
@@ -422,15 +448,17 @@ class PresenceSimulationActionHandler(BaseActionHandler):
                 c.engine.area_id,
             )
             return {}
-        return computed.motion_buckets
+        return computed.motion_presence_buckets
 
     def _get_tick_interval_seconds(self) -> float:
         """Compute dynamic tick interval based on template auto_expire seconds (40% of expire duration)."""
         c = self._coordinator
         if not self._template:
             return SIM_LOOP_TICK_S
-        expire_secs = c._get_activity_auto_expire_seconds(self._template)
-        if expire_secs <= 0:
+        expire_secs = c.get_activity_auto_expire_seconds(self._template)
+        if not expire_secs:
+            # None (auto_expire switched off) or 0 — no duration to derive a
+            # tick from, fall back to the fixed loop tick.
             return SIM_LOOP_TICK_S
         return max(15.0, expire_secs * 0.4)
 
@@ -452,21 +480,34 @@ class PresenceSimulationActionHandler(BaseActionHandler):
         return buckets[idx]
 
     def _scaled_probability(self) -> float:
-        """Probability scaled by ratio of tick interval to auto_expire duration."""
+        """Probability scaled by ratio of tick interval to auto_expire duration and frequency mode."""
         b = self._current_probability()
+        factor = SIM_FREQUENCY_FACTORS.get(self._frequency_mode, 1.0)
         c = self._coordinator
         if not self._template:
-            return b
-        expire_secs = c._get_activity_auto_expire_seconds(self._template)
-        if expire_secs <= 0:
-            return b
+            return b * factor
+        expire_secs = c.get_activity_auto_expire_seconds(self._template)
+        if not expire_secs:
+            return b * factor
         tick_secs = self._get_tick_interval_seconds()
-        return min(1.0, b * (tick_secs / expire_secs))
+        return min(1.0, b * factor * (tick_secs / expire_secs))
 
     async def _tick(self) -> None:
         """One loop tick: roll simulated motion, apply on-step + off-timer restart."""
         try:
-            if random.random() < self._scaled_probability() and self._lux_allows_on():
+            prob = self._scaled_probability()
+            roll = random.random()
+            lux_ok = self._lux_allows_on()
+            fires = roll < prob and lux_ok
+            _LOGGER.debug(
+                "[%s] Presence simulation tick: probability=%.4f roll=%.4f lux_ok=%s fires=%s",
+                self._coordinator.engine.area_id,
+                prob,
+                roll,
+                lux_ok,
+                fires,
+            )
+            if fires:
                 await self._on_step()
                 self._restart_off_timer()
         except Exception:
@@ -496,14 +537,25 @@ class PresenceSimulationActionHandler(BaseActionHandler):
     async def _on_step(self) -> None:
         """Apply the template activity's start action over the slot-primitives."""
         c = self._coordinator
-        action = c._resolve_action(cast(str, self._template))
+        action = c.resolve_action(cast(str, self._template))
         c.update_state(scene_activated_at=datetime.now(UTC))
         c.lux_manager.update_lux_state()
-        t = action.type or ActionType.SLOT
+        t = action.type
+        _LOGGER.info(
+            "[%s] Presence simulation on-step: template=%s action_type=%s",
+            c.engine.area_id,
+            self._template,
+            t,
+        )
         if t == ActionType.SLOT:
+            slot_action = (
+                action
+                if isinstance(action, SlotActionConfig)
+                else SlotActionConfig(type=ActionType.SLOT)
+            )
             apply_slot_action_over_channels(
                 c,
-                action,
+                slot_action,
                 c.run_state.active_slots,
                 was_activated=False,
             )
@@ -527,10 +579,11 @@ class PresenceSimulationActionHandler(BaseActionHandler):
             self._off_unsub = None
         c = self._coordinator
         template = cast(str, self._template)
-        expire_secs = c._get_activity_auto_expire_seconds(template)
-        if expire_secs <= 0:
+        expire_secs = c.get_activity_auto_expire_seconds(template)
+        if not expire_secs:
             return
 
+        @ha_callback
         def _fire(_now: datetime) -> None:
             self._off_unsub = None
             self._start_task(self._off_step())
@@ -545,12 +598,21 @@ class PresenceSimulationActionHandler(BaseActionHandler):
         """
         c = self._coordinator
         template = cast(str, self._template)
-        release = c._resolve_release_action(template)
-        transition_off = c._get_activity_transition_off_seconds(template)
+        release = c.resolve_release_action(template)
+        transition_off = c.get_activity_transition_off_seconds(template)
+        _LOGGER.info(
+            "[%s] Presence simulation off-step: template=%s", c.engine.area_id, template
+        )
         apply_release_over_channels(c, release, transition_off)
 
     def cancel(self) -> None:
         """Cancel the loop, the internal off-timer, and all tracked tasks."""
+        if self._template is not None:
+            _LOGGER.info(
+                "[%s] Presence simulation cancelled: template=%s",
+                self._coordinator.engine.area_id,
+                self._template,
+            )
         if self._off_unsub is not None:
             self._off_unsub()
             self._off_unsub = None
