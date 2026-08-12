@@ -66,6 +66,14 @@ class TwilightEngine:
         self.config: AreaConfig = (
             config if isinstance(config, AreaConfig) else AreaConfig.from_dict(config)
         )
+        # Cached once per engine (config is immutable for its lifetime — a
+        # config change rebuilds the engine, see AreaConfig's docstring) so
+        # echo.identify_echo()'s per-event callers (LightStateInputHandler,
+        # BaseCallHandler's deviation watcher) don't rebuild this set on
+        # every light state-changed event. Named distinctly from
+        # Coordinator.channel_ids (a list, computed fresh on each access) to
+        # avoid confusing the two.
+        self.channel_id_set: frozenset[str] = frozenset(self.config.channels.keys())
 
         if initial_state is None:
             # Retrieve and restore previously persisted state if available in the store
@@ -75,7 +83,9 @@ class TwilightEngine:
             if isinstance(saved_state, dict):
                 expires_str = saved_state.get("activity_expires_at")
                 expires_at = (
-                    dt_util.parse_datetime(expires_str) if expires_str else None
+                    dt_util.parse_datetime(expires_str)
+                    if isinstance(expires_str, str)
+                    else None
                 )
                 # A rule-frozen timer has no activity_expires_at at all — the
                 # pending duration lives solely in activity_expire_frozen_seconds
@@ -132,10 +142,10 @@ class TwilightEngine:
             self.twilight_manager,
             self.lux_handler,
             self.event_handler,
+            self.motion_handler,
             self.binary_handler,
             self.button_handler,
             self.timer_handler,
-            self.motion_handler,
             self.light_state_handler,
         ]
 

@@ -1,0 +1,32 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "description": "Twilight se konfiguruje přes panel v postranním panelu — tento záznam pouze ukotvuje zařízení pro volitelné entity tlačítek/přepínačů a nevyžaduje žádné nastavení."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "[%key:common::config_flow::abort::single_instance_allowed%]"
+    }
+  },
+  "services": {
+    "trigger_input": {
+      "name": "Aktivovat vstup",
+      "description": "Ručně aktivuje vstup typu tlačítko (kliknutí nebo přepnutí) pro danou oblast.",
+      "fields": {
+        "area_id": {
+          "name": "ID oblasti",
+          "description": "ID oblasti obsahující vstup."
+        },
+        "input_id": {
+          "name": "ID vstupu",
+          "description": "ID nebo název vstupu tlačítka, který se má aktivovat."
+        },
+        "active": {
+          "name": "Aktivní stav",
+          "description": "U přepínacích tlačítek nastavuje, zda má být stav vstupu aktivní (true) nebo neaktivní (false)."
+        }
+      }
+    }
+  }
+}

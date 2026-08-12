@@ -1,0 +1,32 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "description": "Twilight määritetään sivupalkin paneelin kautta — tämä merkintä vain ankkuroi laitteet valinnaisille painike-/kytkinentiteeteille eikä vaadi asennusta."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "[%key:common::config_flow::abort::single_instance_allowed%]"
+    }
+  },
+  "services": {
+    "trigger_input": {
+      "name": "Laukaise syöte",
+      "description": "Laukaisee manuaalisesti painiketyyppisen syötteen (napsautus tai vaihto) annetulle alueelle.",
+      "fields": {
+        "area_id": {
+          "name": "Alueen tunnus",
+          "description": "Syötteen sisältävän alueen tunnus."
+        },
+        "input_id": {
+          "name": "Syötteen tunnus",
+          "description": "Laukaistavan painikesyötteen tunnus tai nimi."
+        },
+        "active": {
+          "name": "Aktiivinen tila",
+          "description": "Vaihtopainikkeille määrittää, onko syötteen tila aktiivinen (true) vai ei-aktiivinen (false)."
+        }
+      }
+    }
+  }
+}

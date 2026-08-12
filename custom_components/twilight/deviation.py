@@ -206,10 +206,13 @@ def _clamp_target_mireds(target_mireds: int, attrs: dict[str, Any]) -> int:
     """
     min_kelvin = attrs.get("min_color_temp_kelvin")
     max_kelvin = attrs.get("max_color_temp_kelvin")
-    if min_kelvin is None and max_kelvin is None:
+    if target_mireds <= 0 or (min_kelvin is None and max_kelvin is None):
         return target_mireds
 
-    target_kelvin = color_temperature_mired_to_kelvin(target_mireds)
+    try:
+        target_kelvin = color_temperature_mired_to_kelvin(target_mireds)
+    except (TypeError, ValueError, ZeroDivisionError):
+        return target_mireds
     if min_kelvin is not None:
         target_kelvin = max(target_kelvin, min_kelvin)
     if max_kelvin is not None:
@@ -341,15 +344,23 @@ def _rgb_css(rgb: tuple[int, int, int] | None) -> str | None:
 
 
 def _kelvin_label(mireds: Any) -> str:
-    return f"{color_temperature_mired_to_kelvin(int(mireds))}K" if mireds else "—"
+    try:
+        val = int(mireds) if mireds is not None else 0
+        return f"{color_temperature_mired_to_kelvin(val)}K" if val > 0 else "—"
+    except (TypeError, ValueError, ZeroDivisionError):
+        return "—"
 
 
 def _temp_css(mireds: Any) -> str | None:
-    if not mireds:
+    try:
+        val = int(mireds) if mireds is not None else 0
+        if val <= 0:
+            return None
+        k = color_temperature_mired_to_kelvin(val)
+        t = max(0.0, min(1.0, (k - 2000) / 4500))
+        return f"rgb(255,{round(180 + t * 70)},{round(80 + t * 170)})"
+    except (TypeError, ValueError, ZeroDivisionError):
         return None
-    k = color_temperature_mired_to_kelvin(int(mireds))
-    t = max(0.0, min(1.0, (k - 2000) / 4500))
-    return f"rgb(255,{round(180 + t * 70)},{round(80 + t * 170)})"
 
 
 def _hs_label(hs: tuple[float, float] | None) -> str:

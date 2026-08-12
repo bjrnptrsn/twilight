@@ -1,0 +1,32 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "description": "Twilight 通过侧边栏面板进行配置——此条目仅为可选的按钮/开关实体锚定设备，无需任何设置。"
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "[%key:common::config_flow::abort::single_instance_allowed%]"
+    }
+  },
+  "services": {
+    "trigger_input": {
+      "name": "触发输入",
+      "description": "为指定区域手动触发按钮类型的输入（点击或切换）。",
+      "fields": {
+        "area_id": {
+          "name": "区域 ID",
+          "description": "包含该输入的区域 ID。"
+        },
+        "input_id": {
+          "name": "输入 ID",
+          "description": "要触发的按钮输入的 ID 或名称。"
+        },
+        "active": {
+          "name": "激活状态",
+          "description": "对于切换按钮，设置输入状态应为激活（true）还是未激活（false）。"
+        }
+      }
+    }
+  }
+}

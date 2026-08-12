@@ -1,0 +1,32 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "description": "Twilight jest konfigurowany za pomocą panelu w pasku bocznym — ten wpis jedynie zakotwicza urządzenia dla opcjonalnych encji przycisku/przełącznika i nie wymaga konfiguracji."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "[%key:common::config_flow::abort::single_instance_allowed%]"
+    }
+  },
+  "services": {
+    "trigger_input": {
+      "name": "Wyzwól wejście",
+      "description": "Ręcznie wyzwala wejście typu przycisk (kliknięcie lub przełączenie) dla danego obszaru.",
+      "fields": {
+        "area_id": {
+          "name": "ID obszaru",
+          "description": "ID obszaru zawierającego wejście."
+        },
+        "input_id": {
+          "name": "ID wejścia",
+          "description": "ID lub nazwa wejścia przycisku do wyzwolenia."
+        },
+        "active": {
+          "name": "Stan aktywny",
+          "description": "Dla przycisków przełączających określa, czy stan wejścia ma być aktywny (true) czy nieaktywny (false)."
+        }
+      }
+    }
+  }
+}

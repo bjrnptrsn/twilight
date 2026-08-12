@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import statistics
 from typing import TYPE_CHECKING
 
@@ -56,9 +57,12 @@ class LuxManager:
             if not state:
                 continue
             try:
-                values.append(float(state.state))
+                value = float(state.state)
             except (ValueError, TypeError):
                 continue
+            if not math.isfinite(value):
+                continue
+            values.append(value)
 
         if not values:
             return None

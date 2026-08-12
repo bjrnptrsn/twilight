@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.core import Context, HomeAssistant
 
-from .config_model import SlotActionConfig
+from .config_model import ActionConfig, SlotActionConfig
 from .const import (
     CONTEXT_PREFIX,
     DEFAULT_BINARY_AGGREGATION,
@@ -69,6 +69,14 @@ def parse_hms(s: str | None) -> int | None:
     return h * 3600 + m * 60 + sec
 
 
+def recorder_state_ts(s: dict[str, Any]) -> float:
+    """Extract last-updated/last-changed timestamp from a recorder state dict."""
+    ts = s.get("lu")
+    if ts is None:
+        ts = s.get("lc")
+    return float(ts) if ts is not None else 0.0
+
+
 def create_tracked_task(
     hass: HomeAssistant | None,
     coro: Coroutine[Any, Any, Any],
@@ -77,6 +85,13 @@ def create_tracked_task(
     """Create a task tracked in `tasks`, to prevent fire-and-forget leaks or unhandled exceptions."""
     if not hass:
         return None
+    # The add-after-create order is an invariant: hass.async_create_task() starts
+    # eagerly, so the coroutine's synchronous prefix (up to its first await) runs
+    # BEFORE the task lands in `tasks`. A self.cancel() in that prefix (e.g.
+    # BaseCallHandler._run() starts with self.cancel()) can therefore never hit
+    # the caller's own task — everything cancel() finds here is a foreign task.
+    # Swapping the order (or losing eager_start) makes the first _run() cancel
+    # itself: CancelledError at the first await, no service call ever sent.
     task = hass.async_create_task(coro)
     tasks.add(task)
     task.add_done_callback(tasks.discard)
@@ -160,6 +175,43 @@ def get_area_lock(hass: HomeAssistant, area_id: str) -> asyncio.Lock:
     domain_data: dict[str, Any] = hass.data.setdefault(DOMAIN, {})
     locks: dict[str, asyncio.Lock] = domain_data.setdefault("area_locks", {})
     return locks.setdefault(area_id, asyncio.Lock())
+
+
+def remove_area_lock(hass: HomeAssistant, area_id: str) -> None:
+    """Remove the per-area asyncio.Lock from memory when an area is deleted.
+
+    Only removes the lock if it is not currently held (lock.locked() is False).
+    """
+    domain_data = hass.data.get(DOMAIN)
+    if isinstance(domain_data, dict):
+        locks = domain_data.get("area_locks")
+        if isinstance(locks, dict):
+            lock = locks.get(area_id)
+            if lock and not lock.locked():
+                locks.pop(area_id, None)
+
+
+def get_setup_lock(hass: HomeAssistant) -> asyncio.Lock:
+    """Return the single global asyncio.Lock guarding a Twilight (re-)setup.
+
+    Per-area locks (get_area_lock) only serialize a save/delete against a
+    setup's teardown loop for area_ids the setup already knows about
+    (engines.keys() before the reload). A brand-new area's first save can
+    still register its engine — under its own, previously-unknown area
+    lock — in the unguarded window between that teardown loop and the
+    unconditional engines.clear() that follows it, only to have that fresh
+    engine discarded (leaked, since it's never torn down) right after. This
+    lock closes that gap: async_setup holds it for the whole reload, and
+    area/save, area/delete, and global/import (the other writers of
+    hass.data[DOMAIN]["engines"]) all acquire it briefly before their own
+    per-area lock(s) so none of them can register/remove an engine while a
+    reload is mid-flight — including the window where the reload has
+    released every individual area lock but is still suspended in
+    store.async_load(), holding only this lock.
+    """
+    domain_data: dict[str, Any] = hass.data.setdefault(DOMAIN, {})
+    lock: asyncio.Lock = domain_data.setdefault("setup_lock", asyncio.Lock())
+    return lock
 
 
 def partition_by_domain(
@@ -274,9 +326,15 @@ def resolve_transition_on_seconds(
 ) -> int:
     """Resolve transition_on_seconds via channel -> area -> const default."""
     if channel is not None and channel.transition_on_seconds is not None:
-        return int(channel.transition_on_seconds)
+        try:
+            return int(channel.transition_on_seconds)
+        except (ValueError, TypeError):
+            pass
     if area.transition_on_seconds is not None:
-        return int(area.transition_on_seconds)
+        try:
+            return int(area.transition_on_seconds)
+        except (ValueError, TypeError):
+            pass
     return DEFAULT_TRANSITION_ON_SECONDS
 
 
@@ -418,8 +476,7 @@ def is_slot_excluded_effective(
     `action_handler.apply_slot_action_over_channels()` uses. Without this, a
     Rule-excluded slot would only be turned off on the next
     `reapply_active_activity_rules()` re-trigger instead of immediately on the
-    next natural slot change / anticipatory fade / live state push — see
-    `docs/architecture/rules.md` §5.
+    next natural slot change / anticipatory fade / live state push.
     """
     activity_id = state.active_activity
     if not activity_id:
@@ -440,7 +497,7 @@ def simulation_template_eligible(config: AreaConfig, template: str | None) -> bo
 
     Eligible = it exists and its start action switches a light on
     (slot/entity/light). No implicit type default — a `None`-typed action is
-    not eligible. See PRESENCE_SIMULATION_PLAN.md §5.6.
+    not eligible.
     """
     if not template:
         return False
@@ -496,3 +553,15 @@ def get_activity_has_rule_support(activity: ActivityConfig | None) -> bool:
         or get_activity_supports_borrowed_auto_expire(activity)
         or get_activity_supports_input_suppression(activity)
     )
+
+
+def coerce_action(
+    action: dict[str, Any] | ActionConfig | None,
+) -> ActionConfig:
+    """Normalize a missing or dict action into a typed ActionConfig. No implicit type default."""
+    if isinstance(action, ActionConfig):
+        return action
+    if isinstance(action, dict):
+        return ActionConfig.from_dict(action)
+    return ActionConfig.from_dict({"type": None})
+

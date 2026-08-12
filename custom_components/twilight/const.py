@@ -22,6 +22,17 @@ STORAGE_VERSION = 2
 # changes on the same entities.
 CONTEXT_PREFIX = "twilight_"
 
+
+def _safe_bool(val: Any, default: bool = False) -> bool:
+    """Safely parse a boolean from boolean, string ("true"/"false"), or int/float."""
+    if isinstance(val, bool):
+        return val
+    if isinstance(val, str):
+        return val.strip().lower() in ("true", "1", "yes", "on")
+    if isinstance(val, (int, float)):
+        return bool(val)
+    return default
+
 # Dispatcher signals (homeassistant.helpers.dispatcher).
 # One global state signal for all areas — payload (area_id, old_state, new_state).
 # Keying by area in the payload instead of the signal name means subscriptions
@@ -69,6 +80,7 @@ class SensorType(StrEnum):
 class ActionType(StrEnum):
     """Supported activity action/release_action types."""
 
+    NONE = "none"
     SLOT = "slot"
     ENTITY = "entity"
     LIGHT = "light"
@@ -192,7 +204,7 @@ ECHO_SETTLE_WINDOW_SECONDS = 1.0
 # so a short interval would only spam the log. See TwilightManager.
 SLOT_RECOVERY_RETRY_SECONDS = 300
 
-# Presence simulation defaults (PRESENCE_SIMULATION_PLAN.md)
+# Presence simulation defaults
 SIM_FREQUENCY_FACTORS: dict[str, float] = {
     SimFrequencyMode.VERY_LOW.value: 0.25,
     SimFrequencyMode.LOW.value: 0.5,
@@ -201,7 +213,7 @@ SIM_FREQUENCY_FACTORS: dict[str, float] = {
     SimFrequencyMode.VERY_HIGH.value: 4.0,
 }
 SIM_LOOP_TICK_S = 60.0  # fallback loop tick when the template has no auto_expire
-# (normally the tick is dynamic: 0.4 * auto_expire, see presence_simulation.md §3)
+# (normally the tick is dynamic: 0.4 * auto_expire)
 SIM_DEFAULT_RESOLUTION = "15m"  # dynamic recorder window bucket size
 SIM_DEFAULT_RANGE = "1m"  # dynamic recorder window (30 days)
 DEFAULT_LUX_IGNORE_ACTIVE = False
@@ -311,8 +323,7 @@ def materialize_primary_slots(
 
     Unknown zone keys/ids or fields, and fields with an implausible type, are
     pruned and replaced by their default — logged as a warning so a
-    corrupted/hand-edited entry is visible, not silently accepted (see
-    docs/architecture/slots.md §3.1).
+    corrupted/hand-edited entry is visible, not silently accepted.
 
     The list path projects each item onto the three override fields before that
     validation runs — otherwise the structurally fixed fields of a full slot dict
@@ -415,7 +426,7 @@ def materialize_primary_slots(
                 "offset_minutes": int(offset_mins) if offset_mins is not None else 0,
                 "scene_entity_id": scene_id,
                 "configured_entities": list(entities) if entities is not None else [],
-                "hue_activate_dynamic": bool(override.get("hue_activate_dynamic", False)),
+                "hue_activate_dynamic": _safe_bool(override.get("hue_activate_dynamic"), False),
                 "hue_dynamic_speed": int(speed_val) if isinstance(speed_val, (int, float)) else None,
             }
         )
@@ -524,7 +535,8 @@ DEFAULT_AREA_TEMPLATE = {
                         "custom_159cacc9",
                         "custom_489cd4cb"
                     ]
-                }
+                },
+                "respect_manual_off": False,
             },
             "release_action": {"type": "turn_off"},
             "transition_off_seconds": 0,
@@ -535,7 +547,11 @@ DEFAULT_AREA_TEMPLATE = {
             "suppress_inputs": ["motion_4011420a"],
             "auto_expire_enabled": False,
             "auto_expire": None,
-            "action": {"type": "slot", "excluded_slots": None},
+            "action": {
+                "type": "slot",
+                "excluded_slots": None,
+                "respect_manual_off": False,
+            },
             "release_action": {"type": "turn_off"},
             "transition_off_seconds": 0,
         },
@@ -659,6 +675,7 @@ DEFAULT_AREA_TEMPLATE = {
             "auto_expire_enabled": None,
             "auto_expire": None,
             "suppressed_inputs_override": [],
+            "respect_manual_off_override": None,
             "auto_disabled_reason": None,
         }
     ],

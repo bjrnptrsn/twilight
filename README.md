@@ -1,9 +1,8 @@
 # Twilight for Home Assistant
 
 <p align="center">
-  <a href="https://github.com/bjrnptrsn/twilight/actions/workflows/validate.yaml">
-    <img src="https://github.com/bjrnptrsn/twilight/actions/workflows/validate.yaml/badge.svg" alt="Validate (HACS + hassfest)">
-  </a>
+  <a href="https://hacs.xyz/docs/faq/custom_repositories/"><img src="https://img.shields.io/badge/HACS-Custom-orange.svg" alt="HACS - Home Assistant Community Store"/></a>
+  <a href="https://github.com/bjrnptrsn/twilight/releases"><img src="https://img.shields.io/github/v/release/bjrnptrsn/twilight" alt="Release"/></a>
 </p>
 
 <p align="center">
@@ -27,7 +26,7 @@
   ⚡ Dynamic rules & priority overrides — N-active layers & temporary slot exclusions.<br>
   🔍 Live deviation tracking — real-time monitoring of manual overrides & scene states.<br>
   🌡️ Heatmaps & presence simulation — realistic occupancy replay based on usage history.<br>
-  📊 Built-in analytics — uPlot charts with real Recorder data.<br>
+  📊 Built-in analytics — weekday activity heatmap with real Recorder data.<br>
   🕸️ Full Web UI — no YAML config needed after setup.
 </p>
 
@@ -42,7 +41,6 @@
 
 - [Why this exists](#why-this-exists)
 - [Prerequisites](#prerequisites)
-- [Quick Start](#quick-start)
 - [Installation](#installation)
 - [Core Concept](#core-concept)
   - [Areas](#areas)
@@ -86,17 +84,20 @@ matching. No spaghetti automations.
 
 - Home Assistant 2025.5 or newer
 
-## Quick Start
-
-1. **Install** — copy the integration (see [Installation](#installation))
-2. **Restart** Home Assistant
-3. **Configure** — add `twilight:` to `configuration.yaml` and restart again
-4. **Open** the Twilight panel in the sidebar
-5. **Create an Area** — select an HA area, assign lights to channels
-6. **Assign Scenes** — map your scenes to the astral time slots
-7. **Add Inputs** — attach motion sensors, buttons, or timers to trigger activities
+The panel follows your Home Assistant language automatically — it's available in Czech, Danish, Dutch, English, Finnish, French, German, Italian, Norwegian, Polish, Portuguese, Simplified Chinese, Slovak, Spanish, Swedish, Turkish, and Ukrainian.
 
 ## Installation
+
+### Via HACS (Custom Repository)
+
+Twilight is not yet in the HACS default store — add it as a custom repository:
+
+1. Open **HACS**, click the **⋮** menu (top right), and choose **Custom repositories**.
+2. Add `https://github.com/bjrnptrsn/twilight` with category **Integration**.
+3. Search for **Twilight** in HACS and click **Download**.
+4. **Restart Home Assistant.**
+5. Go to **Settings → Devices & Services → Add Integration**, search for **Twilight**, and add it.
+6. Open the sidebar and click **Twilight** to launch the panel.
 
 ### Manual Installation
 
@@ -107,27 +108,20 @@ matching. No spaghetti automations.
    ```
 
 2. **Restart Home Assistant.**
-3. Add the following to your `configuration.yaml`:
-
-   ```yaml
-   twilight:
-   ```
-
-4. **Restart Home Assistant** again.
-5. Open the sidebar and click **Twilight** to launch the panel.
+3. Go to **Settings → Devices & Services → Add Integration**, search for **Twilight**, and add it.
+4. Open the sidebar and click **Twilight** to launch the panel.
 
 > [!WARNING]
-> The `twilight:` line in `configuration.yaml` is required — it enables the
-> integration. All configuration then happens in the sidebar panel.
+> Twilight must be added as an integration (**Settings → Devices & Services →
+> Add Integration**) before the sidebar panel appears. All configuration then
+> happens in the panel — the integration itself has no options to set.
 
 ### First Area Setup
 
 1. Open the **Twilight** panel in the sidebar
-2. Click **"Add Area"** and select one of your Home Assistant areas
-3. Twilight creates 10 astral time slots automatically, aligned to your location's sun position, plus a default set of inputs/activities from the [area template](#settings--area-template)
-4. In the **Channels** section, assign your light entities to the Primary channel
-5. For each time slot, select a scene or script that should play during that period
-6. Click **Save** — the engine starts immediately
+2. Click **"Add Area"** and select one of your Home Assistant areas — the area is saved immediately and the engine starts right away, using the [area template](#settings--area-template) defaults (10 astral time slots aligned to your location's sun position, plus a default set of inputs/activities)
+3. In the **Channels** section, assign your light entities to the Primary channel
+4. For each time slot, select a scene or script that should play during that period
 
 ---
 
@@ -138,7 +132,7 @@ request activities, and exactly one activity at a time controls the lights on
 each channel.
 
 ```
-Sensors  →  Inputs  →  Coordinator (one active activity)  →  Action  →  Channels/Slots  →  Lights
+Sensors  →  Inputs  →  Activity Selection (one active activity)  →  Action  →  Channels/Slots  →  Lights
 ```
 
 **No activity active → lights are off.** A time slot only decides *which
@@ -160,8 +154,9 @@ Every area has a **Primary channel** with 10 fixed astral slots:
 
 `Night → Astronomical dawn → Nautical dawn → Civil dawn → Golden dawn → Day → Golden dusk → Civil dusk → Nautical dusk → Astronomical dusk`
 
-Their order and solar zone are fixed — you can only edit each slot's assigned
-scene/script and an offset in minutes.
+Their order and solar zone are fixed — you can edit each slot's assigned
+scene/script, an offset in minutes, and (for Hue scenes that support it)
+dynamic color rotation.
 
 You can add up to **3 custom channels** per area, each with a free-form slot
 list, to control a separate light group on its own schedule while sharing the
@@ -208,8 +203,8 @@ and can be configured in the UI.
 
 | Input Type | Triggers on | Notes |
 |------------|-------------|-------|
-| **Motion** | Any of its `binary_sensor.*`/`device_tracker.*` entities turning `on`/`home` | No release when the sensor goes quiet — a motion sensor drops within seconds, so the activity ends on its timer instead. Optional illuminance threshold; re-trigger mode (every flip / first flip); optional lux watch window to retry after being blocked by light |
-| **Binary** | Any/all/count of its `binary_sensor.*`/`input_boolean.*` entities (configurable aggregation) | Sends a release when turned off |
+| **Motion** | Any of its entities (`binary_sensor`, `device_tracker`, `sensor`, `input_boolean`, `switch`) turning `on`/`home` | No release when the sensor goes quiet — a motion sensor drops within seconds, so the activity ends on its timer instead. Optional illuminance threshold, with an option to ignore it during Twilight's own dawn/dusk/night slots or all slots; re-trigger mode (every flip / first flip); optional lux watch window to retry after being blocked by light |
+| **Binary** | Any/all/count of its entities (`input_boolean`, `binary_sensor`, `switch`, `sensor`) (configurable aggregation) | Sends a release when turned off |
 | **Event** | A `event.*` entity's state change, optionally filtered to an event type | Fires once per matching event, no release |
 | **Timer** | A daily fixed clock time (`HH:MM:SS`) | No entity needed — useful for a nightly reset |
 | **Button** | Manually via the Areas panel or the `twilight.trigger_input` service | Click mode fires once; Toggle mode sends a release on the second call — see [Manual Triggers](#manual-triggers-button-inputs) |
@@ -229,6 +224,8 @@ whatever was active before.
 | **Suppressed Inputs** | List of inputs to ignore while this activity is active (e.g. a sleep activity suppressing the motion input) |
 | **Enable Auto-Expire** | Whether the activity runs a timer at all. Unchecked, it ends only when a binary input turns off, a toggle button is switched off, or another activity takes over. |
 | **Auto-Expire Duration** | How long the timer runs, once enabled. Empty uses the default of 3 hours. |
+| **Turn-Off Transition** | How long this activity's turn-off fades out, in seconds — empty turns lights off immediately with no fade. |
+| **Respect Off** | If a light was switched off manually while this activity is active, leave it off at the next slot change instead of turning it back on. A new trigger (motion, a switch, a button) turns it back on as usual. |
 
 #### Actions & Release Actions
 
@@ -367,6 +364,11 @@ Suppressed inputs stop reacting to triggers until the Rule ends; this uses the s
 disabler mechanism as an Activity's own [input suppression](#activities), just
 keyed to the Rule instead. A Rule cannot suppress the input that triggers it.
 
+A Rule can also override the target Activity's **Respect Off** setting while
+active — force it to Respect (leave manually switched-off lights alone) or
+Ignore (turn them back on as usual) regardless of what the Activity itself is
+set to, or leave it at the Activity's own setting (default).
+
 Configure Rules via the **Rules** card in an area's detail view or in the
 [Area Template](#settings--area-template).
 
@@ -383,8 +385,7 @@ Overview cards (with a sparkline day chart and live stats per area) plus a
 detail view per area for all configuration described above: channels, sensors,
 inputs, activities, an activity heatmap card (visualizing weekday sensor patterns
 from live recorder data or up to **5 saved heatmap profiles**), and a live status card
-showing the currently active activity and what triggered it. New areas stay a local,
-unsaved draft until you click **Save**.
+showing the currently active activity and what triggered it.
 
 <p align="center">
   <img src="assets/Areas.png" alt="Twilight Areas Tab" width="100%">
@@ -403,9 +404,10 @@ unsaved draft until you click **Save**.
 
 ### Analytics Tab
 
-uPlot charts backed by real Home Assistant Recorder data — dual Y-axes, a
-time range selector, and per-area motion shown as background bands so you can
-correlate light changes with actual sensor activity.
+A weekday-aggregated activity heatmap backed by real Home Assistant Recorder
+data — switch between motion and light activity, pick a time range and
+resolution, and save up to 5 snapshots per area to compare usage patterns
+over time.
 
 ### Settings & Area Template
 
@@ -449,7 +451,7 @@ confirmation.
 
 ### `twilight.trigger_input`
 
-Fires or releases a `button`-type input from an automation or script, without
+Fires or releases a button-type input from an automation or script, without
 needing a real HA entity for it.
 
 | Field | Required | Description |
@@ -484,12 +486,10 @@ last known state of every controlled light — useful when reporting a bug.
 
 | Problem | Solution |
 |---------|--------|
-| Panel shows "Engine not running" | Ensure `twilight:` is in `configuration.yaml` and HA was restarted |
 | Lights never turn on | No activity is active — check that an input is actually wired to an activity; a slot having a scene assigned is not enough, see [Core Concept](#core-concept) |
 | Scene shows no lights | Check if the scene still exists and is reachable; if it involves a Hue Smart Scene, ensure the Hue Integration is loaded |
 | Motion sensors not responding | Verify the lux threshold in the motion input — it may be suppressed by high ambient light; check the aggregated lux value on the area's status card |
 | Lights flash on restart | This shouldn't happen — Twilight uses boot-catch-up to avoid unwanted activation. Please [open an issue](https://github.com/bjrnptrsn/twilight/issues) |
-| Area not appearing in panel | Ensure the HA area exists and it was saved — new areas stay a draft until you click Save |
 
 ### Debug Logging
 
@@ -512,7 +512,6 @@ retry fired, etc.).
 ## Known Limitations
 
 - Only one illuminance sensor per area (multiple entities can feed into it)
-- No multi-language support yet (English only)
 
 ## Contributing
 

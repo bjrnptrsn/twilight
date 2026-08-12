@@ -1,0 +1,32 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "description": "Twilight wordt geconfigureerd via het paneel in de zijbalk — deze invoer verankert alleen apparaten voor optionele knop-/schakelaarentiteiten en vereist geen instelling."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "[%key:common::config_flow::abort::single_instance_allowed%]"
+    }
+  },
+  "services": {
+    "trigger_input": {
+      "name": "Invoer activeren",
+      "description": "Activeert handmatig een invoer van het type knop (klik of schakelen) voor een bepaald gebied.",
+      "fields": {
+        "area_id": {
+          "name": "Gebied-ID",
+          "description": "De ID van het gebied dat de invoer bevat."
+        },
+        "input_id": {
+          "name": "Invoer-ID",
+          "description": "De ID of naam van de te activeren knopinvoer."
+        },
+        "active": {
+          "name": "Actieve status",
+          "description": "Bepaalt voor schakelknoppen of de status van de invoer actief (true) of inactief (false) moet zijn."
+        }
+      }
+    }
+  }
+}

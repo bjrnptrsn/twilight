@@ -38,7 +38,16 @@ class TwilightButtonEntity(TwilightEntity, ButtonEntity):
         return self._input_id
 
     async def async_press(self) -> None:
-        dispatch_button_input(self.hass, self._area_id, self._input_id, active=True)
+        err = dispatch_button_input(
+            self.hass, self._area_id, self._input_id, active=True
+        )
+        if err is not None:
+            _LOGGER.warning(
+                "Failed to dispatch button input '%s' for area '%s': %s",
+                self._input_id,
+                self._area_id,
+                err,
+            )
 
 
 def async_setup(hass: HomeAssistant) -> None:
@@ -82,7 +91,7 @@ async def async_sync_button_entities(
     }
 
     to_add = [
-        TwilightButtonEntity(hass, area_id, input_id)
+        TwilightButtonEntity(hass, area_id, input_id, PLATFORM)
         for input_id in wanted_ids
         if input_id not in existing_entities
     ]

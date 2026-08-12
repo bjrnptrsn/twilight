@@ -44,21 +44,22 @@ def _parse_context_id(
     # shape. Longest first, so a channel id that is a prefix of another one
     # ("wall" vs "wall_lights") cannot shadow the longer match.
     candidates: list[str] = sorted(known_channel_ids, key=len, reverse=True)
-    for channel_id in candidates:
-        if remainder == channel_id:
-            return EchoOrigin(channel_id=channel_id, suffix=None)
-        if remainder.startswith(f"{channel_id}_"):
-            return EchoOrigin(
-                channel_id=channel_id, suffix=remainder[len(channel_id) + 1 :]
-            )
+    if candidates:
+        for channel_id in candidates:
+            if remainder == channel_id:
+                return EchoOrigin(channel_id=channel_id, suffix=None)
+            if remainder.startswith(f"{channel_id}_"):
+                return EchoOrigin(
+                    channel_id=channel_id, suffix=remainder[len(channel_id) + 1 :]
+                )
+        return None
 
-    # No channel list supplied (or no match): fall back to the naive split. The
-    # echo verdict itself only depends on the prefix, so this stays correct for
-    # detection — just less precise in the logged origin.
-    channel_id, sep, suffix = remainder.partition("_")
-    if not sep:
-        return EchoOrigin(channel_id=None, suffix=remainder or None)
-    return EchoOrigin(channel_id=channel_id, suffix=suffix)
+    # No channel list supplied: fall back to naive split.
+    parts = remainder.split("_", 1)
+    return EchoOrigin(
+        channel_id=parts[0] if parts[0] else None,
+        suffix=parts[1] if len(parts) > 1 else None,
+    )
 
 
 def identify_echo(

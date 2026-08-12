@@ -2,24 +2,33 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar
 
-from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.const import (
+    STATE_OFF,
+    STATE_ON,
+    STATE_UNAVAILABLE,
+    STATE_UNKNOWN,
+)
 from homeassistant.core import callback
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import (
     async_call_later,
     async_track_state_change_event,
     async_track_time_change,
 )
 
+from .config_model import IlluminanceSensorConfig
 from .const import (
     ACTIVE_STATES,
     ALL_IGNORE_SLOTS,
     MOTION_ACTIVE_STATES,
     PRIMARY_CHANNEL_ID,
+    SIGNAL_ENGINES_CHANGED,
     TWILIGHT_SLOTS,
     InputType,
     LuxIgnoreScope,
@@ -29,6 +38,7 @@ from .const import (
 from .echo import identify_echo
 from .helpers import (
     aggregate_active,
+    create_tracked_task,
     parse_hms_parts,
     resolve_aggregation,
     resolve_lux_ignore_active,
@@ -40,10 +50,8 @@ from .helpers import (
 
 if TYPE_CHECKING:
     from .config_model import (
-        EventInputConfig,
         InputConfig,
         MotionInputConfig,
-        TimerInputConfig,
     )
     from .engine import TwilightEngine
 
@@ -151,8 +159,6 @@ class LuxInputHandler(BaseInputHandler):
 
     def _tracked_entities(self) -> list[str]:
         """The illuminance sensor entities configured for this area."""
-        from .config_model import IlluminanceSensorConfig
-
         sensors: list[str] = []
         for s in self.engine.config.sensors_of_type(SensorType.ILLUMINANCE):
             if isinstance(s, IlluminanceSensorConfig):
@@ -161,8 +167,13 @@ class LuxInputHandler(BaseInputHandler):
 
     @callback
     def _on_state_changed(self, event: Any) -> None:
-        """Callback when a lux sensor changes state."""
-        super()._log_state_changed(event, "Illuminance")
+        """Callback when a lux sensor changes state.
+
+        Deliberately not logged here (unlike other input types) — illuminance
+        sensors report frequently, and the raw reading alone carries no
+        decision context. The value that actually mattered is logged where
+        it's used, in MotionInputHandler._evaluate().
+        """
         new_state = event.data.get("new_state")
 
         if not new_state:
@@ -217,10 +228,7 @@ class EventInputHandler(BaseInputHandler):
             event_type,
         )
 
-        for inp in cast(
-            "tuple[EventInputConfig, ...]",
-            self.engine.config.inputs_of_type(InputType.EVENT),
-        ):
+        for inp in self.engine.config.inputs_of_type(InputType.EVENT):
             if entity_id not in inp.entity_ids:
                 continue
 
@@ -356,19 +364,13 @@ class BinaryInputHandler(BaseInputHandler):
             return
 
         active = new_state.state in ACTIVE_STATES
+        old_entity_active = self.entity_active.get(entity_id, False)
         self.entity_active[entity_id] = active
 
         for inp in matched_inputs:
             agg_mode, agg_count = self._resolve_aggregation(inp)
 
-            # Calculate old aggregation state
-            old_state = event.data.get("old_state")
-            old_entity_active = (
-                old_state.state in ACTIVE_STATES
-                if old_state
-                and old_state.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN)
-                else False
-            )
+            # Calculate old aggregation state using the tracked old_entity_active
             old_flags = [
                 (
                     old_entity_active
@@ -424,6 +426,8 @@ class LightStateInputHandler(BaseInputHandler):
     def __init__(self, engine: TwilightEngine) -> None:
         super().__init__(engine)
         self.watched_entities: set[str] = set()
+        self._unsub_engines_changed: Callable[[], None] | None = None
+        self._tasks: set[asyncio.Task[Any]] = set()
 
     async def async_setup(self, watched_entities: set[str] | None = None) -> None:
         """Set up state change tracking for the union of all slot extracted entities."""
@@ -432,10 +436,23 @@ class LightStateInputHandler(BaseInputHandler):
         if not self.ENABLED:
             return
 
+        # Rebuild the watch list from scene_map on SIGNAL_ENGINES_CHANGED, kept
+        # outside self.listeners (async_teardown() would drop it, and this
+        # setup's own first line calls that) so it survives every re-setup —
+        # only async_teardown() below removes it. Without this, entities the
+        # scene retry loop extracts after boot (scene_manager.py) would never
+        # get echo-watched until the next area/save or HA restart, since this
+        # handler's watch set was otherwise only ever built once at setup.
+        if self._unsub_engines_changed is None:
+            self._unsub_engines_changed = async_dispatcher_connect(
+                self.engine.hass, SIGNAL_ENGINES_CHANGED, self._on_engines_changed
+            )
+
         if watched_entities is None:
             watched_entities = set()
             for slot_info in self.engine.scene_map.values():
                 watched_entities.update(slot_info.extracted_entities)
+                watched_entities.update(slot_info.configured_entities)
 
         self.watched_entities = watched_entities
         if not self.watched_entities:
@@ -457,6 +474,21 @@ class LightStateInputHandler(BaseInputHandler):
         )
 
     @callback
+    def _on_engines_changed(self) -> None:
+        create_tracked_task(self.engine.hass, self.async_setup(), self._tasks)
+
+    async def async_teardown(self) -> None:
+        """Tear down state-change listeners and the engines-changed subscription."""
+        await super().async_teardown()
+        if self._unsub_engines_changed is not None:
+            self._unsub_engines_changed()
+            self._unsub_engines_changed = None
+        if self._tasks:
+            for task in self._tasks:
+                task.cancel()
+            await asyncio.gather(*self._tasks, return_exceptions=True)
+
+    @callback
     def _on_state_changed(self, event: Any) -> None:
         entity_id = event.data.get("entity_id")
         new_state = event.data.get("new_state")
@@ -468,7 +500,9 @@ class LightStateInputHandler(BaseInputHandler):
             return
 
         origin = identify_echo(
-            event.context, self.engine.area_id, self.engine.config.channels
+            event.context,
+            self.engine.area_id,
+            self.engine.channel_id_set,
         )
         if origin is not None:
             _LOGGER.debug(
@@ -479,6 +513,13 @@ class LightStateInputHandler(BaseInputHandler):
                 origin.channel_id,
                 origin.suffix,
             )
+            # Twilight service call echo: if turned ON, remove manual off marker
+            if new_state.state == STATE_ON:
+                current_off = self.engine.coordinator.run_state.manual_off_entities
+                if entity_id in current_off:
+                    self.engine.coordinator.update_state(
+                        manual_off_entities=current_off - {entity_id}
+                    )
             return
 
         _LOGGER.info(
@@ -488,16 +529,29 @@ class LightStateInputHandler(BaseInputHandler):
             new_state.state,
         )
 
+        if self.engine.coordinator.run_state.active_activity is None:
+            # Marker scope is the active activity — with none running there is
+            # no marker consumer, and the set is cleared on the next
+            # activity_requested() anyway.
+            return
+
+        current_off = self.engine.coordinator.run_state.manual_off_entities
+        if new_state.state == STATE_OFF and entity_id not in current_off:
+            self.engine.coordinator.update_state(
+                manual_off_entities=current_off | {entity_id}
+            )
+        elif new_state.state == STATE_ON and entity_id in current_off:
+            self.engine.coordinator.update_state(
+                manual_off_entities=current_off - {entity_id}
+            )
+
 
 class TimerInputHandler(BaseInputHandler):
     """Fires an activity request daily at a configured local time."""
 
     async def async_setup(self) -> None:
         """Set up timer listeners."""
-        for inp in cast(
-            "tuple[TimerInputConfig, ...]",
-            self.engine.config.inputs_of_type(InputType.TIMER),
-        ):
+        for inp in self.engine.config.inputs_of_type(InputType.TIMER):
             time_str = inp.trigger_time
             activity = inp.activity
             inp_id = inp.id
@@ -641,10 +695,7 @@ class MotionInputHandler(BaseInputHandler):
         """The entities of all motion inputs configured for this area."""
         return [
             ent
-            for inp in cast(
-                "tuple[MotionInputConfig, ...]",
-                self.engine.config.inputs_of_type(InputType.MOTION),
-            )
+            for inp in self.engine.config.inputs_of_type(InputType.MOTION)
             for ent in inp.entity_ids
             if ent
         ]
@@ -679,10 +730,10 @@ class MotionInputHandler(BaseInputHandler):
         if not entity_id or not new_state:
             return
 
-        if new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
-            return
-
-        active = new_state.state in MOTION_ACTIVE_STATES
+        active = (
+            new_state.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN)
+            and new_state.state in MOTION_ACTIVE_STATES
+        )
         old_active = entity_id in self.active_entities
 
         if active == old_active:
@@ -695,10 +746,7 @@ class MotionInputHandler(BaseInputHandler):
 
         # Update physical active state and trigger evaluation for all matching motion inputs
         matched = False
-        for inp in cast(
-            "tuple[MotionInputConfig, ...]",
-            self.engine.config.inputs_of_type(InputType.MOTION),
-        ):
+        for inp in self.engine.config.inputs_of_type(InputType.MOTION):
             if entity_id not in inp.entity_ids:
                 continue
 
@@ -755,8 +803,6 @@ class MotionInputHandler(BaseInputHandler):
 
     def _should_ignore_lux(self, input_config: MotionInputConfig) -> bool:
         """Return True if lux check should be skipped for the current engine state."""
-        from .config_model import IlluminanceSensorConfig
-
         illuminance_sensors = self.engine.config.sensors_of_type(SensorType.ILLUMINANCE)
         if not any(
             isinstance(s, IlluminanceSensorConfig) and s.entity_ids
@@ -803,7 +849,16 @@ class MotionInputHandler(BaseInputHandler):
         if self._should_ignore_lux(input_config):
             return True
         lux = self._read_lux()
-        return lux is not None and lux <= lux_threshold
+        gate_open = lux is not None and lux <= lux_threshold
+        _LOGGER.debug(
+            "[%s] Lux gate for motion input %s: lux=%s threshold=%s → %s",
+            self.engine.area_id,
+            input_config.id,
+            lux,
+            lux_threshold,
+            "open" if gate_open else "blocked",
+        )
+        return gate_open
 
     def get_motion_state(self, input_config: MotionInputConfig) -> bool:
         """Check if motion is active."""
@@ -811,10 +866,7 @@ class MotionInputHandler(BaseInputHandler):
 
     def has_active_motion_for_activity(self, activity_name: str) -> bool:
         """Check if any enabled motion input triggering this activity is currently active."""
-        for inp in cast(
-            "tuple[MotionInputConfig, ...]",
-            self.engine.config.inputs_of_type(InputType.MOTION),
-        ):
+        for inp in self.engine.config.inputs_of_type(InputType.MOTION):
             if inp.activity != activity_name:
                 continue
             if self._is_disabled(inp.id):

@@ -52,9 +52,14 @@ def compute_dynamic_min_slot_distance(
 
             zone_times: list[float] = []
             for z in STANDARD_ZONES:
+                # slot_* only, never the bare event as a fallback: the slot_
+                # series is shifted by one against the raw events (slot_astro_
+                # dusk carries raw nautical_dusk), so a bare value would be the
+                # neighbouring zone's time — the same forbidden fallback
+                # resolve_slot_times() rejects below. Zones absent on that day
+                # (dusk_dropped, polar) are skipped; the gaps between the
+                # zones that do exist are the real adjacent-zone distances.
                 val = sun_data.get(f"slot_{z}")
-                if val is None:
-                    val = sun_data.get(z)
                 if val is not None:
                     zone_times.append(float(val))
 
@@ -96,7 +101,7 @@ def resolve_slot_times(
     (`twilight_manager`) ignores the flag and keeps using the placeholder, so
     light control stays gapless under polar conditions. Renderers that draw
     zone *areas* must skip synthetic slots — drawing them produces a fan of ten
-    1-minute zones around solar noon (see docs/agents/timeline.md §11e3).
+    1-minute zones around solar noon.
     """
     astral_slots: list[dict[str, Any]] = []
     fixed_slots: list[dict[str, Any]] = []

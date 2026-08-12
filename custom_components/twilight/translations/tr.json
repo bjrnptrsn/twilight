@@ -1,0 +1,32 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "description": "Twilight kenar çubuğu panelinden yapılandırılır — bu kayıt yalnızca isteğe bağlı düğme/anahtar varlıkları için cihazları bağlar ve herhangi bir kurulum gerektirmez."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "[%key:common::config_flow::abort::single_instance_allowed%]"
+    }
+  },
+  "services": {
+    "trigger_input": {
+      "name": "Girişi Tetikle",
+      "description": "Belirtilen bir alan için düğme tipi bir girişi manuel olarak tetikler (tıklama veya değiştirme).",
+      "fields": {
+        "area_id": {
+          "name": "Alan Kimliği",
+          "description": "Girişi içeren alanın kimliği."
+        },
+        "input_id": {
+          "name": "Giriş Kimliği",
+          "description": "Tetiklenecek düğme girişinin kimliği veya adı."
+        },
+        "active": {
+          "name": "Aktif Durum",
+          "description": "Değiştirme düğmeleri için, giriş durumunun aktif (true) mi yoksa pasif (false) mi olacağını belirler."
+        }
+      }
+    }
+  }
+}

@@ -47,7 +47,7 @@ class HueManager:
                     entry.unique_id,
                 )
 
-        _LOGGER.info(
+        _LOGGER.debug(
             "[%s] Detected %d Hue scenes", self.engine.area_id, len(self.hue_scenes)
         )
         return self.hue_scenes
@@ -242,12 +242,15 @@ class HueManager:
 
         for child in children:
             rid = getattr(child, "rid", None) or getattr(child, "id", None)
-            rtype = str(
-                getattr(child, "rtype", getattr(child, "resource_type", ""))
-            ).lower()
-            if rid and "device" in rtype:
+            rtype_raw = getattr(child, "rtype", getattr(child, "resource_type", ""))
+            # Prefer the enum's .value ("device"/"light") over str(enum), which
+            # stringifies to "ResourceTypes.DEVICE" — matching "device" against
+            # that only works because it happens to be a substring of the
+            # fully-qualified enum name, not because of the actual value.
+            rtype = str(getattr(rtype_raw, "value", rtype_raw)).lower()
+            if rid and rtype == "device":
                 device_ids.append(rid)
-            elif rid and "light" in rtype:
+            elif rid and rtype == "light":
                 light_ids.append(rid)
 
         # Resolve devices → owned lights

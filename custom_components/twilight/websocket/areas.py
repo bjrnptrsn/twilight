@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import datetime as dt
 import logging
+import zoneinfo as zi
 from typing import Any
 
 import voluptuous as vol
@@ -16,11 +18,13 @@ from ..const import (
     CONTEXT_PREFIX,
     DOMAIN,
     MAX_CUSTOM_CHANNELS,
+    MAX_OFFSET_MINUTES,
     MAX_SLOTS_PER_CHANNEL,
     PRIMARY_CHANNEL_ID,
     SIGNAL_ENGINES_CHANGED,
     STANDARD_ZONES,
     ActionType,
+    InputType,
     StartType,
 )
 from ..engine import TwilightEngine
@@ -37,9 +41,13 @@ from ..helpers import (
     get_activity_supports_excluded_slots,
     get_activity_supports_input_suppression,
     get_area_lock,
+    get_setup_lock,
     partition_by_domain,
+    remove_area_lock,
     simulation_template_eligible,
 )
+from ..slot_calc import resolve_slot_times
+from ..sun_calc import compute_sun_day_data
 from .sun import clear_timeline_slot_cache
 
 _LOGGER = logging.getLogger(__name__)
@@ -56,6 +64,18 @@ def _valid_hhmm(value: Any) -> str:
     if not (0 <= h <= 23 and 0 <= m <= 59):
         raise vol.Invalid("fixed_time out of range")
     return f"{h:02d}:{m:02d}"
+
+
+def _require_fixed_time_for_fixed_slots(slot: dict[str, Any]) -> dict[str, Any]:
+    """A slot with start_type "fixed" must carry a fixed_time.
+
+    Without this, resolve_slot_times() silently discards the slot at
+    calculation time — surfacing the
+    problem only once the engine runs, not when the config is saved.
+    """
+    if slot.get("start_type") == StartType.FIXED.value and not slot.get("fixed_time"):
+        raise vol.Invalid("fixed_time is required when start_type is 'fixed'")
+    return slot
 
 
 def _ws_areas_list() -> websocket_api.WebSocketCommandHandler:
@@ -150,7 +170,7 @@ def _ws_area_validate() -> websocket_api.WebSocketCommandHandler:
 
         # Detect entities controlled by more than one channel of a running engine.
         # Built from the resolved scene_map (covers Hue scenes too) — a soft warning,
-        # not a hard block (multi_channel.md §3 #6).
+        # not a hard block.
         channels = engine.config.channels
         collisions = detect_channel_collisions(engine.scene_map)
         result = {
@@ -177,8 +197,7 @@ def _ws_area_validate() -> websocket_api.WebSocketCommandHandler:
 def _simulation_template_issues(config: AreaConfig) -> list[dict[str, Any]]:
     """Report simulation activities whose template_activity is missing or ineligible.
 
-    Soft validation companion to the hard handler-start guard
-    (PRESENCE_SIMULATION_PLAN.md §5.6).
+    Soft validation companion to the hard handler-start guard.
     """
     issues: list[dict[str, Any]] = []
     for activity in config.activities:
@@ -212,19 +231,32 @@ async def _async_turn_off_entities(
 
 
 def _disable_mismatched_rules(config: dict[str, Any]) -> list[str]:
-    """Disable rules whose configured fields no longer match target activity capabilities (docs/architecture/rules.md §8b). Return list of disabled rule IDs."""
+    """Disable rules whose configured fields no longer match target activity capabilities. Return list of disabled rule IDs."""
     raw_rules = config.get("rules")
     raw_activities = config.get("activities")
     if not isinstance(raw_rules, list) or not isinstance(raw_activities, list):
         return []
 
-    parsed_area = AreaConfig.from_dict(config)
+    try:
+        parsed_area = AreaConfig.from_dict(config)
+    except Exception:
+        _LOGGER.warning(
+            "Skipping rule capability check: area config failed to parse",
+            exc_info=True,
+        )
+        return []
     disabled_ids: list[str] = []
 
     for rule_dict in raw_rules:
         if not isinstance(rule_dict, dict):
             continue
-        rule_cfg = RuleConfig.from_dict(rule_dict)
+        try:
+            rule_cfg = RuleConfig.from_dict(rule_dict)
+        except Exception:
+            _LOGGER.warning(
+                "Skipping malformed rule during capability check", exc_info=True
+            )
+            continue
         if not rule_cfg.enabled:
             continue
 
@@ -241,6 +273,9 @@ def _disable_mismatched_rules(config: dict[str, Any]) -> list[str]:
             if (rule_cfg.auto_expire_enabled is True or rule_cfg.auto_expire is not None) and not get_activity_supports_borrowed_auto_expire(act_cfg):
                 mismatch = True
             if rule_cfg.suppressed_inputs_override and not get_activity_supports_input_suppression(act_cfg):
+                mismatch = True
+            # Same capability as excluded slots — part of the SlotAction.
+            if rule_cfg.respect_manual_off_override is not None and not get_activity_supports_excluded_slots(act_cfg):
                 mismatch = True
 
             if mismatch:
@@ -301,41 +336,55 @@ def _ws_area_save() -> websocket_api.WebSocketCommandHandler:
                         dict,
                         vol.All(
                             [
-                                {
-                                    vol.Optional("id"): str,
-                                    vol.Optional("name"): vol.Any(None, str),
-                                    vol.Optional(
-                                        "start_type", default=StartType.ASTRAL.value
-                                    ): vol.In(
-                                        [StartType.ASTRAL.value, StartType.FIXED.value]
-                                    ),
-                                    # zone for astral slots (Primary always uses these);
-                                    # fixed_time "HH:MM" for fixed slots in custom channels.
-                                    vol.Optional("zone"): vol.Any(
-                                        None, vol.In(STANDARD_ZONES)
-                                    ),
-                                    vol.Optional("fixed_time"): vol.Any(
-                                        None, _valid_hhmm
-                                    ),
-                                    vol.Optional("offset_minutes"): int,
-                                    vol.Optional("scene_entity_id"): vol.Any(
-                                        None, cv.entity_id
-                                    ),
-                                    vol.Optional(
-                                        "configured_entities", default=[]
-                                    ): cv.entity_ids,
-                                    vol.Optional(
-                                        "hue_activate_dynamic", default=False
-                                    ): bool,
-                                    vol.Optional(
-                                        "hue_dynamic_speed", default=None
-                                    ): vol.Any(
-                                        None,
-                                        vol.All(
-                                            vol.Coerce(int), vol.Range(min=0, max=100)
+                                vol.All(
+                                    {
+                                        vol.Optional("id"): str,
+                                        vol.Optional("name"): vol.Any(None, str),
+                                        vol.Optional(
+                                            "start_type",
+                                            default=StartType.ASTRAL.value,
+                                        ): vol.In(
+                                            [
+                                                StartType.ASTRAL.value,
+                                                StartType.FIXED.value,
+                                            ]
                                         ),
-                                    ),
-                                }
+                                        # zone for astral slots (Primary always uses these);
+                                        # fixed_time "HH:MM" for fixed slots in custom channels.
+                                        vol.Optional("zone"): vol.Any(
+                                            None, vol.In(STANDARD_ZONES)
+                                        ),
+                                        vol.Optional("fixed_time"): vol.Any(
+                                            None, _valid_hhmm
+                                        ),
+                                        vol.Optional("offset_minutes"): vol.All(
+                                            vol.Coerce(int),
+                                            vol.Range(
+                                                min=-MAX_OFFSET_MINUTES,
+                                                max=MAX_OFFSET_MINUTES,
+                                            ),
+                                        ),
+                                        vol.Optional("scene_entity_id"): vol.Any(
+                                            None, cv.entity_id
+                                        ),
+                                        vol.Optional(
+                                            "configured_entities", default=[]
+                                        ): cv.entity_ids,
+                                        vol.Optional(
+                                            "hue_activate_dynamic", default=False
+                                        ): bool,
+                                        vol.Optional(
+                                            "hue_dynamic_speed", default=None
+                                        ): vol.Any(
+                                            None,
+                                            vol.All(
+                                                vol.Coerce(int),
+                                                vol.Range(min=0, max=100),
+                                            ),
+                                        ),
+                                    },
+                                    _require_fixed_time_for_fixed_slots,
+                                )
                             ],
                             # Hard cap so a channel can never exceed the slot limit (the
                             # frontend disables Add at the limit; this is the backstop).
@@ -347,11 +396,79 @@ def _ws_area_save() -> websocket_api.WebSocketCommandHandler:
             # Element-level dict guard: the store's _normalize_area_config fills
             # ids/defaults and the engine tolerates missing fields, so the inner
             # shape stays open — but a non-dict entry (e.g. a stray string) is
-            # rejected here rather than silently skipped downstream.
-            vol.Optional("inputs", default=[]): [dict],
-            vol.Optional("activities", default=[]): [dict],
-            vol.Optional("rules", default=[]): [dict],
-            # Saved heatmap snapshots (heatmap_profiles.md); inner shape stays
+            # rejected here rather than silently skipped downstream. `type` is
+            # restricted to known enum values and `enabled` to bool (or None) so
+            # a hand-fabricated payload cannot persist an unknown input type or
+            # a truthy string that Python would evaluate as enabled.
+            vol.Optional("inputs", default=[]): [
+                vol.Schema(
+                    {
+                        vol.Required("id"): str,
+                        vol.Required("type"): vol.In(
+                            [input_type.value for input_type in InputType]
+                        ),
+                        vol.Optional("enabled"): vol.Any(None, bool),
+                    },
+                    extra=vol.ALLOW_EXTRA,
+                )
+            ],
+            vol.Optional("activities", default=[]): [
+                vol.Schema(
+                    {
+                        vol.Required("id"): str,
+                        vol.Optional("action"): vol.Any(
+                            None,
+                            vol.Schema(
+                                {
+                                    vol.Required("type"): vol.In(
+                                        [action_type.value for action_type in ActionType]
+                                    )
+                                },
+                                extra=vol.ALLOW_EXTRA,
+                            ),
+                        ),
+                        vol.Optional("release_action"): vol.Any(
+                            None,
+                            vol.Schema(
+                                {
+                                    vol.Required("type"): vol.In(
+                                        [action_type.value for action_type in ActionType]
+                                    )
+                                },
+                                extra=vol.ALLOW_EXTRA,
+                            ),
+                        ),
+                        vol.Optional("enabled"): vol.Any(None, bool),
+                        vol.Optional("auto_expire_enabled"): vol.Any(None, bool),
+                    },
+                    extra=vol.ALLOW_EXTRA,
+                )
+            ],
+            vol.Optional("rules", default=[]): [
+                vol.Schema(
+                    {
+                        vol.Required("id"): str,
+                        vol.Optional("enabled"): vol.Any(None, bool),
+                        vol.Optional("auto_expire_enabled"): vol.Any(None, bool),
+                        vol.Optional("auto_expire_mode"): vol.Any(
+                            None,
+                            vol.In(
+                                [
+                                    mode.value
+                                    for mode in (
+                                        RuleAutoExpireMode.NONE,
+                                        RuleAutoExpireMode.RESTART,
+                                        RuleAutoExpireMode.PAUSE,
+                                        RuleAutoExpireMode.SUSPEND,
+                                    )
+                                ]
+                            ),
+                        ),
+                    },
+                    extra=vol.ALLOW_EXTRA,
+                )
+            ],
+            # Saved heatmap snapshots; inner shape stays
             # open like inputs/activities — the store normalizes/validates it.
             vol.Optional("heatmap_profiles", default=[]): [dict],
         }
@@ -403,7 +520,13 @@ def _ws_area_save() -> websocket_api.WebSocketCommandHandler:
 
         disabled_rule_ids = _disable_mismatched_rules(config)
 
-        async with get_area_lock(hass, area_id):
+        # The setup lock excludes a concurrent Twilight (re-)setup teardown/
+        # reload (__init__.py's async_setup) — without it, this area's first
+        # engine registration below could land in that reload's unguarded
+        # window between its teardown loop and its unconditional
+        # engines.clear(), only to be discarded (leaked) right after. See
+        # get_setup_lock()'s docstring for the full mechanism.
+        async with get_setup_lock(hass), get_area_lock(hass, area_id):
             await store.async_save_area(area_id, config)
 
             # Use the normalized stored config (Primary channel always complete) for the engine.
@@ -416,6 +539,7 @@ def _ws_area_save() -> websocket_api.WebSocketCommandHandler:
                 initial_state = None
                 if existing_engine:
                     initial_state = existing_engine.run_state
+                    entities_to_turn_off: set[str] = set()
                     new_channels = saved_area.get("channels", {})
                     if not isinstance(new_channels, dict):
                         new_channels = {}
@@ -423,17 +547,45 @@ def _ws_area_save() -> websocket_api.WebSocketCommandHandler:
                         if old_ch.enabled:
                             new_ch = new_channels.get(ch_id)
                             if not new_ch or not new_ch.get("enabled", True):
-                                # Channel was deleted or disabled → turn off entities
-                                entities = channel_entities(
+                                # Channel was deleted or disabled → collect entities
+                                ch_ents = channel_entities(
                                     existing_engine.scene_map, ch_id
                                 )
-                                if entities:
-                                    await _async_turn_off_entities(
-                                        hass, area_id, entities
-                                    )
+                                entities_to_turn_off.update(ch_ents)
 
-                    await existing_engine.async_teardown()
+                    try:
+                        await existing_engine.async_teardown()
+                    except Exception:
+                        _LOGGER.exception(
+                            "Error tearing down engine for area %s during save", area_id
+                        )
                     engines.pop(area_id, None)
+
+                    surviving_entities: set[str] = set()
+                    for ch in saved_area.get("channels", {}).values():
+                        if isinstance(ch, dict) and ch.get("enabled", True):
+                            for slot in ch.get("slots", []):
+                                if isinstance(slot, dict):
+                                    surviving_entities.update(
+                                        slot.get("configured_entities", [])
+                                    )
+                    entities_to_turn_off -= surviving_entities
+
+                    if entities_to_turn_off:
+                        # Same isolation as the teardown above: the store is
+                        # already saved and the old engine gone by this point,
+                        # so a failing turn-off must not surface as a failed
+                        # save — the client would retry the save and the area
+                        # would stay engineless.
+                        try:
+                            await _async_turn_off_entities(
+                                hass, area_id, entities_to_turn_off
+                            )
+                        except Exception:
+                            _LOGGER.exception(
+                                "Error turning off entities during save for area %s",
+                                area_id,
+                            )
 
                 # Unlike the other call sites, area/save must report the failure
                 # back to the client — async_start_engine() logs it and returns
@@ -449,10 +601,29 @@ def _ws_area_save() -> websocket_api.WebSocketCommandHandler:
                     return
             else:
                 if existing_engine:
-                    await existing_engine.async_teardown()
+                    entities_to_turn_off = set()
+                    for ch_id in existing_engine.config.channels:
+                        entities_to_turn_off.update(
+                            channel_entities(existing_engine.scene_map, ch_id)
+                        )
+                    try:
+                        await existing_engine.async_teardown()
+                    except Exception:
+                        _LOGGER.exception(
+                            "Error tearing down engine for area %s during save", area_id
+                        )
                     engines.pop(area_id, None)
                     async_dispatcher_send(hass, SIGNAL_ENGINES_CHANGED)
-                store.save_area_state(area_id, {})
+                    if entities_to_turn_off:
+                        try:
+                            await _async_turn_off_entities(
+                                hass, area_id, entities_to_turn_off
+                            )
+                        except Exception:
+                            _LOGGER.exception(
+                                "Error turning off entities during delete for area %s",
+                                area_id,
+                            )
                 await async_clear_area_entities(hass, area_id)
 
             clear_timeline_slot_cache()
@@ -485,18 +656,48 @@ def _ws_area_delete() -> websocket_api.WebSocketCommandHandler:
             return
 
         area_id = msg["area_id"]
-        async with get_area_lock(hass, area_id):
+        # See area/save's matching comment — excludes a concurrent Twilight
+        # (re-)setup reload from this area's engine teardown/removal below.
+        async with get_setup_lock(hass), get_area_lock(hass, area_id):
             deleted = await store.async_delete_area(area_id)
 
             engines = hass.data[DOMAIN].setdefault("engines", {})
-            if area_id in engines:
-                await engines[area_id].async_teardown()
+            existing_engine = engines.get(area_id)
+            if existing_engine:
+                entities_to_turn_off = set()
+                for ch_id in existing_engine.config.channels:
+                    entities_to_turn_off.update(
+                        channel_entities(existing_engine.scene_map, ch_id)
+                    )
+                try:
+                    await existing_engine.async_teardown()
+                except Exception:
+                    _LOGGER.exception(
+                        "Error tearing down engine for area %s during delete", area_id
+                    )
                 engines.pop(area_id, None)
                 async_dispatcher_send(hass, SIGNAL_ENGINES_CHANGED)
+                if entities_to_turn_off:
+                    # Same isolation as area/save: the store entry is already
+                    # deleted and the engine already torn down by this point,
+                    # so a failing turn-off must not skip the cleanup below
+                    # (async_clear_area_entities, remove_area_lock) — that
+                    # would leak the area lock permanently and orphan the
+                    # area's Twilight-owned button/switch entities.
+                    try:
+                        await _async_turn_off_entities(
+                            hass, area_id, entities_to_turn_off
+                        )
+                    except Exception:
+                        _LOGGER.exception(
+                            "Error turning off entities during delete for area %s",
+                            area_id,
+                        )
 
             await async_clear_area_entities(hass, area_id)
 
             clear_timeline_slot_cache()
+        remove_area_lock(hass, area_id)
 
         connection.send_result(msg["id"], {"deleted": deleted})
 
@@ -541,12 +742,6 @@ def _ws_area_slot_times() -> websocket_api.WebSocketCommandHandler:
         connection: websocket_api.ActiveConnection,
         msg: dict[str, Any],
     ) -> None:
-        import datetime as _dt
-        import zoneinfo as _zi
-
-        from ..slot_calc import resolve_slot_times
-        from ..sun_calc import compute_sun_day_data
-
         store = hass.data[DOMAIN].get("store")
         if not store:
             connection.send_error(
@@ -571,16 +766,16 @@ def _ws_area_slot_times() -> websocket_api.WebSocketCommandHandler:
         date_str = msg.get("date")
         if date_str:
             try:
-                anchor_d = _dt.date.fromisoformat(date_str)
+                anchor_d = dt.date.fromisoformat(date_str)
             except ValueError:
                 connection.send_error(
                     msg["id"], "invalid_date", f"Invalid date: {date_str}"
                 )
                 return
         else:
-            anchor_d = _dt.datetime.now(_zi.ZoneInfo(tz_str)).date()
+            anchor_d = dt.datetime.now(zi.ZoneInfo(tz_str)).date()
 
-        dates = [(anchor_d + _dt.timedelta(days=i)).isoformat() for i in (-1, 0, 1)]
+        dates = [(anchor_d + dt.timedelta(days=i)).isoformat() for i in (-1, 0, 1)]
 
         def _compute() -> dict[str, Any]:
             channels_res: dict[str, dict[str, list[dict[str, Any]]]] = {}
@@ -591,7 +786,7 @@ def _ws_area_slot_times() -> websocket_api.WebSocketCommandHandler:
                 ch_slots = ch_cfg.get("slots", [])
                 channels_res[ch_id] = {}
                 for d_str in dates:
-                    cur_d = _dt.date.fromisoformat(d_str)
+                    cur_d = dt.date.fromisoformat(d_str)
                     sun_data = compute_sun_day_data(lat, lon, tz_str, cur_d)
                     channels_res[ch_id][d_str] = resolve_slot_times(ch_slots, sun_data)
 
@@ -629,11 +824,6 @@ def _ws_slot_times_preview() -> websocket_api.WebSocketCommandHandler:
         connection: websocket_api.ActiveConnection,
         msg: dict[str, Any],
     ) -> None:
-        import datetime as _dt
-
-        from ..slot_calc import resolve_slot_times
-        from ..sun_calc import compute_sun_day_data
-
         lat = hass.config.latitude
         lon = hass.config.longitude
         tz_str = hass.config.time_zone
@@ -641,14 +831,14 @@ def _ws_slot_times_preview() -> websocket_api.WebSocketCommandHandler:
         date_str = msg.get("date")
         if date_str:
             try:
-                cur_d = _dt.date.fromisoformat(date_str)
+                cur_d = dt.date.fromisoformat(date_str)
             except ValueError:
                 connection.send_error(
                     msg["id"], "invalid_date", f"Invalid date: {date_str}"
                 )
                 return
         else:
-            cur_d = _dt.date.today()
+            cur_d = dt.datetime.now(zi.ZoneInfo(tz_str)).date()
 
         def _compute() -> dict[str, Any]:
             sun_data = compute_sun_day_data(lat, lon, tz_str, cur_d)

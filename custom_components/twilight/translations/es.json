@@ -1,0 +1,32 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "description": "Twilight se configura a través del panel de la barra lateral; esta entrada solo ancla dispositivos para entidades opcionales de botón/interruptor y no requiere configuración."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "[%key:common::config_flow::abort::single_instance_allowed%]"
+    }
+  },
+  "services": {
+    "trigger_input": {
+      "name": "Activar entrada",
+      "description": "Activa manualmente una entrada de tipo botón (clic o alternar) para un área determinada.",
+      "fields": {
+        "area_id": {
+          "name": "ID del área",
+          "description": "El ID del área que contiene la entrada."
+        },
+        "input_id": {
+          "name": "ID de la entrada",
+          "description": "El ID o nombre de la entrada de botón a activar."
+        },
+        "active": {
+          "name": "Estado activo",
+          "description": "Para botones de alternancia, establece si el estado de la entrada debe ser activo (true) o inactivo (false)."
+        }
+      }
+    }
+  }
+}

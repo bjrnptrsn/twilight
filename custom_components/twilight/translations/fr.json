@@ -1,0 +1,32 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "description": "Twilight est configuré via le panneau de la barre latérale — cette entrée sert uniquement d'ancrage d'appareil pour les entités bouton/interrupteur optionnelles et ne nécessite aucune configuration."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "[%key:common::config_flow::abort::single_instance_allowed%]"
+    }
+  },
+  "services": {
+    "trigger_input": {
+      "name": "Déclencher l'entrée",
+      "description": "Déclenche manuellement une entrée de type bouton (clic ou bascule) pour une zone donnée.",
+      "fields": {
+        "area_id": {
+          "name": "ID de la zone",
+          "description": "L'ID de la zone contenant l'entrée."
+        },
+        "input_id": {
+          "name": "ID de l'entrée",
+          "description": "L'ID ou le nom de l'entrée bouton à déclencher."
+        },
+        "active": {
+          "name": "État actif",
+          "description": "Pour les boutons à bascule, définit si l'état de l'entrée doit être actif (true) ou inactif (false)."
+        }
+      }
+    }
+  }
+}

@@ -15,15 +15,11 @@ from homeassistant.core import callback as ha_callback
 from homeassistant.helpers.event import async_call_later
 from homeassistant.util import dt as dt_util
 
-from .call_handler import (
-    BaseCallHandler,
-    LightDirectCallHandler,
-    SlotDirectCallHandler,
-    TurnOffCallHandler,
-)
+from .call_handler import TurnOffCallHandler
 from .config_model import (
     ActionConfig,
     EntityActionConfig,
+    HeatmapProfileConfig,
     LightActionConfig,
     SimulationActionConfig,
     SlotActionConfig,
@@ -45,6 +41,7 @@ from .helpers import (
     channel_entities,
     create_tracked_task,
     get_slot_info,
+    get_store,
     simulation_template_eligible,
 )
 
@@ -61,6 +58,13 @@ def _channel_matches_slot(
     scene_info = get_slot_info(coordinator.engine.scene_map, channel_id, slot_id)
     if not scene_info or not scene_info.expected_states:
         return False
+    # Dynamic-Hue slots always "match": the Bridge rotates the palette on its
+    # own, so a per-entity comparison would deviate and dispatch a pointless
+    # reapply on every re-trigger (reapply() guards itself, but the dispatch
+    # work is wasted — the same reasoning as the retry guard in _can_retry()).
+    slot = coordinator.engine.config.slot(channel_id, slot_id)
+    if slot and slot.hue_activate_dynamic and scene_info.supports_dynamic:
+        return True
     hass = coordinator.engine.hass
     for entity_id, expected in scene_info.expected_states.items():
         ha_state = hass.states.get(entity_id)
@@ -102,7 +106,7 @@ def apply_release_over_channels(
 
 def apply_slot_action_over_channels(
     coordinator: Coordinator,
-    action: ActionConfig,
+    action: SlotActionConfig,
     active_slots: dict[str, str],
     *,
     was_activated: bool,
@@ -118,7 +122,7 @@ def apply_slot_action_over_channels(
     they diverge too much (e.g. LightActionHandler's STATE_OFF branch) to share
     without hiding behaviour behind flags.
     """
-    default_excluded = cast(SlotActionConfig, action).excluded_slots or {}
+    default_excluded = action.excluded_slots or {}
     activity_id = coordinator.run_state.active_activity
     excluded_slots = (
         coordinator.rule_manager.get_effective_excluded_slots(
@@ -134,7 +138,14 @@ def apply_slot_action_over_channels(
         if slot_id in excluded_slots.get(channel_id, ()):
             if not _channel_already_off(coordinator, channel_id):
                 coordinator.turn_off_channel(channel_id, transition_off=transition_off)
-        elif not was_activated:
+        elif not was_activated or _channel_already_off(coordinator, channel_id):
+            # A channel that is fully off (e.g. turned off by a previous
+            # activity's excluded_slots, while scene_activated_at stayed set
+            # for the area as a whole) is a fresh entry, not a correction —
+            # route it through the same direct start as the never-activated
+            # case. Otherwise it falls into reapply_deviating_slot() below,
+            # whose dynamic-Hue "always matches" guard (_channel_matches_slot)
+            # then silently no-ops instead of turning the channel back on.
             coordinator.apply_channel_slot(channel_id, slot_id, direct=True)
         elif not _channel_matches_slot(coordinator, channel_id, slot_id):
             coordinator.reapply_deviating_slot(channel_id, slot_id)
@@ -186,6 +197,7 @@ class BaseActionHandler(ABC):
         self.hass = coordinator.engine.hass
         self._timers: list[Callable[[], None]] = []
         self._tasks: set[asyncio.Task[Any]] = set()
+        self._cancelled = False
 
     @property
     def pauses_slots(self) -> bool:
@@ -193,10 +205,21 @@ class BaseActionHandler(ABC):
         return True
 
     def _start_timer(self, delay: float, callback: Callable[[], Any]) -> None:
-        """Start a timer in the event loop that schedules a coroutine callback."""
+        """Start a timer in the event loop that schedules a coroutine callback.
+
+        No-ops after cancel(): a task's `finally` block can still run to
+        completion after `task.cancel()` (an `await` inside `finally` is not
+        re-cancelled by the same CancelledError) and re-arm a timer here. The
+        `_cancelled` guard, set before cancel() tears anything down, stops
+        that timer from being armed on an already torn-down handler.
+        """
+        if self._cancelled:
+            return
 
         @ha_callback
         def _fire(_now: datetime) -> None:
+            if unsub in self._timers:
+                self._timers.remove(unsub)
             self._start_task(callback())
 
         unsub = async_call_later(self.hass, delay, _fire)
@@ -206,18 +229,29 @@ class BaseActionHandler(ABC):
         """Start an asynchronous task and track it for cancellation."""
         return create_tracked_task(self.hass, coro, self._tasks)
 
-    def cancel(self) -> None:
-        """Cancel all running timers and tasks."""
+    async def cancel(self) -> None:
+        """Cancel all running timers and tasks, and wait for them to actually finish.
+
+        task.cancel() alone does not stop a task that is suspended in a real
+        await (e.g. a Recorder query) — it only schedules CancelledError for
+        the next suspension point. Without the
+        gather() below, a caller that immediately restarts the handler (e.g.
+        Coordinator._apply_action()) could reset `_cancelled` back to False
+        before the old task's `finally` block (which re-arms a timer via
+        `_start_timer`) has run, arming a second, stale tick chain alongside
+        the new one. Mirrors climate_group_helper's
+        BaseServiceCallHandler.async_cancel_all().
+        """
+        self._cancelled = True
         for unsub in self._timers:
             unsub()
-        for t in list(self._tasks):
-            t.cancel()
         self._timers.clear()
+        tasks = list(self._tasks)
+        for t in tasks:
+            t.cancel()
         self._tasks.clear()
-
-    def _before_start(self) -> bool:
-        """Lifecycle hook run before action starts."""
-        return True
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     def _after_stop(self) -> None:  # noqa: B027 -- optional hook, no-op by default
         """Lifecycle hook run after action stops."""
@@ -235,7 +269,7 @@ class BaseActionHandler(ABC):
         self, release: ActionConfig, transition_off: int | None = None
     ) -> None:
         """Standard release behavior for action handlers."""
-        self.cancel()
+        await self.cancel()
         c = self._coordinator
 
         c.cancel_all_handlers()
@@ -259,6 +293,10 @@ class SlotActionHandler(BaseActionHandler):
         transition_off: int | None = None,
     ) -> None:
         """Apply slot-based scene configuration."""
+        if not isinstance(action, SlotActionConfig):
+            raise TypeError(
+                f"SlotActionHandler.start() requires a SlotActionConfig, got {type(action).__name__}"
+            )
         c = self._coordinator
         if not active_slots:
             return
@@ -288,15 +326,47 @@ class EntityActionHandler(BaseActionHandler):
         active_slots: dict[str, str],
         transition_off: int | None = None,
     ) -> None:
-        """Apply a scene or script."""
+        """Apply a scene or script.
+
+        A re-trigger while the Entity-Action is already active goes through
+        `reapply()` instead of `start()` (§4.4 second bullet) — same
+        was_activated pattern as SlotActionHandler.start()/
+        apply_slot_action_over_channels().
+        """
+        if not isinstance(action, EntityActionConfig):
+            raise TypeError(
+                f"EntityActionHandler.start() requires an EntityActionConfig, got {type(action).__name__}"
+            )
         c = self._coordinator
-        entity_action = cast(EntityActionConfig, action)
-        entity_id = entity_action.entity_id
+        entity_id = action.entity_id
         if entity_id:
-            c.update_state(scene_activated_at=datetime.now(UTC))
+            was_activated = c.run_state.scene_activated_at is not None
+            c.update_state(
+                scene_activated_at=c.run_state.scene_activated_at or datetime.now(UTC)
+            )
             c.lux_manager.update_lux_state()
-            handler = SlotDirectCallHandler(c.engine, PRIMARY_CHANNEL_ID, entity_id)
-            c.swap_channel_handler(PRIMARY_CHANNEL_ID, handler, [])
+            handler = c.scene_handler(PRIMARY_CHANNEL_ID)
+            if handler is None:
+                _LOGGER.error(
+                    "[%s] No SceneCallHandler for primary channel — cannot apply "
+                    "Entity-Action",
+                    c.engine.area_id,
+                )
+                return
+            if was_activated:
+                c.swap_channel_handler(
+                    PRIMARY_CHANNEL_ID,
+                    handler,
+                    lambda grace_elapsed: handler.reapply(
+                        entity_id, grace_elapsed=grace_elapsed
+                    ),
+                )
+            else:
+                c.swap_channel_handler(
+                    PRIMARY_CHANNEL_ID,
+                    handler,
+                    lambda grace_elapsed: handler.start(entity_id),
+                )
 
 
 class LightActionHandler(BaseActionHandler):
@@ -308,20 +378,57 @@ class LightActionHandler(BaseActionHandler):
         active_slots: dict[str, str],
         transition_off: int | None = None,
     ) -> None:
-        """Apply direct light settings."""
+        """Apply direct light settings.
+
+        A re-trigger while the Light-Action is already active goes through
+        `reapply()` instead of `start()` (§4.4 first bullet) — same
+        was_activated pattern as SlotActionHandler/EntityActionHandler. Does
+        not apply to the `state == off` branch: TurnOffCallHandler's turn_off
+        is idempotent, nothing to compare against.
+        """
+        if not isinstance(action, LightActionConfig):
+            raise TypeError(
+                f"LightActionHandler.start() requires a LightActionConfig, got {type(action).__name__}"
+            )
         c = self._coordinator
-        c.update_state(scene_activated_at=datetime.now(UTC))
+        was_activated = c.run_state.scene_activated_at is not None
+        c.update_state(
+            scene_activated_at=c.run_state.scene_activated_at or datetime.now(UTC)
+        )
         c.lux_manager.update_lux_state()
-        light_action = cast(LightActionConfig, action)
-        targets = list(light_action.targets)
-        if light_action.state == STATE_OFF:
-            handler: BaseCallHandler = TurnOffCallHandler(
+        targets = list(action.targets)
+        if action.state == STATE_OFF:
+            off_handler = TurnOffCallHandler(
                 c.engine, PRIMARY_CHANNEL_ID, transition_off=transition_off
             )
-            c.swap_channel_handler(PRIMARY_CHANNEL_ID, handler, targets)
+            c.swap_channel_handler(
+                PRIMARY_CHANNEL_ID,
+                off_handler,
+                lambda grace_elapsed: off_handler.execute(
+                    targets, grace_elapsed=grace_elapsed
+                ),
+            )
             return
-        handler = LightDirectCallHandler(c.engine, PRIMARY_CHANNEL_ID)
-        c.swap_channel_handler(PRIMARY_CHANNEL_ID, handler, targets, action)
+        light_handler = c.light_handler(PRIMARY_CHANNEL_ID)
+        if light_handler is None:
+            _LOGGER.error(
+                "[%s] No LightCallHandler for primary channel — cannot apply "
+                "Light-Action",
+                c.engine.area_id,
+            )
+            return
+        if was_activated:
+            c.swap_channel_handler(
+                PRIMARY_CHANNEL_ID,
+                light_handler,
+                lambda grace_elapsed: light_handler.reapply(targets, action),
+            )
+        else:
+            c.swap_channel_handler(
+                PRIMARY_CHANNEL_ID,
+                light_handler,
+                lambda grace_elapsed: light_handler.start(targets, action),
+            )
 
 
 class BlockActionHandler(BaseActionHandler):
@@ -359,8 +466,8 @@ class PresenceSimulationActionHandler(BaseActionHandler):
     This is the *one* real active activity (`pauses_slots=False`). An internal
     loop ticks at a fixed interval and rolls a simulated "motion" per tick from
     the heatmap buckets; an "on" step applies the template activity's `action`
-    over the coordinator slot-primitives (never via the registry handlers, see
-    PRESENCE_SIMULATION_PLAN.md §5.4), and a per-motion "off" timer with real
+    over the coordinator slot-primitives (never via the registry handlers), and
+    a per-motion "off" timer with real
     retrigger semantics turns the light off via the template's `release_action`
     when it lapses — all without ever touching the real activity level.
     """
@@ -378,6 +485,20 @@ class PresenceSimulationActionHandler(BaseActionHandler):
         self._template: str | None = None
         self._lux_mode: str = SimLuxMode.DUSK_DAWN
         self._frequency_mode: str = SimFrequencyMode.NORMAL
+        self._heatmap_profile_id: str | None = None
+        self._started = False
+
+    @property
+    def started(self) -> bool:
+        """Return True once start() has begun (set synchronously, before its first await).
+
+        Unlike `is_running` (which only reflects `_timers`/`_tasks`), this stays
+        accurate during `start()`'s synchronous prefix and its first `await` — the
+        window where a concurrent start() call (e.g. boot-restore racing an
+        input-triggered start while `_load_buckets()`'s Recorder query is in
+        flight) would otherwise go undetected.
+        """
+        return self._started
 
     async def start(
         self,
@@ -386,10 +507,21 @@ class PresenceSimulationActionHandler(BaseActionHandler):
         transition_off: int | None = None,
     ) -> None:
         """Load buckets and start the simulation loop."""
-        if not self._before_start():
-            return
-        sim = cast(SimulationActionConfig, action)
-        self._template = sim.template_activity
+        if not isinstance(action, SimulationActionConfig):
+            raise TypeError(
+                f"PresenceSimulationActionHandler.start() requires a SimulationActionConfig, got {type(action).__name__}"
+            )
+        # Set synchronously, before the first await — see the `started` property.
+        self._started = True
+        # This handler is a static, reused instance (one per Coordinator,
+        # see coordinator.py's _action_handlers dict) — cancel() leaves
+        # _cancelled set so a re-armed timer from an in-flight tick's
+        # finally block can't outlive teardown (see _start_timer's
+        # docstring). Reset it here so the *next* start() (e.g. after a
+        # reboot resumes the simulation, coordinator.py's
+        # restore_active_handler) can arm timers again.
+        self._cancelled = False
+        self._template = action.template_activity
         c = self._coordinator
         if not simulation_template_eligible(c.engine.config, self._template):
             _LOGGER.warning(
@@ -399,10 +531,18 @@ class PresenceSimulationActionHandler(BaseActionHandler):
                 self._template,
             )
             self._template = None
+            self._started = False
             return
-        self._lux_mode = sim.lux_mode or SimLuxMode.DUSK_DAWN
-        self._frequency_mode = sim.frequency_mode or SimFrequencyMode.NORMAL
-        self._motion_buckets = await self._load_buckets(sim)
+        self._lux_mode = action.lux_mode or SimLuxMode.DUSK_DAWN
+        self._frequency_mode = action.frequency_mode or SimFrequencyMode.NORMAL
+        self._heatmap_profile_id = action.heatmap_profile_id
+        self._motion_buckets = await self._load_buckets(dynamic_fallback=True) or {}
+        if self._cancelled:
+            _LOGGER.debug(
+                "[%s] Presence simulation start cancelled while loading buckets",
+                c.engine.area_id,
+            )
+            return
         _LOGGER.info(
             "[%s] Presence simulation started: template=%s lux_mode=%s "
             "frequency_mode=%s weekdays_with_data=%s tick_interval=%.1fs",
@@ -418,9 +558,26 @@ class PresenceSimulationActionHandler(BaseActionHandler):
         await self._tick()
 
     async def _load_buckets(
-        self, sim: SimulationActionConfig
-    ) -> dict[str, list[float]]:
-        """Resolve presence buckets once: saved profile if set, else dynamic recorder window.
+        self, *, dynamic_fallback: bool
+    ) -> dict[str, list[float]] | None:
+        """Resolve presence buckets: saved profile if set, else dynamic recorder window.
+
+        Reads a referenced profile straight from the store (`_store_profile_by_id`)
+        rather than `engine.config.heatmap_profile_by_id()`. `engine.config` is
+        parsed once at engine construction and never mutated —
+        `twilight/heatmap/profile/save|delete` only writes the store, so a handler
+        cached from `engine.config` would keep playing back a stale (or since-
+        deleted) profile's buckets until the area's next `area/save` or an HA
+        restart.
+
+        `dynamic_fallback` controls the "no profile referenced" path:
+        `async_compute_heatmap` runs a Recorder query, so it may only run once per
+        occurrence — at `start()` (`dynamic_fallback=True`) and, once, right after
+        a referenced profile is found deleted from the store (see
+        `_refresh_buckets`). Re-running it on *every* tick's re-read would replace
+        one performance bug (stale profile) with another (a Recorder query every
+        ~60s); when `dynamic_fallback=False` and no profile is found, `None` is
+        returned so the caller keeps the previously computed buckets instead.
 
         Uses `motion_presence_buckets` (fraction of days with *any* motion in
         the bucket) rather than `motion_buckets` (fraction of active seconds)
@@ -431,9 +588,32 @@ class PresenceSimulationActionHandler(BaseActionHandler):
         keep working until recalculated.
         """
         c = self._coordinator
-        profile = c.engine.config.heatmap_profile_by_id(sim.heatmap_profile_id)
-        if profile is not None:
-            return dict(profile.motion_presence_buckets or profile.motion_buckets)
+        try:
+            profile = self._store_profile_by_id(self._heatmap_profile_id)
+            if profile is not None:
+                return dict(profile.motion_presence_buckets or profile.motion_buckets)
+        except Exception:
+            # A profile whose stored shape doesn't match HeatmapProfileConfig
+            # (e.g. a bucket field holding a list instead of a dict after a
+            # format change, restored via the official backup-import flow —
+            # store.py's area normalization only checks "is a list", not each
+            # profile's field shapes) must not raise out of start(): start()
+            # sets _started=True before its first await, so an uncaught
+            # exception here would leave the handler stuck "active" forever
+            # with no loop/timer armed, and the boot restore guard
+            # (coordinator.py's `not started`) would then never retry it.
+            # Treat it like a deleted profile: forget the reference so the
+            # caller stops retrying this same corrupt entry on every tick,
+            # then fall through to the dynamic recorder fallback below.
+            _LOGGER.exception(
+                "[%s] Corrupt heatmap profile '%s' in store — "
+                "falling back to dynamic recorder buckets",
+                c.engine.area_id,
+                self._heatmap_profile_id,
+            )
+            self._heatmap_profile_id = None
+        if not dynamic_fallback:
+            return None
         try:
             computed = await async_compute_heatmap(
                 c.engine.hass,
@@ -449,6 +629,59 @@ class PresenceSimulationActionHandler(BaseActionHandler):
             )
             return {}
         return computed.motion_presence_buckets
+
+    async def _refresh_buckets(self) -> None:
+        """Re-read a referenced saved profile from the store before each tick.
+
+        A profile that is still referenced but no longer found in the store (the
+        user deleted it while the simulation was running) switches the
+        simulation to the dynamic recorder fallback immediately, on the very
+        next tick — matching what happens on a fresh `start()` instead of
+        silently keeping the deleted profile's stale buckets until some later,
+        unrelated restart (area/save, HA reboot, the activity re-triggering).
+        That one-time dynamic computation is cheap to allow here (it happens
+        once, right when the deletion is first observed) — see `_load_buckets`'s
+        `dynamic_fallback` docstring for why it must not repeat on every tick.
+
+        A no-op (keeps the existing `_motion_buckets`) when no profile was ever
+        referenced in the first place — nothing changed, nothing to refresh.
+        """
+        if self._heatmap_profile_id is None:
+            return
+        profile_was_deleted = (
+            self._store_profile_by_id(self._heatmap_profile_id) is None
+        )
+        buckets = await self._load_buckets(dynamic_fallback=profile_was_deleted)
+        if profile_was_deleted:
+            # Stop looking for a profile that's gone — otherwise every future
+            # tick would re-trigger the (now pointless) store lookup and, worse,
+            # the dynamic fallback again since profile_was_deleted would stay True.
+            self._heatmap_profile_id = None
+        if buckets is not None:
+            self._motion_buckets = buckets
+
+    def _store_profile_by_id(
+        self, profile_id: str | None
+    ) -> HeatmapProfileConfig | None:
+        """Look up a saved heatmap profile fresh from the store, not `engine.config`.
+
+        Falls back to the immutable `engine.config` copy if the store isn't
+        registered yet (should not happen once the engine is running, but keeps
+        this defensive rather than raising).
+        """
+        if not profile_id:
+            return None
+        c = self._coordinator
+        store = get_store(c.engine.hass)
+        if store is None:
+            return c.engine.config.heatmap_profile_by_id(profile_id)
+        area = store.get_area(c.engine.area_id)
+        if area is None:
+            return None
+        for raw in area.get("heatmap_profiles") or []:
+            if isinstance(raw, dict) and raw.get("id") == profile_id:
+                return HeatmapProfileConfig.from_dict(raw)
+        return None
 
     def _get_tick_interval_seconds(self) -> float:
         """Compute dynamic tick interval based on template auto_expire seconds (40% of expire duration)."""
@@ -495,6 +728,7 @@ class PresenceSimulationActionHandler(BaseActionHandler):
     async def _tick(self) -> None:
         """One loop tick: roll simulated motion, apply on-step + off-timer restart."""
         try:
+            await self._refresh_buckets()
             prob = self._scaled_probability()
             roll = random.random()
             lux_ok = self._lux_allows_on()
@@ -559,18 +793,37 @@ class PresenceSimulationActionHandler(BaseActionHandler):
                 c.run_state.active_slots,
                 was_activated=False,
             )
-        elif t == ActionType.ENTITY:
-            entity_id = cast(EntityActionConfig, action).entity_id
+        elif t == ActionType.ENTITY and isinstance(action, EntityActionConfig):
+            entity_id = action.entity_id
             if entity_id:
-                entity_handler = SlotDirectCallHandler(
-                    c.engine, PRIMARY_CHANNEL_ID, entity_id
+                entity_handler = c.scene_handler(PRIMARY_CHANNEL_ID)
+                if entity_handler is None:
+                    _LOGGER.error(
+                        "[%s] No SceneCallHandler for primary channel — cannot "
+                        "apply presence-simulation Entity-Action",
+                        c.engine.area_id,
+                    )
+                    return
+                c.swap_channel_handler(
+                    PRIMARY_CHANNEL_ID,
+                    entity_handler,
+                    lambda grace_elapsed: entity_handler.start(entity_id),
                 )
-                c.swap_channel_handler(PRIMARY_CHANNEL_ID, entity_handler, [])
-        elif t == ActionType.LIGHT:
-            light_action = cast(LightActionConfig, action)
-            targets = list(light_action.targets)
-            light_handler = LightDirectCallHandler(c.engine, PRIMARY_CHANNEL_ID)
-            c.swap_channel_handler(PRIMARY_CHANNEL_ID, light_handler, targets, action)
+        elif t == ActionType.LIGHT and isinstance(action, LightActionConfig):
+            targets = list(action.targets)
+            light_handler = c.light_handler(PRIMARY_CHANNEL_ID)
+            if light_handler is None:
+                _LOGGER.error(
+                    "[%s] No LightCallHandler for primary channel — cannot apply "
+                    "presence-simulation Light-Action",
+                    c.engine.area_id,
+                )
+                return
+            c.swap_channel_handler(
+                PRIMARY_CHANNEL_ID,
+                light_handler,
+                lambda grace_elapsed: light_handler.start(targets, action),
+            )
 
     def _restart_off_timer(self) -> None:
         """Cancel + restart the internal off-timer (real motion retrigger semantics)."""
@@ -605,8 +858,9 @@ class PresenceSimulationActionHandler(BaseActionHandler):
         )
         apply_release_over_channels(c, release, transition_off)
 
-    def cancel(self) -> None:
+    async def cancel(self) -> None:
         """Cancel the loop, the internal off-timer, and all tracked tasks."""
+        self._started = False
         if self._template is not None:
             _LOGGER.info(
                 "[%s] Presence simulation cancelled: template=%s",
@@ -616,4 +870,4 @@ class PresenceSimulationActionHandler(BaseActionHandler):
         if self._off_unsub is not None:
             self._off_unsub()
             self._off_unsub = None
-        super().cancel()
+        await super().cancel()

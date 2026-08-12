@@ -26,6 +26,24 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
+def is_extraction_incomplete(info: SlotSceneInfo | None) -> bool:
+    """True if a slot's scene extraction needs a background retry.
+
+    Covers both failure modes: no entities resolved at all, and entities
+    resolved but none of them got an expected_states entry (e.g. a Hue scene
+    whose actions carry no mappable targets) — the latter leaves the slot
+    with extracted_entities but no way to build calls or watch deviation, so
+    it must be retried exactly like an empty extraction.
+    """
+    if not info:
+        return True
+    if info.scene_type not in (SceneType.HUE_SCENE, SceneType.PLAIN_SCENE):
+        return False
+    if not info.extracted_entities:
+        return True
+    return not info.expected_states
+
+
 def palette_is_dynamic(palette: Any) -> bool:
     """Return True if a Hue scene palette can drive a dynamic rotation.
 
@@ -64,36 +82,38 @@ class SceneManager:
     ) -> SlotSceneInfo | None:
         """Classify and extract a single slot's scene, returning its SlotSceneInfo.
 
-        Returns None if the slot has no scene configured. Shared by async_setup()
-        and the background retry loop so both stay in lockstep.
+        Returns None if the slot has no scene configured or extraction fails.
+        Shared by async_setup() and the background retry loop.
         """
         scene_entity_id = slot.scene_entity_id
         if not scene_entity_id:
             return None
 
-        scene_type = self._classify_scene(scene_entity_id)
-        supports_dynamic = self._supports_dynamic(scene_entity_id)
-        configured = frozenset(slot.configured_entities)
-        extracted, expected = await self._async_extract_scene(
-            scene_entity_id, scene_type
-        )
+        try:
+            scene_type = self._classify_scene(scene_entity_id)
+            supports_dynamic = self._supports_dynamic(scene_entity_id)
+            configured = frozenset(slot.configured_entities)
+            extracted, expected = await self._async_extract_scene(
+                scene_entity_id, scene_type
+            )
 
-        # NOTE: expected_states are deliberately kept for hue_activate_dynamic
-        # slots. The palette rotation runs in the lamp firmware and never
-        # updates the Bridge's light resource, so it emits no state_changed
-        # events at all (hue_scenes.md §2, live-verified) — the deviation
-        # watcher has nothing to react to and the retry loop reaches its
-        # target on the first check. Clearing them would only strip the
-        # anticipatory fade, which resolves its targets from this very dict.
-        return SlotSceneInfo(
-            channel_id=channel_id,
-            scene_entity_id=scene_entity_id,
-            scene_type=scene_type,
-            extracted_entities=frozenset(extracted),
-            configured_entities=configured,
-            expected_states=expected,
-            supports_dynamic=supports_dynamic,
-        )
+            return SlotSceneInfo(
+                channel_id=channel_id,
+                scene_entity_id=scene_entity_id,
+                scene_type=scene_type,
+                extracted_entities=frozenset(extracted),
+                configured_entities=configured,
+                expected_states=expected,
+                supports_dynamic=supports_dynamic,
+            )
+        except Exception:
+            _LOGGER.exception(
+                "[%s] Error processing scene %s for slot %s",
+                self.engine.area_id,
+                scene_entity_id,
+                slot.id,
+            )
+            return None
 
     async def async_setup(self) -> None:
         """Classify all scene/script entities for slots across every channel and build scene_map."""
@@ -127,18 +147,24 @@ class SceneManager:
             list(self.engine.scene_map.keys()),
         )
 
-        # Check if we need background retry
+        # Check if we need background retry. Iterates all_slots rather than
+        # scene_map: a slot whose _process_slot() raised (info is None) never
+        # got a scene_map entry at all, so scanning scene_map alone would miss
+        # it — it would sit there with no deviation checks, retries, or fade
+        # until an engine rebuild, exactly like the empty-extraction case this
+        # loop exists to catch.
         incomplete = False
-        for key, info in self.engine.scene_map.items():
-            if (
-                info.scene_type in (SceneType.HUE_SCENE, SceneType.PLAIN_SCENE)
-                and not info.extracted_entities
-            ):
+        for channel_id, slot in all_slots:
+            slot_id = slot.id
+            if not slot_id or not slot.scene_entity_id:
+                continue
+            info = self.engine.scene_map.get((channel_id, slot_id))
+            if is_extraction_incomplete(info):
                 incomplete = True
                 _LOGGER.warning(
                     "[%s] Scene extraction empty for slot %s. Scheduling background retry.",
                     self.engine.area_id,
-                    key,
+                    (channel_id, slot_id),
                 )
 
         if incomplete:
@@ -153,7 +179,7 @@ class SceneManager:
         The cancel is awaited: task.cancel() only schedules the CancelledError,
         so without the await the retry loop can still resume once after teardown
         returned and write into the (possibly already replaced) engine's
-        scene_map — see docs/agents/ha_internals.md.
+        scene_map.
         """
         task = self.retry_task
         self.retry_task = None
@@ -182,11 +208,7 @@ class SceneManager:
                     continue
 
                 scene_info = self.engine.scene_map.get((channel_id, slot_id))
-                if not scene_info or (
-                    scene_info.scene_type
-                    in (SceneType.HUE_SCENE, SceneType.PLAIN_SCENE)
-                    and not scene_info.extracted_entities
-                ):
+                if is_extraction_incomplete(scene_info):
                     incomplete_slots.append((channel_id, slot_id, slot))
 
             if not incomplete_slots:
@@ -221,7 +243,7 @@ class SceneManager:
             for channel_id, slot_id, slot in incomplete_slots:
                 # Re-processing in case integration registries updated
                 info = await self._process_slot(channel_id, slot)
-                if info is not None and info.extracted_entities:
+                if info is not None and not is_extraction_incomplete(info):
                     self.engine.scene_map[(channel_id, slot_id)] = info
                     any_resolved = True
                     _LOGGER.info(
@@ -250,11 +272,7 @@ class SceneManager:
                 if not scene_entity_id:
                     continue
                 scene_info = self.engine.scene_map.get((channel_id, slot_id))
-                if not scene_info or (
-                    scene_info.scene_type
-                    in (SceneType.HUE_SCENE, SceneType.PLAIN_SCENE)
-                    and not scene_info.extracted_entities
-                ):
+                if is_extraction_incomplete(scene_info):
                     remaining.append((channel_id, slot_id))
 
             if remaining:
@@ -284,7 +302,9 @@ class SceneManager:
                     # without Hue. Reaching this branch means a Hue scene was
                     # detected, so aiohue should be importable — guard anyway.
                     try:
-                        from aiohue.v2.models.smart_scene import SmartScene
+                        from aiohue.v2.models.smart_scene import (  # noqa: PLC0415
+                            SmartScene,
+                        )
                     except ImportError:
                         SmartScene = None
 
@@ -381,7 +401,7 @@ class SceneManager:
         HA's scene_config.states holds State objects; the Hue path produces flat
         dicts ({"state": ..., "brightness": ...}). Both must end up in the same
         flat format so deviation detection treats PLAIN_SCENE and HUE_SCENE
-        identically (see engine_relationships.md §6, "Scene-Semantik").
+        identically.
         """
         if isinstance(raw, dict):
             return raw

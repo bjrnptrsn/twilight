@@ -1,0 +1,32 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "description": "Twilight konfigureres via panelet i sidebaren — denne post forankrer kun enheder til valgfrie knap-/kontaktenheder og kræver ingen opsætning."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "[%key:common::config_flow::abort::single_instance_allowed%]"
+    }
+  },
+  "services": {
+    "trigger_input": {
+      "name": "Udløs input",
+      "description": "Udløser manuelt et knap-input (klik eller skift) for et givet område.",
+      "fields": {
+        "area_id": {
+          "name": "Område-ID",
+          "description": "ID for området, der indeholder inputtet."
+        },
+        "input_id": {
+          "name": "Input-ID",
+          "description": "ID'et eller navnet på det knap-input, der skal udløses."
+        },
+        "active": {
+          "name": "Aktiv tilstand",
+          "description": "For skifteknapper angives det, om inputtets tilstand skal være aktiv (true) eller inaktiv (false)."
+        }
+      }
+    }
+  }
+}

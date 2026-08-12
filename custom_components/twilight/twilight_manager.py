@@ -7,7 +7,7 @@ import logging
 import zoneinfo
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.core import callback
@@ -146,9 +146,6 @@ class TwilightManager:
             return []
 
         local_tz = zoneinfo.ZoneInfo(tz_str)
-        local_midnight = datetime.combine(
-            target_date, datetime.min.time(), tzinfo=local_tz
-        )
         start_times: list[tuple[str, str, datetime]] = []
 
         for channel_id, channel in channels.items():
@@ -168,7 +165,15 @@ class TwilightManager:
 
             resolved = resolve_slot_times(slot_dicts, sun_data)
             for item in resolved:
-                start_dt = local_midnight + timedelta(minutes=item["start"])
+                mins = int(item["start"])
+                day_offset, mins_of_day = divmod(mins, 1440)
+                h = mins_of_day // 60
+                m = mins_of_day % 60
+                start_dt = datetime.combine(
+                    target_date + timedelta(days=day_offset),
+                    time(h, m),
+                    tzinfo=local_tz,
+                )
                 start_times.append((channel_id, item["id"], start_dt))
 
         return start_times
@@ -245,7 +250,7 @@ class TwilightManager:
         """Determine active slot and schedule next transition.
 
         is_boot is forwarded to the coordinator so the boot catch-up never
-        activates a scene (engine_relationships.md §8).
+        activates a scene.
 
         Bails out early if the manager has already been torn down — reached
         when this runs from a slot-transition task's `finally` block that
@@ -366,7 +371,9 @@ class TwilightManager:
                     next_event_time = channel_next
 
         if next_event_time:
-            delay = (next_event_time - now_local).total_seconds()
+            delay = (
+                next_event_time.astimezone(UTC) - now_local.astimezone(UTC)
+            ).total_seconds()
             if delay < 0:
                 delay = 0
 
@@ -422,7 +429,20 @@ class TwilightManager:
             # Always reschedule, even if the block above raised — otherwise the
             # scheduler stalls on the current slot for the rest of the HA runtime
             # (timer_unsub is already None by the time this coroutine runs).
-            await self._update_slots_and_schedule()
+            try:
+                await self._update_slots_and_schedule()
+            except Exception:
+                _LOGGER.exception(
+                    "[%s] Error updating slots and schedule — retrying in %ds",
+                    self.engine.area_id,
+                    SLOT_RECOVERY_RETRY_SECONDS,
+                )
+                if self.timer_unsub is None and self._has_schedulable_slots():
+                    self.timer_unsub = async_call_later(
+                        self.engine.hass,
+                        SLOT_RECOVERY_RETRY_SECONDS,
+                        self._on_slot_transition,
+                    )
 
     def _get_transition_seconds_for_channel(self, channel_id: str) -> int:
         """Get transition seconds for a channel (falling back to area/const.py)."""

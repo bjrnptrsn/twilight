@@ -1,0 +1,32 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "description": "Twilight wird über das Panel in der Seitenleiste konfiguriert — dieser Eintrag dient nur als Anker für optionale Button-/Switch-Entitäten und erfordert keine Einrichtung."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "[%key:common::config_flow::abort::single_instance_allowed%]"
+    }
+  },
+  "services": {
+    "trigger_input": {
+      "name": "Eingang auslösen",
+      "description": "Löst manuell einen Button-Eingang (Klick oder Umschalten) für einen bestimmten Bereich aus.",
+      "fields": {
+        "area_id": {
+          "name": "Bereichs-ID",
+          "description": "Die ID des Bereichs, der den Eingang enthält."
+        },
+        "input_id": {
+          "name": "Eingangs-ID",
+          "description": "Die ID oder der Name des auszulösenden Button-Eingangs."
+        },
+        "active": {
+          "name": "Aktiver Zustand",
+          "description": "Legt bei Umschalt-Buttons fest, ob der Zustand des Eingangs aktiv (true) oder inaktiv (false) sein soll."
+        }
+      }
+    }
+  }
+}

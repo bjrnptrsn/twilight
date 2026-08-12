@@ -53,6 +53,9 @@ class RunState:
     )  # active status per rule ID
     activity_expire_frozen_seconds: float | None = None  # frozen auto_expire duration while rule active
     activity_expire_source: Literal["activity", "rule"] | None = None  # source of the active auto_expire timer
+    manual_off_entities: frozenset[str] = field(
+        default_factory=frozenset
+    )  # entities manually turned off externally during active activity
 
 
 @dataclass(frozen=True)

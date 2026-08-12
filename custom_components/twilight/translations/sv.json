@@ -1,0 +1,32 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "description": "Twilight konfigureras via panelen i sidofältet — denna post förankrar endast enheter för valfria knapp-/brytarentiteter och kräver ingen inställning."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "[%key:common::config_flow::abort::single_instance_allowed%]"
+    }
+  },
+  "services": {
+    "trigger_input": {
+      "name": "Utlös ingång",
+      "description": "Utlöser manuellt en knappingång (klick eller växling) för ett visst område.",
+      "fields": {
+        "area_id": {
+          "name": "Område-ID",
+          "description": "ID:t för området som innehåller ingången."
+        },
+        "input_id": {
+          "name": "Ingångs-ID",
+          "description": "ID:t eller namnet på knappingången som ska utlösas."
+        },
+        "active": {
+          "name": "Aktivt tillstånd",
+          "description": "För växlingsknappar anges om ingångens tillstånd ska vara aktivt (true) eller inaktivt (false)."
+        }
+      }
+    }
+  }
+}

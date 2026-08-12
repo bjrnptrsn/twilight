@@ -23,7 +23,10 @@ def _is_leap(year: int) -> bool:
 
 
 def _sun_safe(
-    location: LocationInfo, d: _dt.date, depression: Depression
+    location: LocationInfo,
+    d: _dt.date,
+    depression: Depression,
+    tzinfo: _zi.ZoneInfo | None = None,
 ) -> dict[str, Any] | None:
     """Safely calculate sun events, returning None if calculations fail (polar conditions)."""
     try:
@@ -32,7 +35,7 @@ def _sun_safe(
             sun(
                 location.observer,
                 date=d,
-                tzinfo=location.timezone,
+                tzinfo=tzinfo or location.timezone,
                 dawn_dusk_depression=depression,
             ),
         )
@@ -60,27 +63,26 @@ def _sun_events_direct(
     """Fallback calculation for polar regions where standard sun() might fail."""
     local_midnight = _dt.datetime.combine(d, _dt.time(0, 0), tzinfo=local_tz)
     obs = location.observer
-    tz = location.timezone
 
     def to_mins(dt: _dt.datetime) -> float:
         return (dt.astimezone(local_tz) - local_midnight).total_seconds() / 60
 
     def safe_dawn(dep: float) -> float | None:
         try:
-            return to_mins(_astral_dawn(obs, date=d, depression=dep, tzinfo=tz))
+            return to_mins(_astral_dawn(obs, date=d, depression=dep, tzinfo=local_tz))
         except ValueError:
             # astral raises ValueError for polar conditions (event doesn't occur).
             return None
 
     def safe_dusk(dep: float) -> float | None:
         try:
-            return to_mins(_astral_dusk(obs, date=d, depression=dep, tzinfo=tz))
+            return to_mins(_astral_dusk(obs, date=d, depression=dep, tzinfo=local_tz))
         except ValueError:
             return None
 
     def safe_fn(fn: Callable[..., _dt.datetime]) -> float | None:
         try:
-            return to_mins(fn(obs, date=d, tzinfo=tz))
+            return to_mins(fn(obs, date=d, tzinfo=local_tz))
         except ValueError:
             return None
 
@@ -108,12 +110,12 @@ def _sun_events_direct(
 
     _sr = None
     try:
-        _sr = to_mins(_astral_sunrise(obs, date=d, tzinfo=tz))
+        _sr = to_mins(_astral_sunrise(obs, date=d, tzinfo=local_tz))
     except ValueError:
         try:
-            vm_morning = sun_midnight(obs, date=d, tzinfo=tz)
+            vm_morning = sun_midnight(obs, date=d, tzinfo=local_tz)
             el_morning = elevation(obs, vm_morning)
-            vm_evening = sun_midnight(obs, date=d + _dt.timedelta(days=1), tzinfo=tz)
+            vm_evening = sun_midnight(obs, date=d + _dt.timedelta(days=1), tzinfo=local_tz)
             el_evening = elevation(obs, vm_evening)
             if min(el_morning, el_evening) >= -0.833:
                 _sr = 0.0
@@ -137,7 +139,8 @@ def _sun_events_direct(
 def _clamp_twilight_slots(day: dict[str, Any], max_gap: float = 35.0) -> dict[str, Any]:
     """Ensure logical chronological order of twilight phases by clamping them."""
     d = dict(day)
-    limit_dusk = d.get("solar_midnight_evening") or 1440.0
+    solar_midnight_evening = d.get("solar_midnight_evening")
+    limit_dusk = 1440.0 if solar_midnight_evening is None else solar_midnight_evening
     limit_dawn = d.get("solar_midnight") or 0.0
 
     dusk_chain = ["sunset", "dusk", "nautical_dusk", "astro_dusk"]
@@ -199,7 +202,7 @@ def compute_sun_day_data(
     # One sun() call (CIVIL) gives us sunrise/sunset/noon; dawn/dusk at all
     # depression levels are fetched individually via _astral_dawn/_astral_dusk
     # in _raw_dawn/_raw_dusk (bundle=None path) to avoid 3× sun() calls.
-    civil = _sun_safe(location, d, Depression.CIVIL)
+    civil = _sun_safe(location, d, Depression.CIVIL, tzinfo=local_tz)
 
     local_midnight_dt = _dt.datetime.combine(d, _dt.time(0, 0), tzinfo=local_tz)
     sm_mins: float | None = None
@@ -212,14 +215,14 @@ def compute_sun_day_data(
         ),
     )
     try:
-        vm_morning = sun_midnight(location.observer, date=d, tzinfo=location.timezone)
+        vm_morning = sun_midnight(location.observer, date=d, tzinfo=local_tz)
         el_morning = elevation(location.observer, vm_morning)
         sm_mins = _mins(vm_morning, d, local_tz)
     except ValueError:
         pass
     try:
         vm_evening = sun_midnight(
-            location.observer, date=d + _dt.timedelta(days=1), tzinfo=location.timezone
+            location.observer, date=d + _dt.timedelta(days=1), tzinfo=local_tz
         )
         el_evening = elevation(location.observer, vm_evening)
         sm_evening_mins = _mins(vm_evening, d, local_tz)
@@ -257,29 +260,25 @@ def compute_sun_day_data(
 
         def _raw_dawn(dep: float) -> _dt.datetime | None:
             try:
-                return cast(
-                    _dt.datetime,
-                    _astral_dawn(
-                        location.observer,
-                        date=d,
-                        depression=dep,
-                        tzinfo=location.timezone,
-                    ),
+                res = _astral_dawn(
+                    location.observer,
+                    date=d,
+                    depression=dep,
+                    tzinfo=local_tz,
                 )
+                return res if isinstance(res, _dt.datetime) else None
             except ValueError:
                 return None
 
         def _raw_dusk(dep: float) -> _dt.datetime | None:
             try:
-                return cast(
-                    _dt.datetime,
-                    _astral_dusk(
-                        location.observer,
-                        date=d,
-                        depression=dep,
-                        tzinfo=location.timezone,
-                    ),
+                res = _astral_dusk(
+                    location.observer,
+                    date=d,
+                    depression=dep,
+                    tzinfo=local_tz,
                 )
+                return res if isinstance(res, _dt.datetime) else None
             except ValueError:
                 return None
 
@@ -323,7 +322,10 @@ def compute_sun_day_data(
     slot_sunrise = clamped["sunrise"]
     slot_sunset = clamped["sunset"]
 
-    if slot_sunrise is not None and slot_sunset is not None:
+    has_real_sunrise = raw.get("sunrise") not in (None, 0.0)
+    has_real_sunset = raw.get("sunset") not in (None, 0.0)
+
+    if has_real_sunrise and has_real_sunset and slot_sunrise is not None and slot_sunset is not None:
         if slot_sunrise + 30 >= slot_sunset - 30:
             # Day too short for a 30-min golden band on each side.
             slot_gold_dawn = None
@@ -338,8 +340,7 @@ def compute_sun_day_data(
         # are independent — deriving the day zone from sunrise does not require a
         # sunset to exist. Coupling them left the last day before polar day with a
         # civil_dawn but no zone to ever end it, so the civil colour ran to
-        # midnight and painted a single dark column into a bright polar-day block
-        # (docs/agents/timeline.md §11e3).
+        # midnight and painted a single dark column into a bright polar-day block.
         #
         # On a true polar day the sunrise/sunset values degenerate to an exact
         # 0.0 placeholder rather than None — the sun is already up at midnight,
@@ -352,8 +353,6 @@ def compute_sun_day_data(
         # 2026-10-23, sunrise = 137.0) while midnight elevation has already
         # crossed the horizon, so an elevation test would discard a real event.
         # A genuine sunrise at exactly 00:00.000 is not representable here anyway.
-        has_real_sunrise = raw.get("sunrise") not in (None, 0.0)
-        has_real_sunset = raw.get("sunset") not in (None, 0.0)
         slot_gold_dawn = slot_sunrise if has_real_sunrise else None
         slot_day = (
             slot_sunrise + 30

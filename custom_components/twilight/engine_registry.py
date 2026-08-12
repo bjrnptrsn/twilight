@@ -76,8 +76,8 @@ async def async_start_engine(
     engine is *not* registered — one bad area must never keep the others from
     getting theirs (that is why every caller tolerates None rather than raising).
     """
-    engine = TwilightEngine(hass, area_id, config, initial_state=initial_state)
     try:
+        engine = TwilightEngine(hass, area_id, config, initial_state=initial_state)
         await engine.async_setup()
     except Exception:
         _LOGGER.exception(
@@ -89,5 +89,11 @@ async def async_start_engine(
 
     engines = hass.data[DOMAIN].setdefault("engines", {})
     engines[area_id] = engine
-    await async_sync_area_entities(hass, area_id, engine.config)
+    try:
+        await async_sync_area_entities(hass, area_id, engine.config)
+    except Exception:
+        _LOGGER.exception(
+            "[%s] Button/switch entity sync failed — engine is running regardless",
+            area_id,
+        )
     return engine

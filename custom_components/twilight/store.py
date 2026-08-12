@@ -93,7 +93,7 @@ def _prune_and_default(
             del config[key]
             modified = True
     for key, default in defaults.items():
-        if key not in config:
+        if key not in config or (config[key] is None and default is not None):
             config[key] = copy.deepcopy(default)
             modified = True
     return modified
@@ -219,6 +219,17 @@ def _normalize_custom_channels(channels: dict[str, Any]) -> bool:
             modified = True
         slots = channel.get("slots")
         if not isinstance(slots, list):
+            # Only the Primary channel's "slots" may be a dict (materialized
+            # from STANDARD_ZONES); the WS schema doesn't distinguish channel
+            # types, so a non-UI client sending a dict for a custom channel
+            # ends up here instead of being rejected.
+            if slots is not None:
+                _LOGGER.warning(
+                    "Channel %r: 'slots' must be a list, got %s — resetting to "
+                    "an empty list",
+                    ch_id,
+                    type(slots).__name__,
+                )
             channel["slots"] = []
             modified = True
             continue
@@ -300,19 +311,22 @@ def _normalize_input(inp: dict[str, Any], existing_ids: set[str]) -> bool:
     """
     modified = False
 
-    # Ensure it has an id
-    if "id" not in inp or not inp["id"]:
-        inp_type = inp.get("type", "binary")
+    if "type" not in inp:
+        inp["type"] = "motion"
+        modified = True
+
+    # Ensure it has a unique id
+    raw_id = inp.get("id")
+    if not raw_id or raw_id in existing_ids:
+        inp_type = inp.get("type", "motion")
         candidate = f"{inp_type}_{secrets.token_hex(4)}"
         while candidate in existing_ids:
             candidate = f"{inp_type}_{secrets.token_hex(4)}"
         existing_ids.add(candidate)
         inp["id"] = candidate
         modified = True
-
-    if "type" not in inp:
-        inp["type"] = "motion"
-        modified = True
+    else:
+        existing_ids.add(raw_id)
 
     inp_type = inp.get("type")
     subclass = (
@@ -345,11 +359,6 @@ def _normalize_input(inp: dict[str, Any], existing_ids: set[str]) -> bool:
             inp["aggregation_count"] = None
             modified = True
 
-    # Button-specific normalization (buttons have no entity_ids in store)
-    if inp_type == "button" and "entity_ids" in inp:
-        del inp["entity_ids"]
-        modified = True
-
     return modified
 
 
@@ -357,13 +366,16 @@ def _normalize_activity(act: dict[str, Any], existing_ids: set[str]) -> bool:
     """Normalize a single activity dict (id, name, auto_expire, suppress_inputs, action/release_action)."""
     modified = False
 
-    if "id" not in act or not act["id"]:
+    raw_id = act.get("id")
+    if not raw_id or raw_id in existing_ids:
         candidate = f"activity_{secrets.token_hex(4)}"
         while candidate in existing_ids:
             candidate = f"activity_{secrets.token_hex(4)}"
         existing_ids.add(candidate)
         act["id"] = candidate
         modified = True
+    else:
+        existing_ids.add(raw_id)
 
     modified = ActivityConfig.prune_and_default(act, keep={"id"}) or modified
 
@@ -373,10 +385,7 @@ def _normalize_activity(act: dict[str, Any], existing_ids: set[str]) -> bool:
 
     for action_key in ("action", "release_action"):
         action_raw = act.get(action_key)
-        if not isinstance(action_raw, dict):
-            act[action_key] = {"type": None}
-            modified = True
-        else:
+        if isinstance(action_raw, dict):
             if "type" not in action_raw:
                 action_raw["type"] = None
                 modified = True
@@ -395,8 +404,8 @@ def _normalize_sensor(sensor: dict[str, Any], existing_ids: set[str]) -> bool:
     """Normalize a single sensor dict (id, entity_ids, aggregation)."""
     modified = False
 
-    # Ensure it has an id
-    if "id" not in sensor or not sensor["id"]:
+    raw_id = sensor.get("id")
+    if not raw_id or raw_id in existing_ids:
         s_type = sensor.get("type", "illuminance")
         candidate = f"{s_type}_{secrets.token_hex(4)}"
         while candidate in existing_ids:
@@ -404,6 +413,8 @@ def _normalize_sensor(sensor: dict[str, Any], existing_ids: set[str]) -> bool:
         existing_ids.add(candidate)
         sensor["id"] = candidate
         modified = True
+    else:
+        existing_ids.add(raw_id)
 
     if "type" not in sensor:
         sensor["type"] = "illuminance"
@@ -438,13 +449,16 @@ def _normalize_rule(rule: dict[str, Any], existing_ids: set[str]) -> bool:
     """
     modified = False
 
-    if "id" not in rule or not rule["id"]:
+    raw_id = rule.get("id")
+    if not raw_id or raw_id in existing_ids:
         candidate = f"rule_{secrets.token_hex(4)}"
         while candidate in existing_ids:
             candidate = f"rule_{secrets.token_hex(4)}"
         existing_ids.add(candidate)
         rule["id"] = candidate
         modified = True
+    else:
+        existing_ids.add(raw_id)
 
     modified = RuleConfig.prune_and_default(rule, keep={"id"}) or modified
 
@@ -477,11 +491,7 @@ def _normalize_config_lists(config: dict[str, Any]) -> bool:
         config["inputs"] = inputs
         modified = True
 
-    existing_ids: set[str] = {
-        inp["id"]
-        for inp in inputs
-        if isinstance(inp, dict) and isinstance(inp.get("id"), str) and inp["id"]
-    }
+    existing_ids: set[str] = set()
     for inp in inputs:
         if not isinstance(inp, dict):
             continue
@@ -494,11 +504,7 @@ def _normalize_config_lists(config: dict[str, Any]) -> bool:
         config["activities"] = activities
         modified = True
 
-    existing_activity_ids: set[str] = {
-        act["id"]
-        for act in activities
-        if isinstance(act, dict) and isinstance(act.get("id"), str) and act["id"]
-    }
+    existing_activity_ids: set[str] = set()
     for act in activities:
         if not isinstance(act, dict):
             continue
@@ -511,11 +517,7 @@ def _normalize_config_lists(config: dict[str, Any]) -> bool:
         config["sensors"] = sensors
         modified = True
 
-    existing_sensor_ids: set[str] = {
-        s["id"]
-        for s in sensors
-        if isinstance(s, dict) and isinstance(s.get("id"), str) and s["id"]
-    }
+    existing_sensor_ids: set[str] = set()
     for s in sensors:
         if not isinstance(s, dict):
             continue
@@ -528,11 +530,7 @@ def _normalize_config_lists(config: dict[str, Any]) -> bool:
         config["rules"] = rules
         modified = True
 
-    existing_rule_ids: set[str] = {
-        r["id"]
-        for r in rules
-        if isinstance(r, dict) and isinstance(r.get("id"), str) and r["id"]
-    }
+    existing_rule_ids: set[str] = set()
     for r in rules:
         if not isinstance(r, dict):
             continue
@@ -642,6 +640,28 @@ def _migrate_store_data(data: dict[str, Any]) -> bool:
             if isinstance(area_tpl, dict):
                 _migrate_activities(area_tpl.get("activities"))
 
+                # One-time backfill for stores predating custom_channels/rules
+                # in area_template: an empty/missing value here means "stores
+                # written before the feature existed", not a deliberate user
+                # choice — deliberate emptying only became possible once the
+                # settings UI could edit these fields, i.e. after this
+                # migration already ran once. Must not repeat on every load
+                # (see async_load), or it would keep overwriting a user who
+                # intentionally clears custom_channels/rules afterwards.
+                custom_ch = area_tpl.get("custom_channels")
+                if not isinstance(custom_ch, dict) or not custom_ch:
+                    area_tpl["custom_channels"] = copy.deepcopy(
+                        DEFAULT_AREA_TEMPLATE.get("custom_channels", {})
+                    )
+                    modified = True
+
+                rules = area_tpl.get("rules")
+                if not isinstance(rules, list) or not rules:
+                    area_tpl["rules"] = copy.deepcopy(
+                        DEFAULT_AREA_TEMPLATE.get("rules", [])
+                    )
+                    modified = True
+
         # Migrate all areas
         areas = data.get("areas")
         if isinstance(areas, dict):
@@ -677,22 +697,25 @@ class TwilightStore:
         self._hass = hass
         self.store: Store[dict[str, Any]] = TwilightHAStore(hass, STORAGE_VERSION, STORAGE_KEY)
         self.data: dict[str, Any] = {}
-        # Serializes the two store-wide writers (async_save_global,
-        # async_import_all) against each other — both replace self.data["global"]
-        # (and async_import_all also self.data["areas"]) wholesale, so two
-        # concurrent calls could otherwise interleave and leave a mixed result.
-        # Does not cover per-area area/save|delete (helpers.get_area_lock) —
-        # serializing a whole-store import against every individual area write
-        # would require holding this lock across each area's engine reload too,
-        # a larger change than this fix's scope.
+        # Serializes every store-wide/wholesale writer against the others:
+        # async_save_global and async_import_all both replace self.data["global"]
+        # (and async_import_all also self.data["areas"]) wholesale, and
+        # async_save_area/async_delete_area mutate self.data["areas"] in place —
+        # without this lock a concurrent import could interleave with a save/
+        # delete for an area outside the import's own area-lock set (e.g. one
+        # created mid-import, unknown to the lock set computed at import start)
+        # and leave a mixed or lost result. websocket/config.py's per-area
+        # locking (helpers.get_area_lock) additionally serializes area/save|
+        # delete against each other and holds every area known at import start
+        # for the post-import engine reload — this lock closes the remaining
+        # gap for areas that set is unaware of.
         self._global_write_lock = asyncio.Lock()
 
     async def async_load(self) -> None:
         stored = await self.store.async_load()
-        _LOGGER.debug("TwilightStore raw stored content loaded: %s", stored)
 
         updated = False
-        if stored is None:
+        if not isinstance(stored, dict):
             self.data = {
                 "version": STORAGE_VERSION,
                 "areas": {},
@@ -705,21 +728,26 @@ class TwilightStore:
         if _migrate_store_data(self.data):
             updated = True
 
-        self.data.setdefault("areas", {})
+        if not isinstance(self.data.get("areas"), dict):
+            self.data["areas"] = {}
+            updated = True
+        if not isinstance(self.data.get("global"), dict):
+            self.data["global"] = {}
+            updated = True
 
         # Normalize each area: build/repair the channels dict (Primary always
         # complete) and the inputs/activities schema.
         updated_areas = False
-        for _area_id, area_cfg in self.data.get("areas", {}).items():
+        for area_id, area_cfg in list(self.data.get("areas", {}).items()):
             if not isinstance(area_cfg, dict):
+                del self.data["areas"][area_id]
+                updated_areas = True
                 continue
             if _normalize_area_config(area_cfg):
                 updated_areas = True
 
         if updated_areas:
             updated = True
-
-        self.data.setdefault("global", {})
 
         # Whitelist-prune unknown/renamed keys, backfill missing ones from const.py.
         # Legacy global-only keys (extend_ignore_lux, lux_*, expire_check_mode,
@@ -728,16 +756,15 @@ class TwilightStore:
         if _prune_and_default(self.data["global"], GLOBAL_DEFAULTS):
             updated = True
 
-        # Ensure custom_channels exists and is non-empty in area_template for backward compatibility
+        # Structurally normalize area_template (shape only — does not backfill
+        # empty custom_channels/rules; a user who deliberately clears them via
+        # the settings UI must have that respected on every subsequent load,
+        # not just for pre-existing stores. That one-time backward-compat
+        # backfill lives in _migrate_store_data() instead, gated by
+        # STORAGE_VERSION so it runs exactly once for old stores.
         area_template = self.data["global"].get("area_template")
         if isinstance(area_template, dict):
             custom_ch = area_template.get("custom_channels")
-            if not isinstance(custom_ch, dict) or not custom_ch:
-                area_template["custom_channels"] = copy.deepcopy(
-                    DEFAULT_AREA_TEMPLATE.get("custom_channels", {})
-                )
-                updated = True
-                custom_ch = area_template["custom_channels"]
             if isinstance(custom_ch, dict) and _normalize_custom_channels(custom_ch):
                 updated = True
 
@@ -745,13 +772,6 @@ class TwilightStore:
             norm_primary = normalize_primary_slots_sparse(primary_slots)
             if not isinstance(primary_slots, dict) or norm_primary != primary_slots:
                 area_template["primary_slots"] = norm_primary
-                updated = True
-
-            rules = area_template.get("rules")
-            if not isinstance(rules, list) or not rules:
-                area_template["rules"] = copy.deepcopy(
-                    DEFAULT_AREA_TEMPLATE.get("rules", [])
-                )
                 updated = True
 
         # Normalize the area_template's inputs/activities/sensors/rules with the same
@@ -773,6 +793,8 @@ class TwilightStore:
     def get_areas(self) -> dict[str, Any]:
         result = {}
         for area_id, config in self.data["areas"].items():
+            if not isinstance(config, dict):
+                continue
             area_config = dict(config)
             area_config.pop("_state", None)
             result[area_id] = materialize_area_primary_slots(area_config)
@@ -780,7 +802,7 @@ class TwilightStore:
 
     def get_area(self, area_id: str) -> dict[str, Any] | None:
         area = self.data["areas"].get(area_id)
-        if area is None:
+        if not isinstance(area, dict):
             return None
         area_config = dict(area)
         area_config.pop("_state", None)
@@ -788,10 +810,10 @@ class TwilightStore:
 
     def get_area_state(self, area_id: str) -> dict[str, Any] | None:
         area = self.data["areas"].get(area_id)
-        if area is None:
+        if not isinstance(area, dict):
             return None
         state = area.get("_state")
-        return dict(state) if state is not None else None
+        return dict(state) if isinstance(state, dict) else None
 
     async def async_save_area(self, area_id: str, config: dict[str, Any]) -> str:
         # Deep-copy so the store never aliases the caller's dict: the WS handler
@@ -802,20 +824,30 @@ class TwilightStore:
         cleaned_config = copy.deepcopy(config)
         cleaned_config.pop("_state", None)
 
-        # Populate with default template if new area is created
+        # Seed new areas from the area_template. Only direct store callers
+        # (e.g. an import) can hit these is-None branches: the WS schema's
+        # default=[] on inputs/activities/sensors/rules already materializes
+        # empty lists, so over the area/save path the template never applies
+        # to those fields (custom channels/primary slots below are live).
         if area_id not in self.data["areas"]:
-            stored_tpl = self.data["global"].get("area_template", DEFAULT_AREA_TEMPLATE)
+            stored_tpl = self.data["global"].get("area_template") or DEFAULT_AREA_TEMPLATE
+            if not isinstance(stored_tpl, dict):
+                stored_tpl = DEFAULT_AREA_TEMPLATE
             inputs_tpl = stored_tpl.get("inputs")
-            if not cleaned_config.get("inputs") and isinstance(inputs_tpl, list):
+            if cleaned_config.get("inputs") is None and isinstance(inputs_tpl, list):
                 cleaned_config["inputs"] = copy.deepcopy(inputs_tpl)
             activities_tpl = stored_tpl.get("activities")
-            if not cleaned_config.get("activities") and isinstance(
-                activities_tpl, list
+            if (
+                cleaned_config.get("activities") is None
+                and isinstance(activities_tpl, list)
             ):
                 cleaned_config["activities"] = copy.deepcopy(activities_tpl)
             sensors_tpl = stored_tpl.get("sensors")
-            if not cleaned_config.get("sensors") and isinstance(sensors_tpl, list):
+            if cleaned_config.get("sensors") is None and isinstance(sensors_tpl, list):
                 cleaned_config["sensors"] = copy.deepcopy(sensors_tpl)
+            rules_tpl = stored_tpl.get("rules")
+            if cleaned_config.get("rules") is None and isinstance(rules_tpl, list):
+                cleaned_config["rules"] = copy.deepcopy(rules_tpl)
             custom_ch = stored_tpl.get("custom_channels")
             if isinstance(custom_ch, dict) and custom_ch:
                 if "channels" not in cleaned_config or not isinstance(
@@ -843,30 +875,45 @@ class TwilightStore:
         # Normalize inputs/activities
         _normalize_area_config(cleaned_config)
 
-        # Merge with existing _state if present
-        existing = self.data["areas"].get(area_id)
-        if existing and "_state" in existing:
-            cleaned_config["_state"] = existing["_state"]
+        # Guards against a global/import running concurrently: async_import_all
+        # replaces self.data["areas"] wholesale, and its per-area locking (taken
+        # one layer up, in websocket/config.py) only covers area_ids known at
+        # import start — a brand new area saved mid-import wouldn't be covered
+        # by that set. This lock serializes against that wholesale replace
+        # regardless of area_id, closing that gap.
+        async with self._global_write_lock:
+            # Merge with existing _state if present
+            existing = self.data["areas"].get(area_id)
+            if existing and "_state" in existing:
+                cleaned_config["_state"] = existing["_state"]
 
-        self.data["areas"][area_id] = cleaned_config
-        await self.store.async_save(self.data)
+            self.data["areas"][area_id] = cleaned_config
+            await self.store.async_save(self.data)
         return area_id
 
     async def async_delete_area(self, area_id: str) -> bool:
-        if area_id not in self.data["areas"]:
-            return False
-        del self.data["areas"][area_id]
-        await self.store.async_save(self.data)
+        async with self._global_write_lock:
+            if area_id not in self.data["areas"]:
+                return False
+            del self.data["areas"][area_id]
+            await self.store.async_save(self.data)
         return True
 
     def save_area_state(self, area_id: str, state_config: dict[str, Any]) -> None:
+        # Deliberately without _global_write_lock: sync-only (no await possible),
+        # single-key mutation behind the area_id guard, and async_delay_save
+        # serializes the eventual write. A concurrent import/restore replaces
+        # self.data wholesale and could drop this _state update — accepted, the
+        # engine rebuilds the dict from live state on boot.
         if area_id not in self.data["areas"]:
             return
         self.data["areas"][area_id]["_state"] = state_config
         self.store.async_delay_save(lambda: self.data, 0.5)
 
     def generate_new_area_draft(self, area_id: str) -> dict[str, Any]:
-        stored_tpl = self.data["global"].get("area_template", DEFAULT_AREA_TEMPLATE)
+        stored_tpl = self.data["global"].get("area_template") or DEFAULT_AREA_TEMPLATE
+        if not isinstance(stored_tpl, dict):
+            stored_tpl = DEFAULT_AREA_TEMPLATE
         channels = default_channels()
         primary_tpl = stored_tpl.get("primary_slots")
         if isinstance(primary_tpl, dict) and primary_tpl:
@@ -905,7 +952,7 @@ class TwilightStore:
     # --- Global Defaults ---
 
     def get_global(self) -> dict[str, Any]:
-        return dict(self.data["global"])
+        return copy.deepcopy(self.data["global"])
 
     async def async_save_global(self, config: dict[str, Any]) -> None:
         # Deep-copy so the store never aliases the caller's dict: the WS handler
@@ -940,6 +987,10 @@ class TwilightStore:
             raise ValueError("Invalid backup payload structure: expected JSON object")
 
         version = payload.get("twilight_backup_version")
+        if version is not None and not isinstance(version, int):
+            raise ValueError(
+                f"Invalid backup version {version!r}: expected an integer"
+            )
         if version is not None and version > BACKUP_VERSION:
             raise ValueError(
                 f"Unsupported backup version {version!r}: this Twilight release "
@@ -990,4 +1041,10 @@ class TwilightStore:
 
             self.data["areas"] = new_areas
             self.data["global"] = new_global
+            await self.store.async_save(self.data)
+
+    async def async_restore_data(self, data: dict[str, Any]) -> None:
+        """Overwrite the full store with a previously captured snapshot (e.g. rollback after a failed import)."""
+        async with self._global_write_lock:
+            self.data = data
             await self.store.async_save(self.data)

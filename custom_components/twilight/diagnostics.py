@@ -2,13 +2,26 @@
 
 from __future__ import annotations
 
-from dataclasses import fields
+from dataclasses import fields, is_dataclass
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN
+
+
+def _json_safe(val: Any) -> Any:
+    """Recursively convert a RunState field value into a JSON-serializable form."""
+    if isinstance(val, frozenset):
+        return sorted(val)
+    if hasattr(val, "isoformat"):
+        return val.isoformat()
+    if is_dataclass(val) and not isinstance(val, type):
+        return {f.name: _json_safe(getattr(val, f.name)) for f in fields(val)}
+    if isinstance(val, dict):
+        return {k: _json_safe(v) for k, v in val.items()}
+    return val
 
 
 async def async_get_config_entry_diagnostics(
@@ -35,16 +48,9 @@ def build_diagnostics(hass: HomeAssistant) -> dict[str, Any]:
     for area_id, engine in engines.items():
         state = engine.run_state
 
-        run_dict: dict[str, Any] = {}
-        for f in fields(state):
-            val = getattr(state, f.name)
-            if isinstance(val, frozenset):
-                val = sorted(val)
-            elif hasattr(val, "isoformat"):
-                val = val.isoformat()
-            elif isinstance(val, dict):
-                val = dict(val)
-            run_dict[f.name] = val
+        run_dict: dict[str, Any] = {
+            f.name: _json_safe(getattr(state, f.name)) for f in fields(state)
+        }
 
         scene_map: dict[str, Any] = {}
         for (channel_id, slot_id), info in engine.scene_map.items():

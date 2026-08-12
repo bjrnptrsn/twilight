@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.6.0 - 2026-08-12
+
+### ✨ Features
+
+*   **17 Languages**: The Twilight panel — every card, dialog, and label — is now available in Czech, Danish, Dutch, English, Finnish, French, German, Italian, Norwegian, Polish, Portuguese, Simplified Chinese, Slovak, Spanish, Swedish, Turkish, and Ukrainian, matching Home Assistant's own language setting automatically.
+
+*   **Respect Off**: Activities can now be set to leave a light alone if it was switched off manually while active, instead of turning it back on at the next slot change.
+
+*   **Rule Control Over Manual Off**: Rules can now force an Activity to either respect or ignore manually switched-off lights while the rule is active, overriding the Activity's own setting.
+
+### 🎨 Improvements
+
+*   **Clean Reinstall**: Removing the Twilight integration now also clears its stored configuration, so adding it again starts fresh instead of restoring old areas.
+
+*   **Translated Service & Setup Text**: The Trigger Input service and the one-time setup step now show properly translated text in Home Assistant's supported languages instead of always falling back to English.
+
+*   **Localized Heatmap Week Start**: The Analytics heatmap now starts its week on the day Home Assistant's language settings expect, instead of always starting on Monday.
+
+*   **Light Command Handling Refactor**: Reworked how Twilight sends and retries light commands internally, making transitions and retries more consistent across scenes and single lights.
+
+*   **Faster Areas Tab Switching**: Switching away from and back to the Areas tab now keeps its live data and any area you have open, instead of reloading everything from scratch.
+
+### 🔧 Fixes
+
+*   **Startup Responsiveness**: Fixed a case where loading sun/slot data during setup could briefly stall Home Assistant's event loop.
+
+*   **Areas Overview Flicker**: Fixed a rendering loop that could cause the Areas tab to flicker while no areas are configured yet.
+
+*   **Stuck Scene Transitions**: When a light fails to reach its target during a slot change, the next motion trigger now reapplies the scene properly instead of being ignored.
+
+*   **Daylight-Saving Accuracy**: Slot transitions around the summer/winter time change are now executed at the correct time instead of one hour off.
+
+*   **Presence Simulation**: Fixed a double start after a Home Assistant restart when a sensor triggers the simulation at the same time.
+
+*   **Disabling or Deleting an Area**: Lights now switch off when an area is disabled or deleted, matching the existing behavior for individual channels.
+
 ## 0.5.0 - 2026-08-05
 
 ### ⚠️ Breaking Changes
@@ -62,7 +98,7 @@
 
 *   **Activity Rules**: the first Rule type, allows overriding a target activity's channel/slot configuration, while the activity is running.
 
-*   **Presence Simulation Action**: activities can now use the `simulation` action type to make an empty home look occupied by playing back an activity's light behavior based on historical motion density.
+*   **Presence Simulation Action**: activities can now use the Presence Simulation action to make an empty home look occupied by playing back an activity's light behavior based on historical motion density.
 
 *   **Saved Heatmap Profiles**: save up to 5 static snapshots of sensor motion heatmap data per area, manage profiles in the Heatmap card, and select profiles for presence simulation or visualization.
 
@@ -80,7 +116,7 @@ changes between versions are expected.
 
 *   **Input-driven activities**: motion, binary sensor, event, timer, and button inputs mapped to freely named activities; per-activity start/release actions (slot/scene/script/light/turn-off/none).
 
-*   **Multi-entity inputs**: several entities per input — motion with configurable re-trigger, binary with `any`/`all`/`count` aggregation.
+*   **Multi-entity inputs**: several entities per input — motion with configurable re-trigger, binary with any/all/count aggregation.
 
 *   **Lux gating**: illuminance sensors as a per-input threshold, with configurable ignore scopes.
 

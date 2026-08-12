@@ -1,0 +1,32 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "description": "Twilight viene configurato tramite il pannello nella barra laterale: questa voce serve solo come ancoraggio del dispositivo per le entità pulsante/interruttore opzionali e non richiede alcuna configurazione."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "[%key:common::config_flow::abort::single_instance_allowed%]"
+    }
+  },
+  "services": {
+    "trigger_input": {
+      "name": "Attiva input",
+      "description": "Attiva manualmente un input di tipo pulsante (clic o commutazione) per un'area specifica.",
+      "fields": {
+        "area_id": {
+          "name": "ID area",
+          "description": "L'ID dell'area contenente l'input."
+        },
+        "input_id": {
+          "name": "ID input",
+          "description": "L'ID o il nome dell'input pulsante da attivare."
+        },
+        "active": {
+          "name": "Stato attivo",
+          "description": "Per i pulsanti a commutazione, imposta se lo stato dell'input deve essere attivo (true) o inattivo (false)."
+        }
+      }
+    }
+  }
+}

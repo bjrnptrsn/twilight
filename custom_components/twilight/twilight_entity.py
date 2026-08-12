@@ -35,6 +35,13 @@ def attach_config_entry(hass: HomeAssistant, component: EntityComponent[Any]) ->
     entity sync, so the entry normally exists by the time entities are added.
     The warning below is a defensive fallback for paths that cannot await the
     task (e.g. a direct _async_setup_engines call while HA is already running).
+
+    Known fragility: `component._platforms` is private API with no public
+    accessor for the platform instance; if HA ever renames/removes it, the
+    entities silently lose their device grouping (the whole reason for the
+    entry). Replacing it would require forwarding through a real platform
+    module — deliberately not done; the trade-off is documented in the
+    project's architecture notes.
     """
     platform = component._platforms[component.domain]
     if platform.config_entry is not None:
@@ -61,11 +68,15 @@ class TwilightEntity:
     _attr_has_entity_name = True
     _attr_should_poll = False
 
-    def __init__(self, hass: HomeAssistant, area_id: str, input_id: str) -> None:
+    def __init__(self, hass: HomeAssistant, area_id: str, input_id: str, platform: str) -> None:
         self.hass = hass
         self._area_id = area_id
         self._input_id = input_id
-        self._attr_unique_id: str | None = f"{DOMAIN}_{area_id}_{input_id}"
+        # Platform-scoped unique_id: button and switch entities for the same
+        # input used to share one id, which produced a temporary
+        # registry-duplicate when an input switched toggle/click mode (the
+        # button sync added before the switch sync removed).
+        self._attr_unique_id: str | None = f"{DOMAIN}_{platform}_{area_id}_{input_id}"
 
     @property
     def _engine(self) -> TwilightEngine | None:

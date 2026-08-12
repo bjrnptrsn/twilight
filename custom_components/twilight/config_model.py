@@ -14,7 +14,7 @@ from __future__ import annotations
 import copy
 from dataclasses import MISSING, dataclass, field, fields
 from enum import StrEnum
-from typing import Any, Literal, cast
+from typing import Any, Literal, cast, overload
 
 from .const import (
     PRIMARY_CHANNEL_ID,
@@ -23,8 +23,34 @@ from .const import (
     RuleAutoExpireMode,
     SensorType,
     StartType,
+    _safe_bool,
     materialize_primary_slots,
 )
+
+
+def _safe_int(val: Any, default: int = 0) -> int:
+    try:
+        return int(val)
+    except (ValueError, TypeError):
+        return default
+
+
+def _safe_optional_int(val: Any) -> int | None:
+    if val is None:
+        return None
+    try:
+        return int(val)
+    except (ValueError, TypeError):
+        return None
+
+
+def _safe_optional_float(val: Any) -> float | None:
+    if val is None:
+        return None
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return None
 
 
 class BaseConfig:
@@ -36,13 +62,16 @@ class BaseConfig:
         raw: dict[str, Any],
         *,
         keep: set[str] | frozenset[str] = frozenset(),
+        exclude: set[str] | frozenset[str] = frozenset(),
     ) -> bool:
         """Whitelist-prune unknown keys and backfill missing keys with dataclass defaults."""
         if not isinstance(raw, dict):
             return False
 
         modified = False
-        allowed_fields = {f.name for f in fields(cast(Any, cls))} | set(keep)
+        allowed_fields = ({f.name for f in fields(cast(Any, cls))} | set(keep)) - set(
+            exclude
+        )
 
         # 1. Prune unknown keys
         for key in list(raw):
@@ -52,6 +81,8 @@ class BaseConfig:
 
         # 2. Backfill missing keys with default values
         for f in fields(cast(Any, cls)):
+            if f.name in exclude:
+                continue
             if f.name not in raw:
                 if f.default is not MISSING:
                     val = copy.deepcopy(f.default)
@@ -89,19 +120,20 @@ class SlotConfig(BaseConfig):
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> SlotConfig:
         """Parse a slot dict (store-normalized or test-provided)."""
-        speed_raw = raw.get("hue_dynamic_speed")
-        speed = int(speed_raw) if speed_raw is not None else None
+        raw_entities = raw.get("configured_entities")
         return cls(
             id=raw.get("id"),
             name=raw.get("name"),
             start_type=raw.get("start_type") or StartType.ASTRAL.value,
             zone=raw.get("zone"),
             fixed_time=raw.get("fixed_time"),
-            offset_minutes=raw.get("offset_minutes") or 0,
+            offset_minutes=_safe_int(raw.get("offset_minutes"), 0),
             scene_entity_id=raw.get("scene_entity_id"),
-            configured_entities=tuple(raw.get("configured_entities") or ()),
-            hue_activate_dynamic=bool(raw.get("hue_activate_dynamic", False)),
-            hue_dynamic_speed=speed,
+            configured_entities=tuple(raw_entities)
+            if isinstance(raw_entities, list | tuple)
+            else (),
+            hue_activate_dynamic=_safe_bool(raw.get("hue_activate_dynamic"), False),
+            hue_dynamic_speed=_safe_optional_int(raw.get("hue_dynamic_speed")),
         )
 
 
@@ -140,9 +172,9 @@ class ChannelConfig(BaseConfig):
         return cls(
             id=channel_id,
             name=raw.get("name"),
-            enabled=raw.get("enabled", True),
+            enabled=_safe_bool(raw.get("enabled"), True),
             slots=slots,
-            transition_on_seconds=raw.get("transition_on_seconds"),
+            transition_on_seconds=_safe_optional_int(raw.get("transition_on_seconds")),
         )
 
 
@@ -282,8 +314,8 @@ class MotionInputConfig(InputConfig):
             raw = {}
         return cls(
             **InputConfig._base_kwargs(raw),
-            lux_threshold=raw.get("lux_threshold"),
-            lux_watch_window=raw.get("lux_watch_window"),
+            lux_threshold=_safe_optional_float(raw.get("lux_threshold")),
+            lux_watch_window=_safe_optional_int(raw.get("lux_watch_window")),
             lux_ignore_active=raw.get("lux_ignore_active"),
             lux_ignore_scope=raw.get("lux_ignore_scope"),
             retrigger=raw.get("retrigger"),
@@ -327,6 +359,18 @@ class ButtonInputConfig(InputConfig):
     create_entity: bool | None = False
 
     @classmethod
+    def prune_and_default(
+        cls,
+        raw: dict[str, Any],
+        *,
+        keep: set[str] | frozenset[str] = frozenset(),
+        exclude: set[str] | frozenset[str] = frozenset(),
+    ) -> bool:
+        return super().prune_and_default(
+            raw, keep=keep, exclude=set(exclude) | {"entity_ids"}
+        )
+
+    @classmethod
     def from_dict(cls, raw: dict[str, Any] | None) -> ButtonInputConfig:
         if not raw:
             raw = {}
@@ -352,7 +396,7 @@ class BinaryInputConfig(InputConfig):
         return cls(
             **InputConfig._base_kwargs(raw),
             aggregation=raw.get("aggregation"),
-            aggregation_count=raw.get("aggregation_count"),
+            aggregation_count=_safe_optional_int(raw.get("aggregation_count")),
         )
 
 
@@ -415,6 +459,7 @@ class LightActionConfig(ActionConfig):
     brightness: int | None = None
     color_temp: int | None = None
     rgb_color: tuple[int, int, int] | None = None
+    transition: int | None = None
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any] | None) -> LightActionConfig:
@@ -423,14 +468,18 @@ class LightActionConfig(ActionConfig):
         raw_rgb = raw.get("rgb_color")
         parsed_rgb: tuple[int, int, int] | None = None
         if isinstance(raw_rgb, (list, tuple)) and len(raw_rgb) == 3:
-            parsed_rgb = (raw_rgb[0], raw_rgb[1], raw_rgb[2])
+            r, g, b = (_safe_optional_int(c) for c in raw_rgb)
+            if r is not None and g is not None and b is not None:
+                parsed_rgb = (r, g, b)
+        raw_targets = raw.get("targets")
         return cls(
             **ActionConfig._base_kwargs(raw),
-            targets=tuple(raw.get("targets") or ()),
+            targets=tuple(raw_targets) if isinstance(raw_targets, list | tuple) else (),
             state=raw.get("state"),
-            brightness=raw.get("brightness"),
-            color_temp=raw.get("color_temp"),
+            brightness=_safe_optional_int(raw.get("brightness")),
+            color_temp=_safe_optional_int(raw.get("color_temp")),
             rgb_color=parsed_rgb,
+            transition=_safe_optional_int(raw.get("transition")),
         )
 
 
@@ -439,6 +488,7 @@ class SlotActionConfig(ActionConfig):
     """Action that schedules slots."""
 
     excluded_slots: dict[str, tuple[str, ...]] | None = None
+    respect_manual_off: bool = False
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any] | None) -> SlotActionConfig:
@@ -454,6 +504,7 @@ class SlotActionConfig(ActionConfig):
             }
             if isinstance(excluded_slots, dict)
             else None,
+            respect_manual_off=_safe_bool(raw.get("respect_manual_off"), False),
         )
 
 
@@ -574,23 +625,31 @@ class ActivityConfig(BaseConfig):
             else None
         )
 
-        act_id = raw.get("id") or ""
+        act_id = raw.get("id")
+        act_id = act_id if isinstance(act_id, str) else ""
         is_block_or_reset = isinstance(parsed_action, (BlockActionConfig, ResetActionConfig))
         is_reset = isinstance(parsed_action, ResetActionConfig)
         # A missing flag means "enabled" — that is the pre-flag behaviour, so old
         # stores keep their timer without a migration.
         auto_expire_enabled = raw.get("auto_expire_enabled")
+        raw_suppress_inputs = raw.get("suppress_inputs")
         return cls(
             id=act_id,
             name=raw.get("name") or act_id.capitalize(),
-            suppress_inputs=tuple(raw.get("suppress_inputs") or ()),
+            suppress_inputs=tuple(raw_suppress_inputs)
+            if isinstance(raw_suppress_inputs, list | tuple)
+            else (),
             auto_expire_enabled=(
                 False if is_reset else auto_expire_enabled is not False
             ),
             auto_expire=raw.get("auto_expire") if not is_reset else None,
             action=parsed_action,
             release_action=parsed_release,
-            transition_off_seconds=None if is_block_or_reset else raw.get("transition_off_seconds"),
+            transition_off_seconds=(
+                None
+                if is_block_or_reset
+                else _safe_optional_int(raw.get("transition_off_seconds"))
+            ),
         )
 
 
@@ -648,9 +707,10 @@ class RuleConfig(BaseConfig):
     auto_expire_enabled: bool | None = None
     auto_expire: str | None = None
     suppressed_inputs_override: tuple[str, ...] = ()
+    respect_manual_off_override: bool | None = None
     # Set only by _disable_mismatched_rules() (websocket/areas.py) when it flips
     # `enabled` to False — distinguishes an auto-disabled rule from one the user
-    # disabled themselves (docs/architecture/rules.md §8b). Any explicit save
+    # disabled themselves. Any explicit save
     # through rule-row-editor.ts clears it again (see makeNewRule()/_save()),
     # since re-saving means the user has taken control of the enabled state.
     auto_disabled_reason: Literal["mismatch"] | None = None
@@ -687,10 +747,17 @@ class RuleConfig(BaseConfig):
             "mismatch" if raw_disabled_reason == "mismatch" else None
         )
 
+        raw_respect_manual_off = raw.get("respect_manual_off_override")
+        respect_manual_off_override = (
+            raw_respect_manual_off
+            if isinstance(raw_respect_manual_off, bool)
+            else None
+        )
+
         return cls(
             id=raw.get("id") or "",
             name=raw.get("name") or "",
-            enabled=raw.get("enabled", True),
+            enabled=_safe_bool(raw.get("enabled"), True),
             applied_activities=tuple(applied_activities)
             if isinstance(applied_activities, (list, tuple))
             else (),
@@ -705,6 +772,7 @@ class RuleConfig(BaseConfig):
             suppressed_inputs_override=tuple(suppressed_inputs_override)
             if isinstance(suppressed_inputs_override, (list, tuple))
             else (),
+            respect_manual_off_override=respect_manual_off_override,
             auto_disabled_reason=auto_disabled_reason,
         )
 
@@ -740,6 +808,30 @@ class AreaConfig(BaseConfig):
         channel = self.channels.get(channel_id)
         return channel.slot(slot_id) if channel else None
 
+    @overload
+    def inputs_of_type(
+        self, input_type: Literal[InputType.MOTION]
+    ) -> tuple[MotionInputConfig, ...]: ...
+    @overload
+    def inputs_of_type(
+        self, input_type: Literal[InputType.BINARY]
+    ) -> tuple[BinaryInputConfig, ...]: ...
+    @overload
+    def inputs_of_type(
+        self, input_type: Literal[InputType.EVENT]
+    ) -> tuple[EventInputConfig, ...]: ...
+    @overload
+    def inputs_of_type(
+        self, input_type: Literal[InputType.TIMER]
+    ) -> tuple[TimerInputConfig, ...]: ...
+    @overload
+    def inputs_of_type(
+        self, input_type: Literal[InputType.BUTTON]
+    ) -> tuple[ButtonInputConfig, ...]: ...
+    @overload
+    def inputs_of_type(
+        self, input_type: InputType | str
+    ) -> tuple[InputConfig, ...]: ...
     def inputs_of_type(self, input_type: InputType | str) -> tuple[InputConfig, ...]:
         """All inputs of one type, in config order."""
         return tuple(inp for inp in self.inputs if inp.type == input_type)
@@ -832,11 +924,11 @@ class AreaConfig(BaseConfig):
         return cls(
             area_id=raw.get("area_id"),
             name=raw.get("name"),
-            enabled=raw.get("enabled", True),
-            manual_only=bool(raw.get("manual_only", False)),
-            lux_threshold=raw.get("lux_threshold"),
-            lux_watch_window=raw.get("lux_watch_window"),
-            transition_on_seconds=raw.get("transition_on_seconds"),
+            enabled=_safe_bool(raw.get("enabled"), True),
+            manual_only=_safe_bool(raw.get("manual_only"), False),
+            lux_threshold=_safe_optional_float(raw.get("lux_threshold")),
+            lux_watch_window=_safe_optional_int(raw.get("lux_watch_window")),
+            transition_on_seconds=_safe_optional_int(raw.get("transition_on_seconds")),
             lux_ignore_active=raw.get("lux_ignore_active"),
             lux_ignore_scope=raw.get("lux_ignore_scope"),
             sensors=sensors,

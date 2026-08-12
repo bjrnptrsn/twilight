@@ -1,9 +1,8 @@
 # Twilight für Home Assistant
 
 <p align="center">
-  <a href="https://github.com/bjrnptrsn/twilight/actions/workflows/validate.yaml">
-    <img src="https://github.com/bjrnptrsn/twilight/actions/workflows/validate.yaml/badge.svg" alt="Validate (HACS + hassfest)">
-  </a>
+  <a href="https://hacs.xyz/docs/faq/custom_repositories/"><img src="https://img.shields.io/badge/HACS-Custom-orange.svg" alt="HACS - Home Assistant Community Store"/></a>
+  <a href="https://github.com/bjrnptrsn/twilight/releases"><img src="https://img.shields.io/github/v/release/bjrnptrsn/twilight" alt="Release"/></a>
 </p>
 
 <p align="center">
@@ -27,7 +26,7 @@
   ⚡ Dynamische Regeln & Overrides — N-aktive Ebenen & temporäre Slot-Ausschlüsse.<br>
   🔍 Live-Abweichungserkennung — Echtzeit-Überwachung manueller Eingriffe & Szenenzustände.<br>
   🌡️ Heatmaps & Anwesenheitssimulation — realistische Belegungs-Wiedergabe basierend auf Verlauf.<br>
-  📊 Eingebaute Analyse — uPlot-Charts mit echten Recorder-Daten.<br>
+  📊 Eingebaute Analyse — Wochentags-Heatmap mit echten Recorder-Daten.<br>
   🕸️ Vollständige Web-UI — nach der Einrichtung keine YAML-Konfiguration mehr nötig.
 </p>
 
@@ -42,7 +41,6 @@
 
 - [Warum es das gibt](#warum-es-das-gibt)
 - [Voraussetzungen](#voraussetzungen)
-- [Schnellstart](#schnellstart)
 - [Installation](#installation)
 - [Grundkonzept](#grundkonzept)
   - [Areas](#areas)
@@ -87,17 +85,20 @@ Template-Sensoren. Kein Scene-zu-Zeit-Abgleich. Keine Automations-Spaghetti.
 
 - Home Assistant 2025.5 oder neuer
 
-## Schnellstart
-
-1. **Installieren** — Integration kopieren (siehe [Installation](#installation))
-2. **Home Assistant neu starten**
-3. **Konfigurieren** — `twilight:` in `configuration.yaml` eintragen und erneut neu starten
-4. **Öffnen** — das Twilight-Panel in der Seitenleiste öffnen
-5. **Area anlegen** — eine HA-Area auswählen, Lichter den Kanälen zuweisen
-6. **Scenes zuweisen** — deine Scenes den astronomischen Zeit-Slots zuordnen
-7. **Inputs hinzufügen** — Bewegungsmelder, Buttons oder Timer anbinden, um Activities auszulösen
+Das Panel folgt automatisch der Sprache deines Home Assistant — verfügbar auf Deutsch, Dänisch, Englisch, Finnisch, Französisch, Italienisch, Niederländisch, Norwegisch, Polnisch, Portugiesisch, Schwedisch, Slowakisch, Spanisch, Tschechisch, Türkisch, Ukrainisch und vereinfachtem Chinesisch.
 
 ## Installation
+
+### Über HACS (benutzerdefiniertes Repository)
+
+Twilight ist noch nicht im HACS-Standard-Store gelistet — füge es als benutzerdefiniertes Repository hinzu:
+
+1. **HACS** öffnen, oben rechts auf das **⋮**-Menü klicken und **Benutzerdefinierte Repositories** wählen.
+2. `https://github.com/bjrnptrsn/twilight` mit der Kategorie **Integration** hinzufügen.
+3. In HACS nach **Twilight** suchen und auf **Download** klicken.
+4. **Home Assistant neu starten.**
+5. Unter **Einstellungen → Geräte & Dienste → Integration hinzufügen** nach **Twilight** suchen und hinzufügen.
+6. Seitenleiste öffnen und auf **Twilight** klicken, um das Panel zu starten.
 
 ### Manuelle Installation
 
@@ -108,27 +109,21 @@ Template-Sensoren. Kein Scene-zu-Zeit-Abgleich. Keine Automations-Spaghetti.
    ```
 
 2. **Home Assistant neu starten.**
-3. Folgendes in `configuration.yaml` eintragen:
-
-   ```yaml
-   twilight:
-   ```
-
-4. **Home Assistant** erneut **neu starten**.
-5. Seitenleiste öffnen und auf **Twilight** klicken, um das Panel zu starten.
+3. Unter **Einstellungen → Geräte & Dienste → Integration hinzufügen** nach **Twilight** suchen und hinzufügen.
+4. Seitenleiste öffnen und auf **Twilight** klicken, um das Panel zu starten.
 
 > [!WARNING]
-> Die Zeile `twilight:` in `configuration.yaml` ist erforderlich — sie aktiviert
-> die Integration. Die gesamte Konfiguration erfolgt danach im Sidebar-Panel.
+> Twilight muss als Integration hinzugefügt werden (**Einstellungen → Geräte &
+> Dienste → Integration hinzufügen**), bevor das Sidebar-Panel erscheint. Die
+> gesamte Konfiguration erfolgt danach im Panel — die Integration selbst hat
+> keine eigenen Optionen.
 
 ### Erste Area einrichten
 
 1. Das **Twilight**-Panel in der Seitenleiste öffnen
-2. Auf **„Add Area"** klicken und eine deiner Home-Assistant-Areas auswählen
-3. Twilight legt automatisch 10 astronomische Zeit-Slots an, ausgerichtet auf den Sonnenstand deines Standorts, plus einen Standardsatz an Inputs/Activities aus dem [Area-Template](#settings--area-template)
-4. Im Bereich **Channels** deine Licht-Entities dem Primary-Channel zuweisen
-5. Für jeden Zeit-Slot eine Scene oder ein Script auswählen, das in diesem Zeitraum laufen soll
-6. Auf **Save** klicken — die Engine startet sofort
+2. Auf **„Add Area"** klicken und eine deiner Home-Assistant-Areas auswählen — die Area wird sofort gespeichert und die Engine startet direkt, mit den Vorgaben aus dem [Area-Template](#settings--area-template) (10 astronomische Zeit-Slots, ausgerichtet auf den Sonnenstand deines Standorts, plus ein Standardsatz an Inputs/Activities)
+3. Im Bereich **Channels** deine Licht-Entities dem Primary-Channel zuweisen
+4. Für jeden Zeit-Slot eine Scene oder ein Script auswählen, das in diesem Zeitraum laufen soll
 
 ---
 
@@ -139,7 +134,7 @@ Inputs, Inputs fordern Activities an, und immer genau eine Activity steuert
 zur gleichen Zeit die Lichter auf jedem Kanal.
 
 ```
-Sensoren  →  Inputs  →  Coordinator (eine aktive Activity)  →  Action  →  Kanäle/Slots  →  Lichter
+Sensoren  →  Inputs  →  Activity-Auswahl (eine aktive Activity)  →  Action  →  Kanäle/Slots  →  Lichter
 ```
 
 **Keine aktive Activity → Lichter sind aus.** Ein Zeit-Slot entscheidet nur,
@@ -163,8 +158,9 @@ Jede Area hat einen **Primary Channel** mit 10 fixen astronomischen Slots:
 
 `Nacht → Astronomische Dämmerung → Nautische Dämmerung → Bürgerliche Dämmerung → Goldene Dämmerung → Tag → Goldene Abenddämmerung → Bürgerliche Abenddämmerung → Nautische Abenddämmerung → Astronomische Abenddämmerung`
 
-Ihre Reihenfolge und astronomische Zone sind fest — bearbeiten kannst du nur
-die zugewiesene Scene/das Script pro Slot sowie einen Offset in Minuten.
+Ihre Reihenfolge und astronomische Zone sind fest — bearbeiten kannst du die
+zugewiesene Scene/das Script pro Slot, einen Offset in Minuten sowie (bei
+Hue-Scenes, die es unterstützen) die dynamische Farbrotation.
 
 Du kannst bis zu **3 Custom Channels** pro Area hinzufügen, jeder mit einer
 frei definierbaren Slot-Liste, um eine separate Lichtgruppe nach eigenem
@@ -214,8 +210,8 @@ hat einen Namen und lässt sich in den Einstellungen verwalten.
 
 | Input-Typ | Löst aus bei | Hinweise |
 |------------|-------------|-------|
-| **Motion** | Eine seiner `binary_sensor.*`/`device_tracker.*`-Entities wechselt zu `on`/`home` | Keine Freigabe, wenn der Melder wieder ruhig wird — ein Bewegungsmelder fällt nach Sekunden ab, die Aktivität endet stattdessen über ihren Timer. Optionaler Lux-Schwellwert; Re-Trigger-Modus (Jeder Wechsel / Nur der erste Wechsel); optionales Lux-Beobachtungsfenster für erneute Versuche nach Blockade durch zu viel Licht |
-| **Binary** | Eine/Alle/Anzahl seiner `binary_sensor.*`/`input_boolean.*`-Entities (konfigurierbare Aggregation) | Sendet beim Deaktivieren ein Release |
+| **Motion** | Eine seiner Entities (`binary_sensor`, `device_tracker`, `sensor`, `input_boolean`, `switch`) wechselt zu `on`/`home` | Keine Freigabe, wenn der Melder wieder ruhig wird — ein Bewegungsmelder fällt nach Sekunden ab, die Aktivität endet stattdessen über ihren Timer. Optionaler Lux-Schwellwert, mit der Option, ihn während Twilights eigenen Dämmerungs-/Nacht-Slots oder allen Slots zu ignorieren; Re-Trigger-Modus (Jeder Wechsel / Nur der erste Wechsel); optionales Lux-Beobachtungsfenster für erneute Versuche nach Blockade durch zu viel Licht |
+| **Binary** | Eine/Alle/Anzahl seiner Entities (`input_boolean`, `binary_sensor`, `switch`, `sensor`) (konfigurierbare Aggregation) | Sendet beim Deaktivieren ein Release |
 | **Event** | Statusänderung einer `event.*`-Entity, optional gefiltert auf einen Event-Typ | Feuert einmal pro passendem Event, kein Release |
 | **Timer** | Eine tägliche feste Uhrzeit (`HH:MM:SS`) | Keine Entity nötig — nützlich für einen nächtlichen Reset |
 | **Button** | Manuell über das Areas-Panel oder den Service `twilight.trigger_input` | Click-Modus feuert einmal; Toggle-Modus sendet beim zweiten Aufruf zusätzlich ein Release — siehe [Manuelle Auslöser](#manuelle-auslöser-button-inputs) |
@@ -226,15 +222,17 @@ Event-, Timer- und Click-Button-Inputs zielen immer auf eine Activity.
 
 ### Activities
 
-Eine Activity besitzt die Lichter, solange sie aktiv ist — der Coordinator
-lässt immer nur **eine Activity gleichzeitig** laufen; eine neue Anfrage
-verdrängt sofort, was zuvor aktiv war.
+Eine Activity besitzt die Lichter, solange sie aktiv ist — es läuft immer nur
+**eine Activity gleichzeitig**; eine neue Anfrage verdrängt sofort, was zuvor
+aktiv war.
 
 | Option | Beschreibung |
 |---|---|
 | **Unterdrückte Inputs** | Liste von Inputs, die ignoriert werden, solange diese Activity aktiv ist (z. B. eine Schlaf-Activity, die den Bewegungsmelder-Input unterdrückt) |
 | **Auto-Expire aktivieren** | Ob überhaupt ein Timer läuft. Nicht angehakt endet die Activity nur, wenn ein Binärkontakt ausgeht, ein Toggle-Button ausgeschaltet wird oder eine andere Activity übernimmt. |
 | **Auto-Expire-Dauer** | Wie lange der Timer läuft, sofern aktiviert. Leer bedeutet den Standardwert von 3 Stunden. |
+| **Ausschalt-Übergang** | Wie lange das Ausschalten dieser Activity ausgeblendet wird, in Sekunden — leer schaltet die Lichter sofort ohne Überblendung aus. |
+| **Manuell aus respektieren (Respect Off)** | Wurde ein Licht manuell ausgeschaltet, während diese Activity aktiv ist, bleibt es beim nächsten Slot-Wechsel aus, statt wieder eingeschaltet zu werden. Ein neuer Auslöser (Bewegung, ein Schalter, ein Button) schaltet es wie gewohnt wieder ein. |
 
 #### Actions & Release Actions
 
@@ -381,6 +379,12 @@ Ende der Rule nicht mehr auf Auslöser — dasselbe Deaktivierungs-Prinzip wie b
 [Input-Unterdrückung einer Activity](#activities), nur an die Rule gebunden. Eine Rule
 kann nicht den Input unterdrücken, der sie selbst auslöst.
 
+Eine Rule kann außerdem, solange sie aktiv ist, die **Respect-Off**-Einstellung
+der Ziel-Activity überschreiben — erzwinge Respektieren (manuell ausgeschaltete
+Lichter bleiben unangetastet) oder Ignorieren (sie werden wie gewohnt wieder
+eingeschaltet), unabhängig davon, was an der Activity selbst eingestellt ist,
+oder belasse es bei der Einstellung der Activity (Standard).
+
 Rules werden über die **Rules**-Karte in der Detailansicht einer Area oder im
 [Area-Template](#settings--area-template) konfiguriert.
 
@@ -397,9 +401,7 @@ Ersteinrichtung ist kein YAML-Editing mehr nötig.
 plus eine Detailansicht pro Area für die gesamte oben beschriebene
 Konfiguration: Channels, Sensoren, Inputs, Activities, eine Activity-Heatmap-Karte
 (Visualisierung von Wochentagsmustern aus Live-Recorder-Daten oder bis zu **5 gespeicherten
-Heatmap-Profilen**) sowie eine Live-Status-Karte, die die aktuell aktive Activity und ihren
-Auslöser zeigt. Neue Areas bleiben ein lokaler, ungespeicherter Entwurf, bis du auf **Save**
-klickst.
+Heatmap-Profilen**) sowie eine Live-Status-Karte, die die aktuell aktive Activity und ihren Auslöser zeigt.
 
 <p align="center">
   <img src="assets/Areas.png" alt="Twilight Areas Tab" width="100%">
@@ -418,9 +420,10 @@ klickst.
 
 ### Analytics-Tab
 
-uPlot-Charts auf Basis echter Home-Assistant-Recorder-Daten — zwei Y-Achsen,
-ein Zeitraum-Selektor und pro Area Bewegung als Hintergrundbänder dargestellt,
-damit du Lichtänderungen mit tatsächlicher Sensoraktivität abgleichen kannst.
+Eine nach Wochentagen aggregierte Aktivitäts-Heatmap auf Basis echter
+Home-Assistant-Recorder-Daten — wechsle zwischen Bewegungs- und Lichtaktivität,
+wähle Zeitraum und Auflösung, und speichere bis zu 5 Schnappschüsse pro Area,
+um Nutzungsmuster im Zeitverlauf zu vergleichen.
 
 ### Settings & Area-Template
 
@@ -466,7 +469,7 @@ und Einstellungen/Templates zurücksetzen).
 
 ### `twilight.trigger_input`
 
-Löst einen `button`-Input aus einer Automation oder einem Script aus oder
+Löst einen Button-Input aus einer Automation oder einem Script aus oder
 gibt ihn frei — ganz ohne echte HA-Entity dafür.
 
 | Feld | Erforderlich | Beschreibung |
@@ -503,12 +506,10 @@ nützlich beim Melden eines Bugs.
 
 | Problem | Lösung |
 |---------|--------|
-| Panel zeigt „Engine not running" | Sicherstellen, dass `twilight:` in `configuration.yaml` steht und HA neu gestartet wurde |
 | Lichter gehen nie an | Keine Activity ist aktiv — prüfen, ob wirklich ein Input mit einer Activity verknüpft ist; dass ein Slot eine Scene zugewiesen hat, reicht nicht, siehe [Grundkonzept](#grundkonzept) |
 | Scene zeigt keine Lichter | Prüfen, ob die Scene noch existiert und erreichbar ist; falls es eine Hue Smart Scene ist, sicherstellen, dass die Hue-Integration geladen ist |
 | Bewegungsmelder reagieren nicht | Den Lux-Schwellwert im Motion-Input prüfen — er kann durch zu viel Umgebungslicht unterdrückt sein; den aggregierten Lux-Wert auf der Status-Karte der Area prüfen |
 | Lichter blinken beim Neustart | Das sollte nicht passieren — Twilight nutzt Boot-Catch-up, um ungewolltes Einschalten zu vermeiden. Bitte [ein Issue öffnen](https://github.com/bjrnptrsn/twilight/issues) |
-| Area erscheint nicht im Panel | Sicherstellen, dass die HA-Area existiert und gespeichert wurde — neue Areas bleiben bis zum Klick auf **Save** ein Entwurf |
 
 ### Debug-Logging
 
@@ -532,7 +533,6 @@ ausgelöst hat, warum ein Retry gefeuert hat, etc.).
 ## Bekannte Einschränkungen
 
 - Nur ein Beleuchtungsstärke-Sensor pro Area (mehrere Entities können jedoch in ihn einfließen)
-- Noch keine Mehrsprachigkeit (nur Englisch)
 
 ## Mitwirken
 

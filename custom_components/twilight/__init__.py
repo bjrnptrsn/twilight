@@ -6,13 +6,17 @@ timeslot-based schedules, motion, lux, and overrides.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from pathlib import Path
 from typing import Any
 
 import voluptuous as vol
-from homeassistant.components.frontend import async_register_built_in_panel
+from homeassistant.components.frontend import (
+    async_register_built_in_panel,
+    async_remove_panel,
+)
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, EVENT_HOMEASSISTANT_STOP
@@ -23,8 +27,12 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from . import button as twilight_button
 from . import switch as twilight_switch
 from .const import DOMAIN, SIGNAL_ENGINES_CHANGED
-from .engine_registry import area_wants_engine, async_start_engine
-from .helpers import dispatch_button_input
+from .engine_registry import (
+    area_wants_engine,
+    async_clear_area_entities,
+    async_start_engine,
+)
+from .helpers import dispatch_button_input, get_area_lock, get_setup_lock
 from .store import TwilightStore
 from .websocket import async_register_commands
 
@@ -56,25 +64,55 @@ async def async_setup(hass: HomeAssistant, _config: dict[str, Any]) -> bool:
     # previous setup before replacing the dict — otherwise their listeners
     # and timers are orphaned while a second set is set up on top, causing
     # duplicate light control and a growing STOP-listener chain.
-    old_engines = list(hass.data[DOMAIN].get("engines", {}).values())
-    if old_engines:
-        _LOGGER.info(
-            "Twilight is being re-set up — tearing down %d existing engine(s) first",
-            len(old_engines),
-        )
-        for engine in old_engines:
-            try:
-                await engine.async_teardown()
-            except Exception:
-                _LOGGER.exception(
-                    "Error tearing down TwilightEngine for area: %s", engine.area_id
-                )
+    #
+    # Each engine is torn down and popped under its own area lock — the same
+    # lock area/save and the boot loop hold while registering a new engine —
+    # so a save racing this reload can't have its freshly registered engine
+    # silently discarded (or discard one this reload just tore down) by an
+    # unsynchronized dict clear.
+    #
+    # Per-area locks alone don't cover a brand-new area's *first* save: this
+    # loop only knows the area_ids that already had an engine (old_engine_ids
+    # below), so it never touches that area's lock, and a save landing in the
+    # unguarded window between the loop and engines.clear() would register an
+    # engine that clear() then discards (leaked — never torn down). The
+    # global setup lock (get_setup_lock) closes that gap: area/save and
+    # area/delete acquire it too (see websocket/areas.py), so neither can run
+    # while this whole reload — teardown loop through engines.clear() — is in
+    # flight, regardless of whether the area is old or brand new.
+    async with get_setup_lock(hass):
+        engines = hass.data[DOMAIN].setdefault("engines", {})
+        old_engine_ids = list(engines.keys())
+        if old_engine_ids:
+            _LOGGER.info(
+                "Twilight is being re-set up — tearing down %d existing engine(s) first",
+                len(old_engine_ids),
+            )
+            for area_id in old_engine_ids:
+                async with get_area_lock(hass, area_id):
+                    engine = engines.pop(area_id, None)
+                    if engine is None:
+                        continue
+                    try:
+                        await engine.async_teardown()
+                    except Exception:
+                        _LOGGER.exception(
+                            "Error tearing down TwilightEngine for area: %s", area_id
+                        )
 
-    # Initialize and load the HA Storage-backed persistence store
-    store = TwilightStore(hass)
-    await store.async_load()
-    hass.data[DOMAIN]["store"] = store
-    hass.data[DOMAIN]["engines"] = {}
+        # Initialize and load the HA Storage-backed persistence store
+        store = TwilightStore(hass)
+        await store.async_load()
+        hass.data[DOMAIN]["store"] = store
+        # Clear in place rather than reassigning: subscribe.py's twilight/subscribe_all
+        # closure binds "engines" once via setdefault() and keeps iterating that same
+        # dict object for the life of the connection. A reassignment here would orphan
+        # any already-open subscription on the old (now-empty) dict, silently killing
+        # its live pushes for newly (re-)added engines until the panel reconnects.
+        # Nothing can survive here anymore: the setup lock above rules out a
+        # concurrent area/save or area/delete registering/removing an engine
+        # during this whole block, old or brand new.
+        engines.clear()
 
     # Set up the shared button/switch EntityComponents. Entities are reconciled
     # per area on boot and on every area/save|delete WS command.
@@ -88,12 +126,32 @@ async def async_setup(hass: HomeAssistant, _config: dict[str, Any]) -> bool:
     # async_setup_component("twilight"), which awaits this very setup's future —
     # awaiting the flow here deadlocks the boot. _async_boot below awaits the task
     # instead, after async_setup has returned.
-    if not hass.config_entries.async_entries(DOMAIN):
-        hass.data[DOMAIN]["entry_flow_task"] = hass.async_create_task(
+    if (
+        not hass.config_entries.async_entries(DOMAIN)
+        and "entry_flow_task" not in hass.data[DOMAIN]
+    ):
+        entry_flow_task = hass.async_create_task(
             hass.config_entries.flow.async_init(
                 DOMAIN, context={"source": SOURCE_IMPORT}, data={}
             )
         )
+        hass.data[DOMAIN]["entry_flow_task"] = entry_flow_task
+
+        def _clear_entry_flow_task_on_failure(task: asyncio.Task[Any]) -> None:
+            # A crashed flow must not permanently block future attempts: leaving
+            # the dict entry in place would make the "not in hass.data[DOMAIN]"
+            # guard above skip every later async_setup (e.g. an integration
+            # reload) for the rest of this HA run. _async_boot pops the entry
+            # itself on success, so this only fires for a failed/cancelled task.
+            if task.cancelled():
+                hass.data[DOMAIN].pop("entry_flow_task", None)
+            elif task.exception() is not None:
+                _LOGGER.error(
+                    "Self-created config entry flow failed: %s", task.exception()
+                )
+                hass.data[DOMAIN].pop("entry_flow_task", None)
+
+        entry_flow_task.add_done_callback(_clear_entry_flow_task_on_failure)
 
     # Register WebSocket API commands for frontend-backend communication
     async_register_commands(hass)
@@ -107,19 +165,31 @@ async def async_setup(hass: HomeAssistant, _config: dict[str, Any]) -> bool:
         Skips areas that already have an engine — a WS area/save can run before
         EVENT_HOMEASSISTANT_STARTED fires and create an engine ahead of this loop.
         """
-        areas = store.get_areas()
-        engines_created = False
-        for area_id, config in areas.items():
-            if area_id in hass.data[DOMAIN]["engines"]:
-                continue
-            if area_wants_engine(config):
-                _LOGGER.info("Setting up TwilightEngine for area: %s", area_id)
-                # async_start_engine() logs and returns None on failure: one
-                # area's bad config (or a transient failure, e.g. Hue bridge
-                # unreachable) must not leave every subsequent area without
-                # light control.
-                if await async_start_engine(hass, area_id, config):
-                    engines_created = True
+        # Held for the whole loop, same as the reload block above (get_setup_lock's
+        # own docstring) — without it, a homeassistant.reload_custom_component
+        # landing while this boot loop is still mid-flight could run its
+        # engines.clear() in the gap before async_start_engine() below registers
+        # an engine built from this now-stale `store` snapshot, leaking an
+        # untorn-down engine that outlives the reload it should have lost to.
+        async with get_setup_lock(hass):
+            areas = store.get_areas()
+            engines_created = False
+            for area_id, config in areas.items():
+                # Held for the same area_id as area/save and area/delete, so an
+                # area/save racing this boot loop can't create a second engine
+                # for the same area (both would otherwise pass the "no engine
+                # yet" check before either registers its engine).
+                async with get_area_lock(hass, area_id):
+                    if area_id in hass.data[DOMAIN]["engines"]:
+                        continue
+                    if area_wants_engine(config):
+                        _LOGGER.info("Setting up TwilightEngine for area: %s", area_id)
+                        # async_start_engine() logs and returns None on failure: one
+                        # area's bad config (or a transient failure, e.g. Hue bridge
+                        # unreachable) must not leave every subsequent area without
+                        # light control.
+                        if await async_start_engine(hass, area_id, config):
+                            engines_created = True
 
         # Subscriptions opened before the deferred boot setup finished (e.g. a
         # panel that reconnected right after HA restart) have an empty entity
@@ -136,7 +206,10 @@ async def async_setup(hass: HomeAssistant, _config: dict[str, Any]) -> bool:
         """
         task = hass.data[DOMAIN].pop("entry_flow_task", None)
         if task is not None:
-            await task
+            try:
+                await task
+            except Exception:
+                _LOGGER.exception("Error awaiting entry flow task during Twilight boot")
         await _async_setup_engines()
 
     # Defer engine setup until HA has fully started (scene platform, Hue, etc. are
@@ -147,7 +220,12 @@ async def async_setup(hass: HomeAssistant, _config: dict[str, Any]) -> bool:
     if hass.state is CoreState.running:
         await _async_setup_engines()
     else:
-        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _async_boot)
+        old_unsub_boot = hass.data[DOMAIN].get("unsub_boot")
+        if old_unsub_boot is not None:
+            old_unsub_boot()
+        hass.data[DOMAIN]["unsub_boot"] = hass.bus.async_listen_once(
+            EVENT_HOMEASSISTANT_STARTED, _async_boot
+        )
 
     # Register Home Assistant shutdown listener to cleanly teardown all active engines
     async def _async_shutdown_cleanup(event: Any) -> None:
@@ -161,7 +239,16 @@ async def async_setup(hass: HomeAssistant, _config: dict[str, Any]) -> bool:
                     "Error tearing down TwilightEngine for area: %s", engine.area_id
                 )
 
-    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _async_shutdown_cleanup)
+    # A reload re-enters this function, so unsubscribe any listener from a
+    # previous setup first — otherwise every reload leaves one more STOP
+    # listener registered, all of them tearing down the same current engines
+    # dict again on actual shutdown.
+    old_unsub_stop = hass.data[DOMAIN].get("unsub_stop")
+    if old_unsub_stop is not None:
+        old_unsub_stop()
+    hass.data[DOMAIN]["unsub_stop"] = hass.bus.async_listen_once(
+        EVENT_HOMEASSISTANT_STOP, _async_shutdown_cleanup
+    )
 
     async def async_trigger_input(service_call: ServiceCall) -> None:
         """Handle twilight.trigger_input service call."""
@@ -196,13 +283,47 @@ async def async_setup(hass: HomeAssistant, _config: dict[str, Any]) -> bool:
 
 
 async def async_setup_entry(hass: HomeAssistant, _entry: ConfigEntry) -> bool:
-    """No-op: the entry only anchors devices in the registry, see async_setup()."""
+    """Set up config entry: if DOMAIN was removed (e.g. re-add after deletion), re-initialize setup."""
+    if DOMAIN not in hass.data:
+        await async_setup(hass, {})
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, _entry: ConfigEntry) -> bool:
     """No-op: nothing was set up per-entry, see async_setup_entry()."""
     return True
+
+
+async def async_remove_entry(hass: HomeAssistant, _entry: ConfigEntry) -> None:
+    """Tear down all engines, clear entities, and wipe the store when entry is deleted."""
+    domain_data = hass.data.get(DOMAIN, {})
+    old_unsub_stop = domain_data.get("unsub_stop")
+    if old_unsub_stop is not None:
+        old_unsub_stop()
+    old_unsub_boot = domain_data.get("unsub_boot")
+    if old_unsub_boot is not None:
+        old_unsub_boot()
+
+    store: TwilightStore | None = domain_data.get("store")
+    area_ids = list(store.get_areas().keys()) if store else []
+
+    engines = list(domain_data.get("engines", {}).values())
+    for engine in engines:
+        try:
+            await engine.async_teardown()
+        except Exception:
+            _LOGGER.exception("Error tearing down engine during remove entry")
+
+    for area_id in area_ids:
+        await async_clear_area_entities(hass, area_id)
+
+    if store is not None:
+        await store.store.async_remove()
+
+    async_remove_panel(hass, "twilight", warn_if_unknown=False)
+    async_remove_panel(hass, "twilight_dev", warn_if_unknown=False)
+
+    hass.data.pop(DOMAIN, None)
 
 
 async def _async_register_panel(hass: HomeAssistant) -> None:
@@ -217,9 +338,6 @@ async def _async_register_panel(hass: HomeAssistant) -> None:
     built-in panel registration, including cache-busting version queries based on
     file modification times.
     """
-    if hass.data[DOMAIN].get("panel_registered"):
-        return
-
     # Check for the compiled Vite production bundle
     panel_js = Path(__file__).parent / "frontend" / "twilight-panel.js"
     if not panel_js.exists():
@@ -229,6 +347,20 @@ async def _async_register_panel(hass: HomeAssistant) -> None:
     # Optional development build files and assets
     dev_panel_js = Path(__file__).parent / "frontend" / "twilight-dev-panel.js"
     logo_png = Path(__file__).parent / "frontend" / "logo.png"
+
+    # Generate version query parameter for cache busting based on modification time
+    mtime = int(os.path.getmtime(panel_js))
+    dev_mtime = int(os.path.getmtime(dev_panel_js)) if dev_panel_js.exists() else None
+
+    # Registered once per mtime pair — a reload after a fresh frontend build
+    # (mtime changed) removes and re-registers the panel(s) so the new
+    # cache-busted js_url actually takes effect without a full HA restart.
+    registered_mtimes = hass.data[DOMAIN].get("panel_registered_mtimes")
+    if registered_mtimes == (mtime, dev_mtime):
+        return
+    if registered_mtimes is not None:
+        async_remove_panel(hass, "twilight", warn_if_unknown=False)
+        async_remove_panel(hass, "twilight_dev", warn_if_unknown=False)
 
     # Register static paths with HA's HTTP server
     try:
@@ -244,9 +376,6 @@ async def _async_register_panel(hass: HomeAssistant) -> None:
         await hass.http.async_register_static_paths(paths)
     except RuntimeError:
         _LOGGER.debug("Twilight static path already registered")
-
-    # Generate version query parameter for cache busting based on modification time
-    mtime = int(os.path.getmtime(panel_js))
 
     # Register the main Twilight Panel in the sidebar
     try:
@@ -270,7 +399,6 @@ async def _async_register_panel(hass: HomeAssistant) -> None:
 
     # Register the Dev Panel in the sidebar if the dev file exists
     if dev_panel_js.exists():
-        dev_mtime = int(os.path.getmtime(dev_panel_js))
         try:
             async_register_built_in_panel(
                 hass,
@@ -291,5 +419,5 @@ async def _async_register_panel(hass: HomeAssistant) -> None:
         except ValueError:
             _LOGGER.debug("Twilight Dev panel already registered")
 
-    hass.data[DOMAIN]["panel_registered"] = True
+    hass.data[DOMAIN]["panel_registered_mtimes"] = (mtime, dev_mtime)
     _LOGGER.info("Twilight panel registered in sidebar")

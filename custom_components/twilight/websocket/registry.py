@@ -92,7 +92,9 @@ def _ws_lab_area_entities() -> websocket_api.WebSocketCommandHandler:
                     api = getattr(bridge, "api", None) if bridge else None
                     if api and hasattr(api, "scenes"):
                         try:
-                            from aiohue.v2.models.smart_scene import SmartScene
+                            from aiohue.v2.models.smart_scene import (  # noqa: PLC0415
+                                SmartScene,
+                            )
                         except ImportError:
                             SmartScene = None
                         unique_id = entry.unique_id

@@ -1,0 +1,32 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "description": "O Twilight é configurado através do painel na barra lateral — esta entrada apenas ancora dispositivos para entidades opcionais de botão/interruptor e não requer configuração."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "[%key:common::config_flow::abort::single_instance_allowed%]"
+    }
+  },
+  "services": {
+    "trigger_input": {
+      "name": "Acionar entrada",
+      "description": "Aciona manualmente uma entrada do tipo botão (clique ou alternância) para uma área específica.",
+      "fields": {
+        "area_id": {
+          "name": "ID da área",
+          "description": "O ID da área que contém a entrada."
+        },
+        "input_id": {
+          "name": "ID da entrada",
+          "description": "O ID ou nome da entrada de botão a acionar."
+        },
+        "active": {
+          "name": "Estado ativo",
+          "description": "Para botões de alternância, define se o estado da entrada deve ser ativo (true) ou inativo (false)."
+        }
+      }
+    }
+  }
+}

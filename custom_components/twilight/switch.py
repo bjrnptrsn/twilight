@@ -68,11 +68,29 @@ class TwilightSwitchEntity(TwilightEntity, SwitchEntity):
         return engine.run_state.inputs_active.get(self._input_id, False)
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        dispatch_button_input(self.hass, self._area_id, self._input_id, active=True)
+        err = dispatch_button_input(
+            self.hass, self._area_id, self._input_id, active=True
+        )
+        if err is not None:
+            _LOGGER.warning(
+                "Failed to dispatch switch input '%s' for area '%s': %s",
+                self._input_id,
+                self._area_id,
+                err,
+            )
         self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        dispatch_button_input(self.hass, self._area_id, self._input_id, active=False)
+        err = dispatch_button_input(
+            self.hass, self._area_id, self._input_id, active=False
+        )
+        if err is not None:
+            _LOGGER.warning(
+                "Failed to dispatch switch input '%s' for area '%s': %s",
+                self._input_id,
+                self._area_id,
+                err,
+            )
         self.async_write_ha_state()
 
 
@@ -117,7 +135,7 @@ async def async_sync_switch_entities(
     }
 
     to_add = [
-        TwilightSwitchEntity(hass, area_id, input_id)
+        TwilightSwitchEntity(hass, area_id, input_id, PLATFORM)
         for input_id in wanted_ids
         if input_id not in existing_entities
     ]

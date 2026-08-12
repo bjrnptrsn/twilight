@@ -33,6 +33,7 @@ from .diagnostics import _ws_diagnostics
 from .heatmap import (
     _ws_heatmap_compute,
     _ws_heatmap_profile_delete,
+    _ws_heatmap_profile_list,
     _ws_heatmap_profile_save,
 )
 from .inputs import _ws_trigger_input
@@ -66,5 +67,6 @@ def async_register_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, _ws_diagnostics())
     websocket_api.async_register_command(hass, _ws_trigger_input())
     websocket_api.async_register_command(hass, _ws_heatmap_compute())
+    websocket_api.async_register_command(hass, _ws_heatmap_profile_list())
     websocket_api.async_register_command(hass, _ws_heatmap_profile_save())
     websocket_api.async_register_command(hass, _ws_heatmap_profile_delete())
