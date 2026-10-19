@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.core import callback
 from homeassistant.helpers.event import async_call_later
+from homeassistant.util import dt as dt_util
 
 from .const import SLOT_RECOVERY_RETRY_SECONDS
 from .helpers import create_tracked_task, resolve_transition_on_seconds
@@ -118,8 +119,7 @@ class TwilightManager:
 
     def _now_local(self) -> datetime:
         """Current time in Home Assistant's configured time zone."""
-        _, _, tz_str = self._get_location_params()
-        return datetime.now(UTC).astimezone(zoneinfo.ZoneInfo(tz_str))
+        return dt_util.now()
 
     def _calculate_slot_start_times(
         self, lat: float, lon: float, tz_str: str, target_date: date
@@ -197,7 +197,7 @@ class TwilightManager:
         Returns (active_slots, active_slots_start, next_slots).
         """
         lat, lon, tz_str = self._get_location_params()
-        local_tz = zoneinfo.ZoneInfo(tz_str)
+        local_tz = dt_util.get_default_time_zone()
         now_local = now.astimezone(local_tz)
 
         # We calculate slot times for yesterday, today, and tomorrow to ensure

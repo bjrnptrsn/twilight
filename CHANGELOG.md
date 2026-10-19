@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.1 - 2026-10-19
+
+### 🎨 Improvements
+
+*   **Uniform Chart Labels**: The Timeline and Analytics charts now use a consistent font size and Home Assistant's secondary text color for their axis labels.
+
+*   **Cleaner Installation**: Removed an unnecessary dependency declaration that Home Assistant already provides.
+
+### 🔧 Fixes
+
+*   **Event Loop Responsiveness**: Fixed brief stalls of Home Assistant's event loop while loading sun and slot data.
+
 ## 0.6.0 - 2026-08-12
 
 ### ✨ Features

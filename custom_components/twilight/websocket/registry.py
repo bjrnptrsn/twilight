@@ -54,7 +54,7 @@ def _ws_lab_area_entities() -> websocket_api.WebSocketCommandHandler:
         dev_reg = dr.async_get(hass)
 
         area_device_ids = {
-            dev.id for dev in dev_reg.devices.values() if dev.area_id == area_id
+            dev.id for dev in dr.async_entries_for_area(dev_reg, area_id)
         }
 
         entities = []

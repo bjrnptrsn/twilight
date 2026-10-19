@@ -14,6 +14,7 @@ from astral import Depression, LocationInfo
 from astral.sun import azimuth, elevation
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant
+from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN, PRIMARY_CHANNEL_ID, default_primary_slots
 from ..slot_calc import resolve_slot_times
@@ -89,16 +90,15 @@ _DAY_CACHE_MAX_SIZE = 64
 _DAY_CACHE: OrderedDict[tuple[float, float, str, str], dict[str, Any]] = OrderedDict()
 
 
-def _resolve_target_date(date_str: str | None, tz_str: str) -> dt.date:
+def _resolve_target_date(date_str: str | None, tz: dt.tzinfo) -> dt.date:
     """Resolve the requested date, needed before the executor job to build the cache key.
 
-    Runs on the event loop, but zoneinfo.ZoneInfo caches parsed tz files per
-    process, so repeated calls for the same tz_str after the first are a dict
-    lookup, not a filesystem read.
+    Takes the handler's already-resolved time zone (dt_util.async_get_time_zone),
+    so the fallback "today" needs no tz-file access on the event loop.
     """
     if date_str:
         return dt.date.fromisoformat(date_str)
-    return dt.datetime.now(zi.ZoneInfo(tz_str)).date()
+    return dt.datetime.now(tz).date()
 
 
 def _ws_sun_day() -> websocket_api.WebSocketCommandHandler:
@@ -128,9 +128,8 @@ def _ws_sun_day() -> websocket_api.WebSocketCommandHandler:
                 return
 
         tz_str = msg.get("tz") or hass.config.time_zone
-        try:
-            zi.ZoneInfo(tz_str)
-        except Exception:
+        tz = await dt_util.async_get_time_zone(tz_str)
+        if tz is None:
             connection.send_error(
                 msg["id"], "invalid_tz", f"Invalid timezone: {tz_str}"
             )
@@ -142,7 +141,7 @@ def _ws_sun_day() -> websocket_api.WebSocketCommandHandler:
             lat = hass.config.latitude
             lon = hass.config.longitude
 
-        target_date = _resolve_target_date(date_str, tz_str)
+        target_date = _resolve_target_date(date_str, tz)
         cache_key = (lat, lon, target_date.isoformat(), tz_str)
         cached = _DAY_CACHE.get(cache_key)
         if cached is not None:
@@ -285,9 +284,8 @@ def _ws_sun_year() -> websocket_api.WebSocketCommandHandler:
             lat = hass.config.latitude
             lon = hass.config.longitude
         tz_str = msg.get("tz") or hass.config.time_zone
-        try:
-            zi.ZoneInfo(tz_str)
-        except Exception:
+        tz = await dt_util.async_get_time_zone(tz_str)
+        if tz is None:
             connection.send_error(
                 msg["id"], "invalid_tz", f"Invalid timezone: {tz_str}"
             )
@@ -302,7 +300,7 @@ def _ws_sun_year() -> websocket_api.WebSocketCommandHandler:
                 )
                 return
         else:
-            year = dt.datetime.now(zi.ZoneInfo(tz_str)).year
+            year = dt.datetime.now(tz).year
 
         cache_key = (lat, lon, year, tz_str)
         cached = _YEAR_CACHE.get(cache_key)
@@ -400,6 +398,13 @@ def _ws_timeline_slot_times() -> websocket_api.WebSocketCommandHandler:
             lon = hass.config.longitude if msg_lon is None else float(msg_lon)
             tz_str = msg.get("tz") or hass.config.time_zone
 
+        tz = await dt_util.async_get_time_zone(tz_str)
+        if tz is None:
+            connection.send_error(
+                msg["id"], "invalid_tz", f"Invalid timezone: {tz_str}"
+            )
+            return
+
         raw_year = msg.get("year")
         if raw_year is not None:
             year = raw_year
@@ -409,7 +414,7 @@ def _ws_timeline_slot_times() -> websocket_api.WebSocketCommandHandler:
                 )
                 return
         else:
-            year = dt.datetime.now(zi.ZoneInfo(tz_str)).year
+            year = dt.datetime.now(tz).year
 
         cache_key = (lat, lon, year, tz_str, area_id)
         cached = _TIMELINE_SLOT_CACHE.get(cache_key)

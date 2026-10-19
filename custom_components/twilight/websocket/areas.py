@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
-import zoneinfo as zi
 from typing import Any
 
 import voluptuous as vol
@@ -12,6 +11,7 @@ from homeassistant.components import websocket_api
 from homeassistant.core import Context, HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.util import dt as dt_util
 
 from ..config_model import AreaConfig, RuleAutoExpireMode, RuleConfig
 from ..const import (
@@ -773,7 +773,7 @@ def _ws_area_slot_times() -> websocket_api.WebSocketCommandHandler:
                 )
                 return
         else:
-            anchor_d = dt.datetime.now(zi.ZoneInfo(tz_str)).date()
+            anchor_d = dt_util.now().date()
 
         dates = [(anchor_d + dt.timedelta(days=i)).isoformat() for i in (-1, 0, 1)]
 
@@ -838,7 +838,7 @@ def _ws_slot_times_preview() -> websocket_api.WebSocketCommandHandler:
                 )
                 return
         else:
-            cur_d = dt.datetime.now(zi.ZoneInfo(tz_str)).date()
+            cur_d = dt_util.now().date()
 
         def _compute() -> dict[str, Any]:
             sun_data = compute_sun_day_data(lat, lon, tz_str, cur_d)
