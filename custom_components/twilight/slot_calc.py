@@ -120,7 +120,7 @@ def resolve_slot_times(
             fixed_time_raw = slot.get("fixed_time") or slot.get("fixedStartTime")
             fixed_mins = parse_fixed_time(fixed_time_raw)
             if fixed_mins is None:
-                # Discard invalid/missing fixed_time slots per spec §5
+                # Discard invalid/missing fixed_time slots
                 continue
             fixed_slots.append(
                 {"id": slot_id, "start": float(fixed_mins), "synthetic": False}

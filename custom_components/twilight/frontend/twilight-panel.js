@@ -641,7 +641,7 @@ Are you sure you want to proceed?`,"backup_restore.restore_confirm_title":"Resto
           <div class="tp-title">
             <img class="tp-title-icon" src="/twilight/logo.png" alt="Twilight">
             <span>Twilight</span>
-            ${((t=this.panel)==null?void 0:t.url_path)==="twilight_dev"?l`<span class="tp-badge tp-badge-dev">dev</span>`:l`<span class="tp-badge tp-badge-version">${"0.6.1"}</span>`}
+            ${((t=this.panel)==null?void 0:t.url_path)==="twilight_dev"?l`<span class="tp-badge tp-badge-dev">dev</span>`:l`<span class="tp-badge tp-badge-version">${"0.6.2"}</span>`}
           </div>`}
           <div class="tp-tabs">
             <twilight-tab-bar
@@ -8311,7 +8311,7 @@ Are you sure you want to proceed?`,"backup_restore.restore_confirm_title":"Resto
             <h2>${this.t("nav.settings")}</h2>
           </div>
           <div class="header-right">
-            Version ${"0.6.1"}
+            Version ${"0.6.2"}
           </div>
         </div>
       </div>

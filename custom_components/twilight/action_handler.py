@@ -329,7 +329,7 @@ class EntityActionHandler(BaseActionHandler):
         """Apply a scene or script.
 
         A re-trigger while the Entity-Action is already active goes through
-        `reapply()` instead of `start()` (§4.4 second bullet) — same
+        `reapply()` instead of `start()` — same
         was_activated pattern as SlotActionHandler.start()/
         apply_slot_action_over_channels().
         """
@@ -381,7 +381,7 @@ class LightActionHandler(BaseActionHandler):
         """Apply direct light settings.
 
         A re-trigger while the Light-Action is already active goes through
-        `reapply()` instead of `start()` (§4.4 first bullet) — same
+        `reapply()` instead of `start()` — same
         was_activated pattern as SlotActionHandler/EntityActionHandler. Does
         not apply to the `state == off` branch: TurnOffCallHandler's turn_off
         is idempotent, nothing to compare against.

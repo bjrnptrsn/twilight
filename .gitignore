@@ -59,3 +59,6 @@ data/blueprints/.temp/
 
 # Fetched HA logs (scripts/fetch_logs.sh)
 logs/
+
+# Local state of scripts/ha_watch.py
+data/ha_watch_state.json
