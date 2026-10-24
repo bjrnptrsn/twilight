@@ -1,0 +1,25 @@
+{
+  "name": "twilight-panel",
+  "version": "0.6.2",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "build:dev": "vite build --config vite.config.dev.ts",
+    "preview": "vite preview",
+    "tsc": "tsc --noEmit",
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
+  "devDependencies": {
+    "happy-dom": "^20.10.6",
+    "typescript": "^5.4.0",
+    "vite": "^6.0.0",
+    "vite-plugin-css-injected-by-js": "^3.3.1",
+    "vitest": "^4.1.10"
+  },
+  "dependencies": {
+    "lit": "^3.3.2"
+  }
+}

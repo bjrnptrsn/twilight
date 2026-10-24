@@ -144,7 +144,7 @@ def detect_channel_collisions(scene_map: SceneMap) -> dict[str, list[str]]:
     """Find entities controlled by more than one channel.
 
     Builds, per channel, the union of its slots' extracted+configured entities
-    (the already-resolved sets, so Hue scenes are covered too — see §3 #6) and
+    (the already-resolved sets, so Hue scenes are covered too) and
     returns {entity_id: [channel_id, ...]} for every entity in >1 channel.
     """
     by_channel: dict[str, set[str]] = {}

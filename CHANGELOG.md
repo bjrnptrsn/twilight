@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.2 - 2026-10-24
+
+### 🎨 Improvements
+
+*   **Panel Source for HACS**: The source code of the Twilight panel is now part of the repository, as required for inclusion in the HACS default store.
+
 ## 0.6.1 - 2026-10-19
 
 ### 🎨 Improvements

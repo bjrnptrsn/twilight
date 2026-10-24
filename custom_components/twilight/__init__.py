@@ -270,7 +270,9 @@ async def async_setup(hass: HomeAssistant, _config: dict[str, Any]) -> bool:
         DOMAIN,
         "trigger_input",
         async_trigger_input,
-        schema=vol.Schema(
+        # Home Assistant 2026.9+ aliases voluptuous to probatio at runtime; mypy
+        # still resolves this vol.Schema to the real voluptuous type.
+        schema=vol.Schema(  # type: ignore[arg-type]
             {
                 vol.Required("area_id"): str,
                 vol.Required("input_id"): str,

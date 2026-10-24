@@ -241,7 +241,7 @@ def _normalize_custom_channels(channels: dict[str, Any]) -> bool:
             if not isinstance(slot, dict):
                 continue
 
-            # Assign stable custom_ ID if missing or draft_ ID (§5.2)
+            # Assign stable custom_ ID if missing or draft_ ID
             slot_id = slot.get("id")
             if (
                 not slot_id

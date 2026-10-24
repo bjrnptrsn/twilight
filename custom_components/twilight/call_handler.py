@@ -951,9 +951,9 @@ class SceneCallHandler(BaseCallHandler):
         No transition. If the slot's scene is not per-entity extractable (a
         Hue Smart-Scene, an Entity-Action scene, or the primary channel's
         fallback), there is nothing to compare per-entity — re-trigger the
-        whole scene via `start()`'s call-building instead (§4.4 second
-        bullet), skipping scripts (not idempotent — a script re-run could
-        have side effects beyond restoring light state).
+        whole scene via `start()`'s call-building instead, skipping scripts
+        (not idempotent — a script re-run could have side effects beyond
+        restoring light state).
 
         Manual-off marking: if the active SlotAction has `respect_manual_off`
         set (opt-in, off by
@@ -961,7 +961,7 @@ class SceneCallHandler(BaseCallHandler):
         externally, marked by `LightStateInputHandler`) are skipped — the
         automation does not pull them back on slot changes. Re-triggers clear
         the set beforehand (`activity_requested()`), so the filter never
-        applies there. Only meaningful for real slots (§6 point 5) —
+        applies there. Only meaningful for real slots —
         Entity-Action scenes have no per-entity target to apply it to.
         """
         scene_info = self._scene_info(slot_id)
@@ -972,7 +972,7 @@ class SceneCallHandler(BaseCallHandler):
             if self._is_dynamic_slot(slot_id, scene_info) or self._is_ha_dynamic_scene(
                 self._resolve_scene_id(slot_id, scene_info)
             ):
-                # §3: a dynamic slot (Hue Bridge rotation or HA is_dynamic
+                # A dynamic slot (Hue Bridge rotation or HA is_dynamic
                 # animation) is neither retried nor reapplied — a static
                 # per-light call would drag the rotation back to frame 1,
                 # same reasoning as the retry guard in _can_retry().
@@ -1052,7 +1052,7 @@ class LightCallHandler(BaseCallHandler):
         return light_params
 
     async def start(self, targets: list[str], action: LightActionConfig) -> None:
-        """Apply direct light parameters. No retry (partial target, see §5 V4)."""
+        """Apply direct light parameters. No retry (partial target)."""
         all_targets = list(action.targets) or targets
         calls: list[CallSpec] = []
         if all_targets:
