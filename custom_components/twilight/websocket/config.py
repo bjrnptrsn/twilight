@@ -37,7 +37,7 @@ _LOGGER = logging.getLogger(__name__)
 #
 # Note: async_save_global() does NOT prune to GLOBAL_DEFAULTS (unlike
 # async_load()/async_import_all()) — extra keys saved via this endpoint are
-# kept verbatim (see test_global_save_preserves_unknown_keys), but only
+# kept verbatim, but only
 # survive an in-memory round trip. A full reload/restart still prunes them on
 # the next async_load(), since HA Store persists exactly what was passed to
 # async_save() but async_load() re-applies GLOBAL_DEFAULTS pruning on read.

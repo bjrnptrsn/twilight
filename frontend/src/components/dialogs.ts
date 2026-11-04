@@ -51,7 +51,9 @@ export abstract class PortalDialog extends TwilightLocalizeMixin(LitElement) {
   }
 
   private _trapTabFocus(e: KeyboardEvent) {
-    const focusables = this._getFocusables()
+    // Scoped to the panel that got the key: a dialog with a sub-panel keeps
+    // the hidden list panel's controls in the same render root.
+    const focusables = this._getFocusables(e.currentTarget as HTMLElement)
     if (focusables.length === 0) return
     const first = focusables[0]
     const last = focusables[focusables.length - 1]
@@ -65,9 +67,9 @@ export abstract class PortalDialog extends TwilightLocalizeMixin(LitElement) {
     }
   }
 
-  private _getFocusables(): HTMLElement[] {
+  private _getFocusables(root: ParentNode = this.renderRoot): HTMLElement[] {
     return Array.from(
-      this.renderRoot.querySelectorAll<HTMLElement>(
+      root.querySelectorAll<HTMLElement>(
         'button, input, select, textarea, [href], [tabindex]:not([tabindex="-1"])'
       )
     ).filter(el => !el.hasAttribute('disabled'))

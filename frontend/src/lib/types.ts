@@ -42,11 +42,15 @@ export interface LabEntity {
   name: string
   domain: string
   in_area: boolean
+  // Steered by an enabled channel of this area, whatever HA area it sits in.
+  in_channel?: boolean
   checked: boolean
   // Backend scene classification (scene/script entities only, null otherwise).
   scene_type?: string | null
-  // True for Hue scenes with a non-empty palette (dynamic playback capable).
+  // True for Hue scenes with a dynamic palette AND at least one lamp that can play it.
   supports_dynamic?: boolean
+  // The scene's own "start dynamic" setting from the Hue app — a slot's default.
+  auto_dynamic?: boolean
   // The scene's own speed as stored on the bridge, rescaled to 0-100.
   scene_speed?: number | null
 }
@@ -64,6 +68,9 @@ export interface AttrEntry {
 
 export interface LightStateEntry {
   name: string                // friendly name, resolved by the backend
+  source: 'scene' | 'controlled' // from a scene's extraction, or a turn-off list
+  dynamic: boolean               // on and playing a dynamic Hue scene right now
+  fading: boolean                // on and part of a running anticipatory slot fade
   actual_on: boolean             // is the light physically on (row dot)
   on: AttrEntry | null
   brightness: AttrEntry | null
@@ -123,6 +130,9 @@ export interface RunState {
   scene_extraction_failed?: { channel_id: string; slot_id: string }[]
 }
 
+// 'hue' = follow the Hue scene's own "start dynamic" setting (auto_dynamic).
+export type HueDynamicMode = 'hue' | 'on' | 'off'
+
 export interface Slot {
   id: string
   label: string
@@ -135,9 +145,10 @@ export interface Slot {
   startEvent?: string
   startOffset?: number
   fixedStartTime?: string
-  hue_activate_dynamic?: boolean
+  hue_activate_dynamic?: HueDynamicMode
   hue_dynamic_speed?: number | null
   configured_entities?: string[]
+  not_before: string | null  // "HH:MM" floor for NOT_BEFORE_ZONES slots
 }
 
 // Store-shape of a single slot inside a channel (mirrors the backend schema).
@@ -150,8 +161,9 @@ export interface SlotConfig {
   offset_minutes: number
   scene_entity_id: string | null
   configured_entities: string[]
-  hue_activate_dynamic?: boolean
+  hue_activate_dynamic?: HueDynamicMode
   hue_dynamic_speed?: number | null
+  not_before?: string | null    // "HH:MM" (12:00–03:59, 00:00–03:59 = after midnight), astral NOT_BEFORE_ZONES slots only
 }
 
 // A channel: the Primary one (fixed 10 astral slots) or a free custom channel.
@@ -205,6 +217,16 @@ export const STANDARD_ZONE_IDS = [
   'night'
 ] as const
 
+// Mirrors the backend's NOT_BEFORE_ZONES: the evening zones that may carry a
+// "not before" floor, in the order a floor's delta propagates.
+export const NOT_BEFORE_ZONES: readonly string[] = [
+  'gold_dusk',
+  'civil_dusk',
+  'nautical_dusk',
+  'astro_dusk',
+  'night',
+]
+
 export const STANDARD_NAMES: Record<string, string> = {
   astro_dawn: 'Astronomical dawn',
   nautical_dawn: 'Nautical dawn',
@@ -251,7 +273,7 @@ export interface InputConfig {
   create_entity?: boolean
 }
 
-export type ActivityActionType = 'slot' | 'entity' | 'light' | 'block' | 'reset' | 'simulation'
+export type ActivityActionType = 'slot' | 'entity' | 'block' | 'reset' | 'simulation'
 
 export interface EntityTarget {
   entity_id: string
@@ -261,13 +283,9 @@ export interface EntityTarget {
 export interface ActivityAction {
   type: ActivityActionType
   entity_id?: string              // entity (scene / script — domain aus entity_id)
-  targets?: string[]              // light
-  state?: 'on' | 'off'           // light, default 'on'
-  brightness?: number             // light, 0–255
-  color_temp?: number             // light, mired
-  rgb_color?: [number, number, number]  // light
+  configured_entities?: string[]  // entity — extra entities a turn-off release switches off; reset — what the 'entities' scope turns off
   respect_manual_off?: boolean    // slot — skip manually-off entities during automatic slot changes
-  transition?: number             // light — fixed fade seconds on start(), 0/absent = instant
+  scope?: ResetScope              // reset — what turns off
   entity_targets?: EntityTarget[] // reset — additional entities (input_boolean/switch/script)
   excluded_slots?: Record<string, string[]> // slot — channel_id -> excluded slot ids
   mode?: SimulationMode           // simulation — umbrella dispatch key
@@ -277,14 +295,16 @@ export interface ActivityAction {
   heatmap_profile_id?: string     // simulation — saved profile, empty = dynamic
 }
 
+export type ResetScope = 'area' | 'entities'
 export type SimulationMode = 'presence_heatmap'
 export type SimLuxMode = 'threshold' | 'dusk_dawn' | 'always'
 export type SimFrequencyMode = 'very_low' | 'low' | 'normal' | 'high' | 'very_high'
 
-export type ReleaseActionType = 'turn_off' | 'slot' | 'none'
+export type ReleaseActionType = 'turn_off' | 'activity' | 'none'
 
 export interface ReleaseAction {
-  type: ReleaseActionType
+  type: ReleaseActionType | null
+  activity?: string               // activity — id of the activity taking over
 }
 
 export interface ActivityConfig {
@@ -293,8 +313,8 @@ export interface ActivityConfig {
   suppress_inputs: string[]
   auto_expire_enabled?: boolean
   auto_expire: string | null
-  action?: ActivityAction          // Default: { type: 'slot' }
-  release_action?: ReleaseAction   // Default: { type: 'turn_off' }
+  action?: ActivityAction          // No implicit default: without a type the activity does nothing
+  release_action?: ReleaseAction   // No implicit default: null behaves like 'none'
   transition_off_seconds?: number | null
 }
 
@@ -341,7 +361,6 @@ export interface AreaConfig {
   rules?: RuleConfig[]
   heatmap_profiles?: HeatmapProfileConfig[]
   transition_on_seconds?: number | null
-  manual_only?: boolean
 }
 
 // area/save's WS response: the persisted AreaConfig plus a transient list of
@@ -459,6 +478,7 @@ export interface EngineStateInfo {
   color: string
   class: string
   sub: string
+  subTitle?: string
 }
 
 export interface BackupPayload {

@@ -1,17 +1,27 @@
-import { html, css } from 'lit'
+import { html, css, nothing, type PropertyValues } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
-import type { HomeAssistant } from '../lib/types'
-import type { LabEntity } from '../lib/types'
-import { preloadHaComponents } from '../lib/utils'
+import type { ExtractedLightGroup } from '../lib/light-groups'
 import { dialogChromeStyles } from '../lib/shared-styles'
+import type { TranslationKey } from '../lib/i18n'
 import { PortalDialog } from './dialogs'
 
+const SCENE_TYPE_KEYS: Record<string, TranslationKey> = {
+  plain_scene: 'area_lights_dialog.type_scene',
+  hue_scene: 'area_lights_dialog.type_hue_scene',
+  hue_smart_scene: 'area_lights_dialog.type_hue_scene',
+  script: 'area_lights_dialog.type_script',
+}
+
+/** Shows what the engine read out of the slots' scenes: one slot per channel,
+ *  the running one until another is picked. */
 @customElement('twilight-area-lights-dialog')
 export class TwilightAreaLightsDialog extends PortalDialog {
   @property({ type: Boolean }) open = false
-  @property({ attribute: false }) hass: HomeAssistant | null = null
-  @property({ type: Array }) entities: (LabEntity & { isExtracted?: boolean; isManual?: boolean })[] = []
-  @property({ type: Boolean }) manualOnly = false
+  @property({ attribute: false }) groups: ExtractedLightGroup[] = []
+  @property({ attribute: false }) activeSlots: Record<string, string> = {}
+
+  // channel id -> slot picked by hand; a channel without an entry follows its active slot
+  @state() private _pickedSlots: Record<string, string> = {}
 
   static styles = [
     dialogChromeStyles,
@@ -20,104 +30,104 @@ export class TwilightAreaLightsDialog extends PortalDialog {
         display: contents;
       }
 
-      .list-section-label {
+      .hint {
+        font-size: 13px;
+        font-style: italic;
+        color: var(--secondary-text-color);
+      }
+
+      /* --columns is the most that may sit side by side; a narrow window wraps earlier. */
+      .channels {
+        display: grid;
+        grid-template-columns: repeat(
+          auto-fit,
+          minmax(min(100%, max(440px, calc((100% - (var(--columns) - 1) * 32px) / var(--columns)))), 1fr)
+        );
+        gap: 24px 32px;
+        align-items: start;
+      }
+
+      .channel-name {
         font-size: 10px;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.9px;
         color: var(--secondary-text-color);
-        padding: 0 0 6px;
+        padding-bottom: 6px;
       }
 
-      .grid-list {
-        display: flex;
-        gap: 0 24px;
-        flex-shrink: 0;
-      }
-      .grid-list-col {
-        flex: 1;
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-      }
-
-      .picker-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 5px 0;
-        cursor: pointer;
-        transition: background 0.12s;
-        min-width: 0;
-      }
-      .picker-row:not(.static):hover {
+      select {
+        width: 100%;
+        margin-bottom: 10px;
         background: color-mix(in srgb, var(--primary-text-color) 4%, transparent);
-      }
-      .picker-row.static {
-        cursor: default;
-      }
-      .picker-row.standalone {
-        border: 1px solid var(--divider-color, color-mix(in srgb, var(--primary-text-color) 8%, transparent));
-        border-radius: 8px;
-        padding: 5px 10px;
-      }
-
-      .picker-checkbox {
-        width: 16px;
-        height: 16px;
+        border: 1px solid var(--divider-color, color-mix(in srgb, var(--primary-text-color) 15%, transparent));
         border-radius: 4px;
-        border: 2px solid var(--divider-color, color-mix(in srgb, var(--primary-text-color) 25%, transparent));
-        background: transparent;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        transition: border-color 0.12s, background 0.12s;
-      }
-      .picker-checkbox.checked {
-        background: var(--tp-accent, var(--accent-color, #e91e8c));
-        border-color: var(--tp-accent, var(--accent-color, #e91e8c));
-      }
-      .picker-checkbox.checked::after {
-        content: '✓';
-        color: white;
-        font-size: 10px;
-        font-weight: 700;
+        color: var(--primary-text-color);
+        padding: 6px 10px;
+        font-size: 13px;
+        outline: none;
       }
 
-      .picker-label {
+      /* One grid for the scene and its lamps, so the columns line up across rows. */
+      .lights {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto;
+        align-items: center;
+        gap: 6px 8px;
         font-size: 13px;
-        color: var(--primary-text-color);
-        text-overflow: ellipsis;
-        overflow: hidden;
-        white-space: nowrap;
-        flex: 1;
-        min-width: 40px;
       }
-      .picker-sublabel {
-        font-size: 10px;
-        color: var(--secondary-text-color);
-        font-family: monospace;
-        text-overflow: ellipsis;
-        overflow: hidden;
-        white-space: nowrap;
-        flex-shrink: 1;
-        min-width: 0;
-        text-align: right;
-        opacity: 0.6;
+
+      .row {
+        display: contents;
       }
-      .divider {
+
+      .row.scene .row-name {
+        font-weight: 600;
+      }
+
+      .scene-divider {
+        grid-column: 1 / -1;
         height: 1px;
         background: color-mix(in srgb, var(--primary-text-color, #fff) 8%, transparent);
-        margin: 8px 0;
+      }
+
+      .row-name,
+      .row-id {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .row-id {
+        font-size: 11px;
+        font-family: monospace;
+        color: var(--secondary-text-color);
+      }
+
+      .badge {
+        justify-self: start;
+        font-size: 10px;
+        font-weight: 600;
+        padding: 1px 6px;
+        border-radius: 4px;
+        white-space: nowrap;
+        color: var(--primary-text-color);
+        background: color-mix(in srgb, var(--primary-text-color) 10%, transparent);
+      }
+
+      .badge.scene {
+        background: color-mix(in srgb, var(--info-color, #2196f3) 30%, transparent);
+      }
+
+      .badge.dynamic {
+        background: color-mix(in srgb, #ab47bc 30%, transparent);
       }
     `
   ]
 
-  updated(changedProperties: Map<string, unknown>): void {
-    super.updated(changedProperties)
+  protected willUpdate(changedProperties: PropertyValues): void {
     if (changedProperties.has('open') && this.open) {
-      preloadHaComponents()
+      this._pickedSlots = {}
     }
   }
 
@@ -125,83 +135,73 @@ export class TwilightAreaLightsDialog extends PortalDialog {
     this.dispatchEvent(new CustomEvent('close', { bubbles: true, composed: true }))
   }
 
-  private _toggleManualOnly() {
-    const val = !this.manualOnly
-    this.dispatchEvent(new CustomEvent('mode-changed', {
-      detail: { manualOnly: val },
-      bubbles: true,
-      composed: true
-    }))
-  }
-
-  private _toggleEntity(id: string) {
-    const updated = this.entities.map(e =>
-      e.entity_id === id ? { ...e, isManual: !e.isManual } : e
-    )
-    this._fireChange(updated)
-  }
-
-  private _addEntity(entityId: string) {
-    if (!entityId) return
-    const existing = this.entities.find(e => e.entity_id === entityId)
-    let updated = [...this.entities]
-
-    if (existing) {
-      if (!existing.isManual) {
-        updated = this.entities.map(e =>
-          e.entity_id === entityId ? { ...e, isManual: true } : e
-        )
-      }
-    } else {
-      const name = this.hass?.states[entityId]?.attributes?.friendly_name ?? entityId
-      const domain = entityId.split('.')[0]
-      updated = [...this.entities, {
-        entity_id: entityId,
-        name,
-        domain,
-        in_area: false,
-        isManual: true,
-        isExtracted: false,
-        checked: true
-      }]
+  private get _channels(): ExtractedLightGroup[][] {
+    const channels = new Map<string, ExtractedLightGroup[]>()
+    for (const group of this.groups) {
+      channels.set(group.channelId, [...(channels.get(group.channelId) ?? []), group])
     }
-
-    this._fireChange(updated)
+    return [...channels.values()]
   }
 
-  private _fireChange(updatedList: (LabEntity & { isExtracted?: boolean; isManual?: boolean })[]) {
-    this.dispatchEvent(new CustomEvent('lights-changed', {
-      detail: { entities: updatedList },
-      bubbles: true,
-      composed: true
-    }))
+  private _shownGroup(groups: ExtractedLightGroup[]): ExtractedLightGroup {
+    const channelId = groups[0].channelId
+    const slotId = this._pickedSlots[channelId] ?? this.activeSlots[channelId]
+    return groups.find(g => g.slotId === slotId) ?? groups[0]
   }
 
-  private _renderColumns<T>(items: T[], renderItem: (item: T) => ReturnType<typeof html>) {
-    const mid = Math.ceil(items.length / 2)
-    const left = items.slice(0, mid)
-    const right = items.slice(mid)
+  private _renderChannel(groups: ExtractedLightGroup[]) {
+    const group = this._shownGroup(groups)
+    const typeKey = SCENE_TYPE_KEYS[group.sceneType]
+    const activeSlot = this.activeSlots[group.channelId]
     return html`
-      <div class="grid-list">
-        <div class="grid-list-col">${left.map(renderItem)}</div>
-        <div class="grid-list-col">${right.map(renderItem)}</div>
+      <div>
+        <div class="channel-name">${group.channelName}</div>
+        <select
+          aria-label=${group.channelName}
+          @change=${(e: Event) => {
+            this._pickedSlots = { ...this._pickedSlots, [group.channelId]: (e.target as HTMLSelectElement).value }
+          }}
+        >
+          ${groups.map(g => html`
+            <option value=${g.slotId} ?selected=${g.slotId === group.slotId}>
+              ${g.slotLabel}${g.slotId === activeSlot ? ` · ${this.t('area_lights_dialog.current_slot')}` : ''}
+            </option>
+          `)}
+        </select>
+        <div class="lights">
+          <div class="row scene">
+            <span class="row-name" title=${group.sceneName}>${group.sceneName}</span>
+            <span class="row-id" title=${group.sceneEntityId}>${group.sceneEntityId}</span>
+            ${typeKey ? html`<span class="badge scene">${this.t(typeKey)}</span>` : html`<span></span>`}
+            ${group.supportsDynamic ? html`<span class="badge dynamic">${this.t('area_lights_dialog.dynamic')}</span>` : html`<span></span>`}
+          </div>
+          <div class="scene-divider"></div>
+          ${group.rows.map(row => html`
+            <div class="row">
+              <span class="row-name" title=${row.name}>${row.name}</span>
+              <span class="row-id" title=${row.entity_id}>${row.entity_id}</span>
+              <span class="badge">${row.domain}</span>
+              ${row.dynamic ? html`<span class="badge dynamic">${this.t('area_lights_dialog.dynamic')}</span>` : html`<span></span>`}
+            </div>
+          `)}
+        </div>
+        ${group.rows.length === 0 ? html`<div class="hint">${this.t('area_lights_dialog.no_lights_in_slot')}</div>` : ''}
       </div>
     `
   }
 
   render() {
-    if (!this.open) return html``
+    if (!this.open) return nothing
 
-    const sceneEntities = this.entities.filter(e => e.isExtracted && (e.domain === 'light' || e.domain === 'switch'))
-    const areaEntities = this.entities.filter(e => e.in_area && !e.isExtracted && (e.domain === 'light' || e.domain === 'switch'))
-    const extraEntities = this.entities.filter(e => !e.in_area && e.isManual && (e.domain === 'light' || e.domain === 'switch'))
-    const hasManualEntities = this.entities.some(e => e.isManual)
+    const channels = this._channels
+    // Two and four channels pair up instead of leaving one alone in a second row.
+    const columns = channels.length === 2 || channels.length === 4 ? 2 : 3
 
     return html`
       <div class="overlay" @click=${(e: Event) => { if (e.target === e.currentTarget) this._closeDialog() }}>
         <div
           class="edit-panel"
-          style="max-width: 1000px;"
+          style="max-width: 1500px;"
           role="dialog"
           aria-modal="true"
           aria-labelledby=${this._titleId}
@@ -213,80 +213,9 @@ export class TwilightAreaLightsDialog extends PortalDialog {
           </div>
 
           <div class="panel-body">
-            ${sceneEntities.length > 0 ? html`
-              <div class="list-section-label">${this.t('area_lights_card.scene_lights_extracted')}</div>
-              ${this._renderColumns(sceneEntities, e => html`
-                <div class="picker-row static">
-                  <div class="picker-checkbox checked" style="opacity: 0.6;"></div>
-                  <span class="picker-label">${e.name}</span>
-                  <span class="entity-badge" style="background: color-mix(in srgb, var(--info-color, #2196f3) 20%, transparent); color: var(--info-color, #2196f3); border: 1px solid color-mix(in srgb, var(--info-color, #2196f3) 40%, transparent); font-size: 8px; padding: 1px 4px; border-radius: 3px; font-weight: bold; text-transform: uppercase; flex-shrink: 0; white-space: nowrap;">
-                    in scene
-                  </span>
-                  <span class="picker-sublabel">${e.entity_id}</span>
-                </div>
-              `)}
-              <div class="divider"></div>
-            ` : ''}
-
-            <div class="list-section-label">${this.t('area_lights_dialog.entities_in_area')}</div>
-            ${this._renderColumns(areaEntities, e => html`
-              <div class="picker-row" @click=${() => this._toggleEntity(e.entity_id)}>
-                <div class="picker-checkbox ${e.isManual ? 'checked' : ''}"></div>
-                <span class="picker-label">${e.name}</span>
-                <span class="picker-sublabel">${e.entity_id}</span>
-              </div>
-            `)}
-
-            ${extraEntities.length > 0 ? html`
-              <div class="divider"></div>
-              <div class="list-section-label">${this.t('area_lights_dialog.additional_entities')}</div>
-              ${this._renderColumns(extraEntities, e => html`
-                <div class="picker-row" @click=${() => this._toggleEntity(e.entity_id)}>
-                  <div class="picker-checkbox checked"></div>
-                  <span class="picker-label">${e.name}</span>
-                  ${e.isExtracted ? html`
-                    <span class="entity-badge" style="background: color-mix(in srgb, var(--info-color, #2196f3) 20%, transparent); color: var(--info-color, #2196f3); border: 1px solid color-mix(in srgb, var(--info-color, #2196f3) 40%, transparent); font-size: 8px; padding: 1px 4px; border-radius: 3px; font-weight: bold; text-transform: uppercase; flex-shrink: 0; white-space: nowrap;">
-                      in scene
-                    </span>
-                  ` : ''}
-                  <span class="picker-sublabel">${e.entity_id}</span>
-                </div>
-              `)}
-            ` : ''}
-
-            <div class="divider"></div>
-            <div>
-              <div class="list-section-label">${this.t('area_lights_dialog.add_entity')}</div>
-              <ha-entity-picker
-                .hass=${this.hass}
-                .includeDomains=${['light', 'switch']}
-                allow-custom-entity
-                @value-changed=${(e: CustomEvent) => {
-                  const val = e.detail.value
-                  if (val) {
-                    this._addEntity(val)
-                    const target = e.target as any
-                    if (target) target.value = ''
-                  }
-                }}
-              ></ha-entity-picker>
-            </div>
-
-            ${hasManualEntities ? html`
-              <div class="divider"></div>
-              <div>
-                <div class="list-section-label">${this.t('area_lights_dialog.turn_off_options')}</div>
-                <div class="picker-row standalone" @click=${this._toggleManualOnly}>
-                  <div class="picker-checkbox ${this.manualOnly ? 'checked' : ''}"></div>
-                  <div style="flex: 1; min-width: 0;">
-                    <span class="picker-label">${this.t('area_lights_dialog.additional_entities_only')}</span>
-                    <div class="picker-sublabel" style="font-family: inherit; font-size: 11px;">
-                      ${this.t('area_lights_dialog.manual_only_desc')}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ` : ''}
+            ${this.groups.length === 0
+              ? html`<div class="hint">${this.t('area_lights_dialog.no_extraction')}</div>`
+              : html`<div class="channels" style="--columns: ${columns};">${channels.map(groups => this._renderChannel(groups))}</div>`}
           </div>
 
           <div class="panel-footer">

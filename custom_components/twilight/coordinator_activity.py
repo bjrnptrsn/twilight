@@ -16,15 +16,16 @@ from .action_handler import (
     BaseActionHandler,
     BlockActionHandler,
     EntityActionHandler,
-    LightActionHandler,
     PresenceSimulationActionHandler,
     SlotActionHandler,
     TurnOffActionHandler,
+    entity_turn_off_list,
 )
 from .config_model import (
     ActionConfig,
     ActivityConfig,
     ResetActionConfig,
+    SimulationActionConfig,
     SlotActionConfig,
 )
 from .const import (
@@ -32,13 +33,17 @@ from .const import (
     DEFAULT_TRANSITION_OFF_SECONDS,
     ActionType,
     InputType,
+    ReleaseActionType,
+    ResetScope,
     RuleAutoExpireMode,
 )
 from .helpers import (
+    area_light_entities,
     coerce_action,
     create_tracked_task,
     dispatch_entity_target,
     parse_hms,
+    release_handover_target,
 )
 from .state import ActivityTrigger
 
@@ -59,7 +64,6 @@ class ActivityCoordinator:
         self._action_handlers: dict[str, BaseActionHandler] = {
             ActionType.SLOT: SlotActionHandler(self.coordinator),
             ActionType.ENTITY: EntityActionHandler(self.coordinator),
-            ActionType.LIGHT: LightActionHandler(self.coordinator),
             ActionType.BLOCK: BlockActionHandler(self.coordinator),
             ActionType.TURN_OFF: TurnOffActionHandler(self.coordinator),
             ActionType.SIMULATION: PresenceSimulationActionHandler(self.coordinator),
@@ -153,6 +157,9 @@ class ActivityCoordinator:
             if old_handler:
                 self._spawn_pending_cancel(old_handler)
             self.coordinator.cancel_all_handlers()
+            running_list = self._release_turn_off_list(
+                self.coordinator.run_state.active_activity
+            )
             reset_kwargs: dict[str, Any] = {
                 "active_activity": None,
                 "activity_trigger": None,
@@ -163,9 +170,25 @@ class ActivityCoordinator:
             }
             if self.coordinator.run_state.manual_off_entities:
                 reset_kwargs["manual_off_entities"] = frozenset()
+            if self.coordinator.run_state.manual_off_channels:
+                reset_kwargs["manual_off_channels"] = frozenset()
             self.coordinator.update_state(**reset_kwargs)
             self.coordinator.lux_manager.update_lux_state()
-            self.coordinator.turn_off_all_channels()
+            if (
+                isinstance(action, ResetActionConfig)
+                and action.scope == ResetScope.ENTITIES
+            ):
+                self.coordinator.turn_off_entities(action.configured_entities)
+            else:
+                self.coordinator.turn_off_all_channels(
+                    extra_entities=(
+                        *area_light_entities(
+                            self.coordinator.engine.hass,
+                            self.coordinator.engine.area_id,
+                        ),
+                        *running_list,
+                    )
+                )
             if isinstance(action, ResetActionConfig) and action.entity_targets:
                 for target in action.entity_targets:
                     create_tracked_task(
@@ -249,8 +272,13 @@ class ActivityCoordinator:
         # timer is NOT an activation, and its markers must survive for the next
         # slot change (respect_manual_off would otherwise pull the manually
         # turned-off light back on).
-        if self.coordinator.run_state.manual_off_entities:
-            self.coordinator.update_state(manual_off_entities=frozenset())
+        if (
+            self.coordinator.run_state.manual_off_entities
+            or self.coordinator.run_state.manual_off_channels
+        ):
+            self.coordinator.update_state(
+                manual_off_entities=frozenset(), manual_off_channels=frozenset()
+            )
 
         self.coordinator.update_state(
             active_activity=name,
@@ -298,8 +326,28 @@ class ActivityCoordinator:
             activity_expires_at=None,
             activity_expire_source=None,
             manual_off_entities=frozenset(),
+            manual_off_channels=frozenset(),
         )
-        self._apply_release_action(self.resolve_release_action(name), name)
+        release = self.resolve_release_action(name)
+        activity = self.get_activity_config(name)
+        target = (
+            release_handover_target(self.coordinator.engine.config, activity)
+            if activity
+            else None
+        )
+        if target:
+            # An ordinary takeover by the target. Without an input_id the target
+            # cannot be blocked by input suppression.
+            self.activity_requested(target)
+            return
+        if release.type == ReleaseActionType.ACTIVITY:
+            _LOGGER.warning(
+                "[%s] Activity '%s' has no valid release target — ending without a "
+                "light action",
+                self.coordinator.engine.area_id,
+                name,
+            )
+        self._apply_release_action(release, name)
 
     def get_activity_auto_expire_seconds(self, name: str) -> int | None:
         """Get the auto expire duration in seconds, or None if disabled."""
@@ -675,6 +723,8 @@ class ActivityCoordinator:
         self._active_handler = None
 
         transition_off = self.get_activity_transition_off_seconds(name)
+        # Read here, not remembered in start(): a restored handler never ran it.
+        extra_entities = self._release_turn_off_list(name)
 
         self.coordinator.update_state(
             active_activity=None,
@@ -697,11 +747,24 @@ class ActivityCoordinator:
             async def _stop_after_pending() -> None:
                 if pending_start is not None:
                     await pending_start
-                await handler.stop(release, transition_off=transition_off)
+                await handler.stop(
+                    release,
+                    transition_off=transition_off,
+                    extra_entities=extra_entities,
+                )
 
             self._pending_handler_start = self.coordinator._create_task(
                 _stop_after_pending()
             )
+
+    def _release_turn_off_list(self, name: str | None) -> tuple[str, ...]:
+        """The turn-off list of an activity's entity action or simulation template."""
+        if not name:
+            return ()
+        action = self.resolve_action(name)
+        if isinstance(action, SimulationActionConfig) and action.template_activity:
+            action = self.resolve_action(action.template_activity)
+        return entity_turn_off_list(action)
 
     def get_activity_config(self, name: str) -> ActivityConfig | None:
         """Get the typed config for an activity, or None if not configured."""

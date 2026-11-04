@@ -15,14 +15,21 @@ from homeassistant.helpers.event import async_call_later, async_track_state_chan
 
 from ..const import (
     DOMAIN,
+    HUE_DYNAMIC_PALETTE,
     PRIMARY_CHANNEL_ID,
     SIGNAL_ENGINES_CHANGED,
+    SIGNAL_FADE_CHANGED,
     SIGNAL_STATE_CHANGED,
 )
-from ..deviation import build_light_states, deviated_entities_from_map
+from ..deviation import build_light_states, deviated_entities_from_map, unenforced_attrs
 from ..engine import TwilightEngine
 from ..engine_registry import area_wants_engine
-from ..helpers import channel_entities, is_slot_excluded_effective
+from ..helpers import (
+    channel_entities,
+    enforced_scene_states,
+    is_dynamic_slot,
+    is_slot_excluded_effective,
+)
 from ..scene_manager import is_extraction_incomplete
 from ..state import RunState
 
@@ -189,6 +196,17 @@ def _ws_subscribe_all() -> websocket_api.WebSocketCommandHandler:
             if debounce_unsub is None:
                 debounce_unsub = async_call_later(hass, 0.1, _flush_pending)
 
+        @callback
+        def fade_listener(area_id: str) -> None:
+            # A fade starting or ending early changes no RunState; the area is
+            # rebuilt from the live engine at flush time.
+            nonlocal debounce_unsub
+            if area_id not in engines:
+                return
+            pending_area_ids.add(area_id)
+            if debounce_unsub is None:
+                debounce_unsub = async_call_later(hass, 0.1, _flush_pending)
+
         def _rebuild_entity_watch() -> None:
             """(Re)build entity_to_areas and its HA listener from current engines."""
             nonlocal unsub_ha
@@ -216,6 +234,8 @@ def _ws_subscribe_all() -> websocket_api.WebSocketCommandHandler:
             silently looks identical to one with no engine configured at all,
             both before this subscription's first push and after a page reload,
             once the one-shot area/save error response is long gone.
+            Not while the boot engine setup is still pending: there a missing
+            engine has simply not been created yet.
             """
             cached_areas_data.clear()
             store = hass.data[DOMAIN].get("store")
@@ -223,7 +243,7 @@ def _ws_subscribe_all() -> websocket_api.WebSocketCommandHandler:
                 built = _safe_build_state_dict(area_id, engine, engine.run_state)
                 if built is not None:
                     cached_areas_data[area_id] = built
-            if store:
+            if store and not hass.data[DOMAIN].get("engine_setup_pending"):
                 for area_id, config in store.get_areas().items():
                     if area_id in engines:
                         continue
@@ -245,11 +265,18 @@ def _ws_subscribe_all() -> websocket_api.WebSocketCommandHandler:
         unsub_engines = async_dispatcher_connect(
             hass, SIGNAL_ENGINES_CHANGED, engines_changed
         )
+        unsub_fade = async_dispatcher_connect(hass, SIGNAL_FADE_CHANGED, fade_listener)
         _rebuild_entity_watch()
 
         @callback
         def unsubscribe_all() -> None:
-            for unsub in (unsub_state, unsub_engines, unsub_ha, debounce_unsub):
+            for unsub in (
+                unsub_state,
+                unsub_engines,
+                unsub_fade,
+                unsub_ha,
+                debounce_unsub,
+            ):
                 if not unsub:
                     continue
                 try:
@@ -304,11 +331,6 @@ def _build_state_dict(
         iter(active_scene_names.values()), None
     )
 
-    # Aggregate expected states across all active channels.
-    expected: dict[str, dict[str, Any]] = {}
-    for info in active_infos.values():
-        expected.update(info.expected_states)
-
     # A channel whose current slot is excluded from the running slot activity
     # action (activity default or an active Rule override, see
     # helpers.is_slot_excluded_effective) is actively turned off — reflect that
@@ -320,22 +342,41 @@ def _build_state_dict(
             engine.config, state, engine.coordinator.rule_manager, channel_id, slot_id
         ):
             excluded_channels.add(channel_id)
-    if excluded_channels:
-        # Collision guard: an entity that another
-        # active, non-excluded channel actually drives keeps that channel's
-        # expected state — the excluded channel's "off" is only its own lack
-        # of a claim, not a say over an entity someone else is steering.
-        driven_by_others: set[str] = set()
-        for channel_id, info in active_infos.items():
-            if channel_id not in excluded_channels:
-                driven_by_others |= info.extracted_entities | info.configured_entities
-        for channel_id in excluded_channels:
-            for entity_id in channel_entities(engine.scene_map, channel_id):
-                if entity_id not in driven_by_others:
-                    expected[entity_id] = {"state": STATE_OFF}
+
+    # Aggregate expected states across the driving (non-excluded) channels, so
+    # an entity shared with an excluded channel keeps its driver's targets
+    # whatever the channel order. What a slot does not enforce (a dynamic
+    # slot's colours, its rotating lamps entirely) stays on display but is no
+    # deviation — the panel flags only what Twilight would correct. A lamp marked
+    # manual-off carries that badge instead, with or without Respect Off.
+    expected: dict[str, dict[str, Any]] = {}
+    unchecked: dict[str, set[str]] = {}
+    driven_by_others: set[str] = set()
+    for channel_id, info in active_infos.items():
+        if channel_id in excluded_channels:
+            continue
+        expected.update(info.expected_states)
+        slot = engine.config.slot(channel_id, state.active_slots[channel_id])
+        enforced = enforced_scene_states(info, is_dynamic_slot(slot, info))
+        for entity_id in info.expected_states:
+            unchecked[entity_id] = unenforced_attrs(
+                {}
+                if entity_id in state.manual_off_entities
+                else enforced.get(entity_id, {})
+            )
+        driven_by_others |= info.extracted_entities | info.configured_entities
+
+    # Collision guard: an entity that another active, non-excluded channel
+    # actually drives keeps that channel's expected state — the excluded
+    # channel's "off" is only its own lack of a claim, not a say over an
+    # entity someone else is steering.
+    for channel_id in excluded_channels:
+        for entity_id in channel_entities(engine.scene_map, channel_id):
+            if entity_id not in driven_by_others:
+                expected[entity_id] = {"state": STATE_OFF}
 
     light_states = build_light_states(
-        hass.states, expected, check_deviations=scene_active
+        hass.states, expected, check_deviations=scene_active, unchecked_attrs=unchecked
     )
 
     # Ensure all extracted/configured entities of the active slots appear in light_states,
@@ -349,6 +390,30 @@ def _build_state_dict(
     if missing:
         light_states.update(
             build_light_states(hass.states, missing, check_deviations=False)
+        )
+
+    controlled: set[str] = set()
+    extracted: set[str] = set()
+    for info in active_infos.values():
+        controlled |= info.configured_entities
+        extracted |= info.extracted_entities
+    # The lamps fade() builds its calls from; one that is off does not fade.
+    fade_targets: set[str] = set()
+    for channel_id, slot_id in engine.coordinator.fading_channels().items():
+        if target := engine.scene_map.get((channel_id, slot_id)):
+            fade_targets.update(target.expected_states)
+    for entity_id, entry in light_states.items():
+        entry["fading"] = bool(entry["actual_on"] and entity_id in fade_targets)
+        entry["source"] = (
+            "controlled" if entity_id in controlled - extracted else "scene"
+        )
+        # The lamp's own report, so a scene started in the Hue app counts as well.
+        # It keeps its last value while the lamp is off.
+        ha_state = hass.states.get(entity_id)
+        entry["dynamic"] = bool(
+            entry["actual_on"]
+            and ha_state
+            and ha_state.attributes.get("dynamics") == HUE_DYNAMIC_PALETTE
         )
 
     all_lights: set[str] = set()

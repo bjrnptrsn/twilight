@@ -38,7 +38,11 @@ from .const import (
 from .echo import identify_echo
 from .helpers import (
     aggregate_active,
+    channel_entities,
     create_tracked_task,
+    entities_all_off,
+    get_slot_info,
+    is_slot_excluded_effective,
     parse_hms_parts,
     resolve_aggregation,
     resolve_lux_ignore_active,
@@ -515,18 +519,23 @@ class LightStateInputHandler(BaseInputHandler):
             )
             # Twilight service call echo: if turned ON, remove manual off marker
             if new_state.state == STATE_ON:
-                current_off = self.engine.coordinator.run_state.manual_off_entities
-                if entity_id in current_off:
-                    self.engine.coordinator.update_state(
-                        manual_off_entities=current_off - {entity_id}
-                    )
+                self._clear_manual_off(entity_id)
             return
 
+        # The attributes tell a real change from a Bridge-side update (e.g. a
+        # dynamic scene's rotation); context_id traces the origin in HA's logbook.
+        details = ", ".join(
+            f"{key}={new_state.attributes[key]}"
+            for key in ("brightness", "color_temp_kelvin", "xy_color")
+            if new_state.state == STATE_ON and new_state.attributes.get(key) is not None
+        )
         _LOGGER.info(
-            "[%s] LightStateInputHandler: external change detected: %s → %s",
+            "[%s] LightStateInputHandler: external change detected: %s → %s%s (context_id=%s)",
             self.engine.area_id,
             entity_id,
             new_state.state,
+            f" ({details})" if details else "",
+            event.context.id,
         )
 
         if self.engine.coordinator.run_state.active_activity is None:
@@ -535,15 +544,78 @@ class LightStateInputHandler(BaseInputHandler):
             # activity_requested() anyway.
             return
 
-        current_off = self.engine.coordinator.run_state.manual_off_entities
-        if new_state.state == STATE_OFF and entity_id not in current_off:
-            self.engine.coordinator.update_state(
-                manual_off_entities=current_off | {entity_id}
-            )
-        elif new_state.state == STATE_ON and entity_id in current_off:
-            self.engine.coordinator.update_state(
-                manual_off_entities=current_off - {entity_id}
-            )
+        if new_state.state == STATE_OFF:
+            self._mark_manual_off(entity_id)
+        elif new_state.state == STATE_ON:
+            self._clear_manual_off(entity_id)
+
+    def _mark_manual_off(self, entity_id: str) -> None:
+        """Mark a lamp switched off by hand, and every channel it left dark."""
+        coordinator = self.engine.coordinator
+        run_state = coordinator.run_state
+        changes: dict[str, frozenset[str]] = {}
+        if entity_id not in run_state.manual_off_entities:
+            changes["manual_off_entities"] = run_state.manual_off_entities | {entity_id}
+        darkened = frozenset(
+            channel_id
+            for channel_id in coordinator.channel_ids
+            if channel_id not in run_state.manual_off_channels
+            and self._darkened_by_hand(channel_id, entity_id)
+        )
+        if darkened:
+            changes["manual_off_channels"] = run_state.manual_off_channels | darkened
+        if changes:
+            coordinator.update_state(**changes)
+
+    def _darkened_by_hand(self, channel_id: str, entity_id: str) -> bool:
+        """True if switching this lamp off left the channel dark against its slot.
+
+        A slot that wants no light (excluded, no scene, a scene keeping every
+        lamp off) was darkened by Twilight; switching a lamp off there only
+        returns to the slot's target. A scene without per-lamp states (script,
+        smart scene) counts as wanting light.
+        """
+        coordinator = self.engine.coordinator
+        scene_map = self.engine.scene_map
+        entities = channel_entities(scene_map, channel_id)
+        if entity_id not in entities:
+            return False
+        slot_id = coordinator.run_state.active_slots.get(channel_id)
+        if slot_id is None:
+            return False
+        scene_info = get_slot_info(scene_map, channel_id, slot_id)
+        if scene_info is None:
+            return False
+        if is_slot_excluded_effective(
+            self.engine.config,
+            coordinator.run_state,
+            coordinator.rule_manager,
+            channel_id,
+            slot_id,
+        ):
+            return False
+        if scene_info.expected_states and not any(
+            expected.get("state") == STATE_ON
+            for expected in scene_info.expected_states.values()
+        ):
+            return False
+        return entities_all_off(self.engine.hass, entities)
+
+    def _clear_manual_off(self, entity_id: str) -> None:
+        """A lamp that comes on ends its own marker and "all off" for its channels."""
+        run_state = self.engine.coordinator.run_state
+        changes: dict[str, frozenset[str]] = {}
+        if entity_id in run_state.manual_off_entities:
+            changes["manual_off_entities"] = run_state.manual_off_entities - {entity_id}
+        lit = frozenset(
+            channel_id
+            for channel_id in run_state.manual_off_channels
+            if entity_id in channel_entities(self.engine.scene_map, channel_id)
+        )
+        if lit:
+            changes["manual_off_channels"] = run_state.manual_off_channels - lit
+        if changes:
+            self.engine.coordinator.update_state(**changes)
 
 
 class TimerInputHandler(BaseInputHandler):

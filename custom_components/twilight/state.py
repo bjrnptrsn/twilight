@@ -56,6 +56,9 @@ class RunState:
     manual_off_entities: frozenset[str] = field(
         default_factory=frozenset
     )  # entities manually turned off externally during active activity
+    manual_off_channels: frozenset[str] = field(
+        default_factory=frozenset
+    )  # channels switched off entirely by hand during active activity
 
 
 @dataclass(frozen=True)
@@ -72,7 +75,15 @@ class SlotSceneInfo:
     expected_states: dict[
         str, dict[str, Any]
     ]  # entity_id -> expected state attributes dict
-    supports_dynamic: bool = False  # True if Hue scene has dynamic palette colors
+    # Extracted lamps that can play the scene's dynamic palette — empty unless the
+    # palette is dynamic, so it alone decides whether the scene can run dynamic.
+    dynamic_entities: frozenset[str] = frozenset()
+    auto_dynamic: bool = False  # the Hue scene's own "start dynamic" setting (Hue app)
+
+    @property
+    def supports_dynamic(self) -> bool:
+        """True if the scene can run dynamic: dynamic palette and at least one capable lamp."""
+        return bool(self.dynamic_entities)
 
 
 @dataclass

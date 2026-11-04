@@ -118,20 +118,22 @@ export function formatActionCell(action?: ActivityAction, locale?: string): stri
     const parts = (action?.entity_id || '').split('.')
     return t(locale, 'activity_row_editor.cell_action_entity', { name: parts[1] || action?.entity_id || '—' })
   }
-  if (type === 'light') {
-    const count = action?.targets?.length ?? 0
-    return t(locale, 'activity_row_editor.cell_action_light', { count })
-  }
   return type
 }
 
-export function formatReleaseCell(release?: ReleaseAction, locale?: string): string {
-  const type = release?.type
-  if (!type) return '—'
-  if (type === 'turn_off') return t(locale, 'activity_row_editor.cell_release_turn_off')
-  if (type === 'slot') return t(locale, 'activity_row_editor.cell_release_restore_slot')
-  if (type === 'none') return t(locale, 'activity_row_editor.cell_release_nothing')
-  return type
+export function formatReleaseCell(
+  release?: ReleaseAction,
+  locale?: string,
+  activities: ActivityConfig[] = []
+): string {
+  if (release?.type === 'turn_off') return t(locale, 'activity_row_editor.cell_release_turn_off')
+  if (release?.type === 'activity') {
+    const target = activities.find(a => a.id === release.activity)
+    return target
+      ? t(locale, 'activity_row_editor.cell_release_activity', { name: target.name || target.id })
+      : t(locale, 'activity_row_editor.cell_release_target_missing')
+  }
+  return t(locale, 'activity_row_editor.cell_release_none')
 }
 
 export function getActivityActionType(

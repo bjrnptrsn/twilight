@@ -17,10 +17,10 @@ import { type ResetTreeNode } from '../components/reset-dialog'
 import '../components/sun-path-card'
 import '../components/slot-editor'
 import '../components/slot-tooltip'
-import { convertCalculatedTimesToSlots, haLocalDateString, isSlotActiveAt } from '../lib/utils'
+import { channelDisplayName, convertCalculatedTimesToSlots, haLocalDateString, isSlotActiveAt } from '../lib/utils'
 import { getInputDisplayName } from '../lib/input-helpers'
 import { hostResetStyles, viewHeaderStyles, detailFooterStyles } from '../lib/shared-styles'
-import { getChannels, getChannelIds, getChannelSlots, slugifyChannelId } from '../lib/channel-helpers'
+import { getChannels, getChannelIds, getChannelSlots, newChannelId } from '../lib/channel-helpers'
 import { LiveClockController } from '../lib/live-clock-controller'
 import { DialogController } from '../lib/dialog-controller'
 import { ensureDefaultActivities } from '../lib/activity-helpers'
@@ -30,6 +30,7 @@ import '../components/inputs-dialog'
 import '../components/activities-dialog'
 import '../components/sensors-dialog'
 import '../components/area-lights-dialog'
+import { buildExtractedLightGroups } from '../lib/light-groups'
 import '../components/rules-dialog'
 
 @customElement('twilight-area-detail-view')
@@ -266,19 +267,27 @@ export class AreaDetailView extends TwilightLocalizeMixin(LitElement) {
       // Refetch slot times via area/slot_times now that the area config is updated.
       await this._fetchSlotTimes()
 
-      if (this.hass) {
-        const extractedResult = await (api.areaExtracted(this.hass, saved.area_id).catch(() => ({})) as Promise<Record<string, api.ExtractedSlotInfo>>)
-        if (saved.area_id === this.areaId) {
-          this._extractedEntities = extractedResult || {}
-          if (this._draftController.draft) {
-            this._updateAreaEntities(this._draftController.draft, this._areaEntities)
-          }
-        }
-      }
+      await this._fetchExtracted(saved.area_id)
 
       return saved
     }
   })
+
+  /** The engine extracts in the background after a boot, so a loaded result can go stale. */
+  private async _fetchExtracted(areaId: string) {
+    if (!this.hass) return
+    const result = await (api.areaExtracted(this.hass, areaId).catch(() => ({})) as Promise<Record<string, api.ExtractedSlotInfo>>)
+    if (areaId !== this.areaId) return
+    this._extractedEntities = result || {}
+    if (this._draftController.draft) {
+      this._updateAreaEntities(this._draftController.draft, this._areaEntities)
+    }
+  }
+
+  private _openLightsDialog() {
+    this._areaLightsEditOpen = true
+    this._fetchExtracted(this.areaId)
+  }
 
   private async _saveOrUpdateDraft() {
     if (this._draftController.saving) return
@@ -455,29 +464,29 @@ export class AreaDetailView extends TwilightLocalizeMixin(LitElement) {
       })
     }
 
-    const configuredLightIds = new Set<string>()
+    const configuredIds = new Set<string>()
     const channelId = this._activeChannelId(draft)
     getChannelSlots(draft, channelId).forEach(s => {
-      s.configured_entities?.forEach(id => configuredLightIds.add(id))
+      s.configured_entities?.forEach(id => configuredIds.add(id))
     })
-
-    const hasConfigured = configuredLightIds.size > 0
 
     this._areaEntities = rawEntities
       .map(e => {
         const isExtracted = extractedIds.has(e.entity_id)
-        const isManual = hasConfigured && configuredLightIds.has(e.entity_id)
+        const isControlled = configuredIds.has(e.entity_id)
         return {
           entity_id: e.entity_id,
           name: e.name,
           domain: e.domain,
           in_area: e.in_area,
+          in_channel: e.in_channel,
           scene_type: e.scene_type,
           supports_dynamic: e.supports_dynamic,
+          auto_dynamic: e.auto_dynamic,
           scene_speed: e.scene_speed,
-          checked: isManual || isExtracted,
+          checked: isControlled || isExtracted,
           isExtracted,
-          isManual
+          isControlled
         }
       })
       .sort((a, b) => (a.name || a.entity_id).localeCompare(b.name || b.entity_id))
@@ -574,8 +583,7 @@ export class AreaDetailView extends TwilightLocalizeMixin(LitElement) {
     if (!draft) return
     const name = e.detail.name.trim()
     if (!name) return
-    const id = slugifyChannelId(name)
-    if (!id) return
+    const id = newChannelId(name)
 
     const channels = { ...getChannels(draft) }
     if (channels[id]) {
@@ -657,40 +665,17 @@ export class AreaDetailView extends TwilightLocalizeMixin(LitElement) {
         fixed_time: isFixed ? (s.fixedStartTime || '00:00') : null,
         offset_minutes: s.startOffset || 0,
         scene_entity_id: s.scene,
-        configured_entities: existing?.configured_entities || [],
-        hue_activate_dynamic: s.hue_activate_dynamic || false,
+        configured_entities: s.configured_entities ?? [],
+        hue_activate_dynamic: s.hue_activate_dynamic ?? 'hue',
         hue_dynamic_speed: s.hue_dynamic_speed ?? null,
+        not_before: isFixed ? null : (s.not_before || null),
       }
     })
-    
+
     this._draftController.update({ channels: this._withChannelSlots(draft, channelId, newSlots, e.detail.transitionOnSeconds) })
     this._refreshExtractedEntities()
     await this._saveOrUpdateDraft()
     await this._fetchSlotTimes()
-  }
-
-  private async _onLightsChanged(e: CustomEvent<{ entities: (LabEntity & { isExtracted: boolean; isManual: boolean })[] }>) {
-    const draft = this._draftController.draft
-    if (!draft) return
-    this._areaEntities = e.detail.entities
-    const checkedManualIds = e.detail.entities.filter(ent => ent.isManual).map(ent => ent.entity_id)
-
-    const channelId = this._activeChannelId(draft)
-    const newSlots = getChannelSlots(draft, channelId).map(s => ({
-      ...s,
-      configured_entities: checkedManualIds
-    }))
-    
-    this._draftController.update({ channels: this._withChannelSlots(draft, channelId, newSlots) })
-    this._refreshExtractedEntities()
-    await this._saveOrUpdateDraft()
-  }
-
-  private async _onLightsModeChanged(e: CustomEvent<{ manualOnly: boolean }>) {
-    this._draftController.update({
-      manual_only: e.detail.manualOnly
-    })
-    await this._saveOrUpdateDraft()
   }
 
   private async _onSelectAreaChanged(e: Event) {
@@ -862,7 +847,14 @@ export class AreaDetailView extends TwilightLocalizeMixin(LitElement) {
     const todayStr = haLocalDateString(this.hass)
     const datesObj = this._slotTimes?.channels?.[channelId]
     const calcList = datesObj?.[todayStr] || (datesObj ? Object.values(datesObj)[0] : []) || []
-    return convertCalculatedTimesToSlots(calcList, rawSlots)
+    return convertCalculatedTimesToSlots(calcList, rawSlots, this.hass?.locale?.language, this.todayData)
+  }
+
+  /** Slots of a channel whose saved scene or script yielded no lights. */
+  private _emptyExtractionSlotIds(channelId: string): string[] {
+    return Object.values(this._extractedEntities)
+      .filter(info => info.channel_id === channelId && info.extracted.length === 0)
+      .map(info => info.slot_id)
   }
 
   private _activeSceneName(slots: Slot[]): string {
@@ -976,10 +968,7 @@ export class AreaDetailView extends TwilightLocalizeMixin(LitElement) {
               .entities=${this._areaEntities}
               .activeSceneName=${activeSceneName}
               .runState=${runState}
-              .manualOnly=${draft.manual_only ?? false}
-              @lights-changed=${this._onLightsChanged}
-              @mode-changed=${this._onLightsModeChanged}
-              @open-edit=${() => { this._areaLightsEditOpen = true }}
+              @open-edit=${this._openLightsDialog}
             ></twilight-area-lights-card>
           </div>
           <div class="span-6">
@@ -1061,13 +1050,14 @@ export class AreaDetailView extends TwilightLocalizeMixin(LitElement) {
         .hass=${this.hass}
         .slots=${slots}
         .entities=${this._areaEntities}
+        .emptyExtractionSlotIds=${this._emptyExtractionSlotIds(channelId)}
         .placeholderDefaults=${this._effectivePlaceholderDefaults}
         .open=${this._slotEditOpen}
         .highlightSlotId=${this._editingSlotId}
         .areaId=${draft.area_id}
         .areaName=${draft.name || ''}
         .isPrimaryChannel=${channelId === PRIMARY_CHANNEL_ID}
-        .channelName=${getChannels(draft)[channelId]?.name || ''}
+        .channelName=${channelDisplayName(channelId, getChannels(draft)[channelId]?.name, this.hass?.locale?.language)}
         .transitionOnSeconds=${getChannels(draft)[channelId]?.transition_on_seconds ?? null}
         @slots-changed=${this._onSlotsChanged}
         @close=${() => { this._slotEditOpen = false; this._editingSlotId = null; }}
@@ -1080,6 +1070,7 @@ export class AreaDetailView extends TwilightLocalizeMixin(LitElement) {
       ></twilight-slot-tooltip>
 
       <twilight-reset-dialog
+        .hass=${this.hass}
         .open=${this._resetDialogOpen}
         .title=${this.t('area_detail.reset_area_title')}
         .description=${this.t('area_detail.reset_area_desc')}
@@ -1089,6 +1080,7 @@ export class AreaDetailView extends TwilightLocalizeMixin(LitElement) {
       ></twilight-reset-dialog>
 
       <twilight-alert-dialog
+        .hass=${this.hass}
         .open=${this._dialog.alertOpen}
         .dialogTitle=${this._dialog.alertTitle}
         .message=${this._dialog.alertMessage}
@@ -1098,12 +1090,8 @@ export class AreaDetailView extends TwilightLocalizeMixin(LitElement) {
       <twilight-area-lights-dialog
         .open=${this._areaLightsEditOpen}
         .hass=${this.hass}
-        .entities=${this._areaEntities}
-        .activeSceneName=${activeSceneName}
-        .runState=${runState}
-        .manualOnly=${draft.manual_only ?? false}
-        @lights-changed=${this._onLightsChanged}
-        @mode-changed=${this._onLightsModeChanged}
+        .groups=${buildExtractedLightGroups(this._extractedEntities, this._areaEntities, draft, channelSlotsMap, this.hass?.locale?.language)}
+        .activeSlots=${runState?.active_slots ?? {}}
         @close=${() => { this._areaLightsEditOpen = false }}
       ></twilight-area-lights-dialog>
 
@@ -1124,6 +1112,9 @@ export class AreaDetailView extends TwilightLocalizeMixin(LitElement) {
       <twilight-activities-dialog
         .open=${this._activitiesEditOpen}
         .hass=${this.hass}
+        .entities=${this._areaEntities}
+        .areaId=${draft.area_id}
+        .areaName=${draft.name || ''}
         .config=${draft.activities ?? []}
         .inputs=${draft.inputs ?? []}
         .placeholderDefaults=${this.placeholderDefaults}
@@ -1154,6 +1145,7 @@ export class AreaDetailView extends TwilightLocalizeMixin(LitElement) {
       ></twilight-rules-dialog>
 
       <twilight-confirm-dialog
+        .hass=${this.hass}
         .open=${this._dialog.confirmOpen}
         .dialogTitle=${this._dialog.confirmTitle}
         .message=${this._dialog.confirmMessage}

@@ -1,5 +1,6 @@
 import { type HomeAssistant, type InputConfig, type PlaceholderDefaults } from './types'
 import { t, type TranslationKey } from './i18n'
+import { sceneDisplayName } from './utils'
 
 export type LuxIgnoreScope = 'none' | 'twilight_slots' | 'all_slots'
 
@@ -51,38 +52,74 @@ export function formatMotionInfo(p: ResolvedMotionInfo, locale?: string): string
 }
 
 export interface EntityDisplay {
+  /** Friendly names, each falling back to its entity id when HA has none. */
   friendlyName: string
-  subText: string
+  /** All entity ids, untruncated — for a tooltip, not for the visible row. */
+  entityIds: string
+  /** Retrigger/combine suffix, e.g. "[retrigger: every]"; empty when not applicable. */
+  modeText: string
 }
 
 export function getEntityDisplay(input: InputConfig, hass?: HomeAssistant): EntityDisplay {
+  const lang = hass?.locale?.language
   const entityIds = input.entity_ids ?? []
   if (entityIds.length === 0) {
-    return { friendlyName: t(hass?.locale?.language, 'input_row_editor.no_entities_configured'), subText: '—' }
+    return { friendlyName: t(lang, 'input_row_editor.no_entities_configured'), entityIds: '', modeText: '' }
   }
 
   const names = entityIds.map(ent => hass?.states[ent]?.attributes?.friendly_name ?? ent)
 
   let friendlyName = names.join(', ')
   if (friendlyName.length > 35 && names.length > 1) {
-    friendlyName = `${names[0]} + ${names.length - 1} more`
+    friendlyName = t(lang, 'common.more_items', { first: names[0], count: names.length - 1 })
   }
 
-  let subText = entityIds.join(', ')
-  if (subText.length > 50 && entityIds.length > 1) {
-    subText = `${entityIds[0]} + ${entityIds.length - 1} more`
-  }
-
+  let modeText = ''
   if (input.type === 'motion') {
-    const mode = input.retrigger ?? 'every'
-    subText += ` [retrigger: ${mode}]`
+    const key = input.retrigger === 'first' ? 'inputs_card.retrigger_first' : 'inputs_card.retrigger_every'
+    modeText = `[${t(lang, key)}]`
   } else if (entityIds.length >= 2 && input.type === 'binary') {
     const mode = input.aggregation ?? 'any'
-    const modeStr = mode === 'count' ? `count:${input.aggregation_count ?? 1}` : mode
-    subText += ` [combine: ${modeStr}]`
+    const hint = mode === 'count'
+      ? t(lang, 'inputs_card.combine_count', { count: input.aggregation_count ?? 1 })
+      : t(lang, mode === 'all' ? 'inputs_card.combine_all' : 'inputs_card.combine_any')
+    modeText = `[${hint}]`
   }
 
-  return { friendlyName, subText }
+  return { friendlyName, entityIds: entityIds.join(', '), modeText }
+}
+
+/**
+ * Secondary line of an entity-backed input row. The friendly name already moved
+ * into the title when the input has no own name, so it is repeated here only
+ * when an own name took the title.
+ */
+export function getEntitySubline(input: InputConfig, display: EntityDisplay, extra = ''): string {
+  return [input.name ? display.friendlyName : '', display.modeText, extra].filter(Boolean).join(' ')
+}
+
+/** Localized "Mode: …" hint of a button input. */
+export function getButtonModeText(input: InputConfig, hass?: HomeAssistant | null): string {
+  const lang = hass?.locale?.language
+  const key = input.button_mode === 'toggle' ? 'input_row_editor.mode_toggle' : 'input_row_editor.mode_click'
+  return t(lang, 'inputs_card.mode', { mode: t(lang, key) })
+}
+
+/** Localized hint naming the event type of an event input; empty for any other input. */
+export function getEventTypeHint(input: InputConfig, hass?: HomeAssistant | null): string {
+  if (input.type !== 'event' || !input.event_type) return ''
+  return `[${t(hass?.locale?.language, 'input_row_editor.type_event')}: ${input.event_type}]`
+}
+
+/**
+ * What triggered an activity: the input, plus the entity that fired it — on a
+ * multi-entity input that is the only hint which one it was. An unnamed
+ * single-entity input already displays that entity's name, so it is not repeated.
+ */
+export function getTriggerSource(inputName: string, entityId: string | null | undefined, hass?: HomeAssistant | null): string {
+  if (!entityId) return inputName
+  const entityName = sceneDisplayName(hass, entityId)
+  return entityName === inputName ? inputName : `${inputName} (${entityName})`
 }
 
 /**

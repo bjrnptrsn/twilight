@@ -102,16 +102,31 @@ export function formatDateTime(
 }
 
 /**
- * Format a time-of-day value honoring HA's time_format locale override
- * (12/24/system/language). Mirrors HA frontend's own useAmPm() (see
+ * Whether HA's time_format locale override (12/24/system/language) resolves
+ * to 12h notation. Mirrors HA frontend's own useAmPm() (see
  * src/common/datetime/use_am_pm.ts): for 'language'/'system', HA doesn't
  * hardcode a per-language table — it sniffs whether the resolved locale's
  * own toLocaleString() renders 22:00 as "10" (12h) to decide. Reproduced
  * here rather than folding the language down via normalizeLanguage(), which
  * would lose region info (e.g. 'en-GB' -> 'en' reads as 12h by Intl default,
- * while the real en-GB locale is 24h). hourCycle: 'h23' (not `hour12: false`,
- * which some locales render as h24 — midnight as "24:00") keeps slot end
- * times like 24:00 unambiguous.
+ * while the real en-GB locale is 24h).
+ */
+export function usesAmPm(locale?: HomeAssistant['locale']): boolean {
+  const timeFormat = locale?.time_format
+  // Sniff with the raw language tag, not the normalized one: 'en-GB' must
+  // resolve as its own (24h) locale, not fall back to 'en' (12h).
+  const sniffLang = timeFormat === 'system' ? undefined : locale?.language
+  return (
+    timeFormat === '12' ||
+    ((timeFormat === 'language' || timeFormat === 'system' || !timeFormat) &&
+      new Date('January 1, 2026 22:00:00').toLocaleString(sniffLang).includes('10'))
+  )
+}
+
+/**
+ * Format a time-of-day value honoring HA's time_format locale override.
+ * hourCycle: 'h23' (not `hour12: false`, which some locales render as h24 —
+ * midnight as "24:00") keeps slot end times like 24:00 unambiguous.
  */
 export function formatTime(
   date: Date | string | number,
@@ -119,17 +134,9 @@ export function formatTime(
   options?: Intl.DateTimeFormatOptions
 ): string {
   const d = date instanceof Date ? date : new Date(date)
-  const timeFormat = locale?.time_format
-  const lang = timeFormat === 'system' ? undefined : normalizeLanguage(locale?.language)
-  // Sniff with the raw language tag, not the normalized one: 'en-GB' must
-  // resolve as its own (24h) locale, not fall back to 'en' (12h).
-  const sniffLang = timeFormat === 'system' ? undefined : locale?.language
-  const amPm =
-    timeFormat === '12' ||
-    ((timeFormat === 'language' || timeFormat === 'system' || !timeFormat) &&
-      new Date('January 1, 2026 22:00:00').toLocaleString(sniffLang).includes('10'))
+  const lang = locale?.time_format === 'system' ? undefined : normalizeLanguage(locale?.language)
   try {
-    return new Intl.DateTimeFormat(lang, { hourCycle: amPm ? 'h12' : 'h23', ...options }).format(d)
+    return new Intl.DateTimeFormat(lang, { hourCycle: usesAmPm(locale) ? 'h12' : 'h23', ...options }).format(d)
   } catch {
     return d.toLocaleTimeString()
   }

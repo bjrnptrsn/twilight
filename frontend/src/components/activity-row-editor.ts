@@ -1,12 +1,14 @@
 import { LitElement, html, css, PropertyValues } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
-import { type ActivityConfig, type InputConfig, type ActivityActionType, type ActivityAction, type ReleaseActionType, type ReleaseAction, type EntityTarget, type SimLuxMode, type SimFrequencyMode, type HomeAssistant, type PlaceholderDefaults, type ChannelConfig } from '../lib/types'
+import { type ActivityConfig, type LabEntity, type InputConfig, type ActivityActionType, type ActivityAction, type ReleaseActionType, type ReleaseAction, type EntityTarget, type ResetScope, type SimLuxMode, type SimFrequencyMode, type HomeAssistant, type PlaceholderDefaults, type ChannelConfig } from '../lib/types'
 import { activityBadgeStyles, dialogChromeStyles } from '../lib/shared-styles'
 import { getFallbackActivityInfo, isValidDurationInput, normalizeDuration } from '../lib/activity-helpers'
 import { getInputDisplayName } from '../lib/input-helpers'
 import { TwilightLocalizeMixin, type TranslationKey } from '../lib/i18n'
 import { FocusRestoreController } from '../lib/focus-restore-controller'
 import './slot-action-tree'
+import './entity-list-dialog'
+import { areaSceneIds } from '../lib/area-scenes'
 
 /**
  * Flat editing draft for one activity, decoupled from the persisted
@@ -21,25 +23,23 @@ export interface ActivityEditorDraft {
   auto_expire: string | null
   action_type: ActivityActionType | ''
   action_entity_id: string
-  action_targets: string[]
-  action_state: 'on' | 'off'
-  action_brightness: number
-  action_color_temp: number
+  action_configured_entities: string[]
   action_respect_manual_off: boolean
-  action_transition: number | null
+  action_reset_scope: ResetScope
   action_entity_targets: EntityTarget[]
   action_excluded_slots: Record<string, string[]>
   action_sim_template_activity: string
   action_sim_lux_mode: SimLuxMode
   action_sim_frequency_mode: SimFrequencyMode
   action_sim_heatmap_profile_id: string
-  release_action_type: ReleaseActionType | ''
+  release_action_type: ReleaseActionType
+  release_activity: string
   transition_off_seconds: number | null
 }
 
 // Opaque equality check, deliberately not a bare `===`: TS's control-flow
 // narrowing treats every `x === 'literal'` against the same `const` binding as
-// cumulative, so a chain of unrelated checks (entity/light/reset/simulation)
+// cumulative, so a chain of unrelated checks (entity/reset/simulation)
 // against `effectiveActionType` in render() progressively narrows away
 // 'block'/'reset' and produces false "no overlap" errors on later comparisons.
 // Routing through a function call opts out of that narrowing.
@@ -73,19 +73,17 @@ export function makeNewActivityDraft(): ActivityEditorDraft {
     auto_expire: null,
     action_type: 'slot',
     action_entity_id: '',
-    action_targets: [],
-    action_state: 'on',
-    action_brightness: 255,
-    action_color_temp: 370,
+    action_configured_entities: [],
     action_respect_manual_off: false,
-    action_transition: null,
+    action_reset_scope: 'area',
     action_entity_targets: [],
     action_excluded_slots: {},
     action_sim_template_activity: '',
     action_sim_lux_mode: 'dusk_dawn',
     action_sim_frequency_mode: 'normal',
     action_sim_heatmap_profile_id: '',
-    release_action_type: '',
+    release_action_type: 'none',
+    release_activity: '',
     transition_off_seconds: null,
   }
 }
@@ -102,19 +100,17 @@ export function activityToDraft(act: ActivityConfig): ActivityEditorDraft {
     auto_expire: act.auto_expire ?? null,
     action_type: (action?.type ?? '') as ActivityActionType | '',
     action_entity_id: action?.entity_id ?? '',
-    action_targets: action?.targets ?? [],
-    action_state: action?.state ?? 'on',
-    action_brightness: action?.brightness ?? 255,
-    action_color_temp: action?.color_temp ?? 370,
+    action_configured_entities: [...(action?.configured_entities ?? [])],
     action_respect_manual_off: action?.respect_manual_off ?? false,
-    action_transition: action?.transition ?? null,
+    action_reset_scope: action?.scope ?? 'area',
     action_entity_targets: [...(action?.entity_targets ?? [])],
     action_excluded_slots: { ...(action?.excluded_slots ?? {}) },
     action_sim_template_activity: action?.template_activity ?? '',
     action_sim_lux_mode: action?.lux_mode ?? 'dusk_dawn',
     action_sim_frequency_mode: action?.frequency_mode ?? 'normal',
     action_sim_heatmap_profile_id: action?.heatmap_profile_id ?? '',
-    release_action_type: (release?.type ?? '') as ReleaseActionType | '',
+    release_action_type: release?.type ?? 'none',
+    release_activity: release?.activity ?? '',
     transition_off_seconds: act.transition_off_seconds ?? null,
   }
 }
@@ -147,8 +143,12 @@ export class TwilightActivityRowEditor extends TwilightLocalizeMixin(LitElement)
   @property({ attribute: false }) allActivities: ActivityConfig[] = []
   /** Saved heatmap profiles of the area (for the simulation profile dropdown). */
   @property({ attribute: false }) heatmapProfiles: { id: string; name: string }[] = []
+  @property({ attribute: false }) entities: LabEntity[] = []
+  @property({ type: String }) areaId = ''
+  @property({ type: String }) areaName = ''
 
   @state() private _editDraft: ActivityEditorDraft | null = null
+  @state() private _turnOffListOpen = false
 
   static styles = [
     activityBadgeStyles,
@@ -231,6 +231,10 @@ export class TwilightActivityRowEditor extends TwilightLocalizeMixin(LitElement)
       }
       .activity-input.invalid {
         border-color: var(--error-color, #db4437);
+      }
+
+      .form-field .turn-off-list-btn {
+        margin-top: 6px;
       }
 
       .form-hint {
@@ -354,21 +358,64 @@ export class TwilightActivityRowEditor extends TwilightLocalizeMixin(LitElement)
 
   /**
    * Activities eligible as a presence-simulation template: those whose start
-   * action switches a light on (slot/entity/light). Mirrors the backend guard
-   * (helpers.simulation_template_eligible). A missing action type defaults to
-   * 'slot', which is eligible; the activity being edited is excluded (no self).
+   * action switches a light on (slot/entity) and whose release does not switch
+   * to another activity. Mirrors the backend guard
+   * (helpers.simulation_template_eligible); the activity being edited is
+   * excluded (no self).
    */
   private _eligibleTemplateActivities(): ActivityConfig[] {
     const editingId = this._editDraft?.id.trim().toLowerCase()
     return this.allActivities.filter(a => {
-      if (a.id === editingId) return false
-      const t = a.action?.type ?? 'slot'
-      return t === 'slot' || t === 'entity' || t === 'light'
+      if (a.id === editingId || a.release_action?.type === 'activity') return false
+      const t = a.action?.type
+      return t === 'slot' || t === 'entity'
     })
+  }
+
+  /**
+   * Activities the release action may switch to. Mirrors the backend guard
+   * (helpers.release_handover_target): one hop only, so a target that switches
+   * on itself is left out.
+   */
+  private _eligibleReleaseTargets(): ActivityConfig[] {
+    const editingId = this._editDraft?.id.trim().toLowerCase()
+    return this.allActivities.filter(a => {
+      if (a.id === editingId || a.release_action?.type === 'activity') return false
+      const t = a.action?.type
+      return t === 'slot' || t === 'entity' || t === 'block' || t === 'simulation'
+    })
+  }
+
+  /** True if another activity switches to this one, which rules out a second hop. */
+  private _isReleaseTarget(): boolean {
+    const editingId = this._editDraft?.id.trim().toLowerCase()
+    return this.allActivities.some(a =>
+      a.id !== editingId && a.release_action?.type === 'activity' && a.release_action.activity === editingId
+    )
+  }
+
+  private _hasValidReleaseTarget(draft: ActivityEditorDraft): boolean {
+    return this._eligibleReleaseTargets().some(a => a.id === draft.release_activity)
   }
 
   private _cancel() {
     this.dispatchEvent(new CustomEvent('cancel', { bubbles: true, composed: true }))
+  }
+
+  /** Filter for the scene/script picker. A scene of another area stays reachable
+   *  through the picker's custom entity input. */
+  private _sceneFilter(draft: ActivityEditorDraft) {
+    if (!this.areaId || this.entities.length === 0) return () => true
+    const areaScenes = areaSceneIds(this.entities, this.areaId, this.areaName, new Set([draft.action_entity_id]))
+    const known = new Set(this.entities.map(e => e.entity_id))
+    return (e: { entity_id: string }) =>
+      known.has(e.entity_id) ? areaScenes.has(e.entity_id) : e.entity_id.startsWith('script.')
+  }
+
+  private _releaseHelpKey(draft: ActivityEditorDraft): TranslationKey {
+    if (draft.release_action_type === 'turn_off') return 'activity_row_editor.release_help_turn_off'
+    if (draft.release_action_type === 'activity') return 'activity_row_editor.release_help_activity'
+    return 'activity_row_editor.release_help_none'
   }
 
   private _isSaveDisabled(draft: ActivityEditorDraft): boolean {
@@ -376,7 +423,10 @@ export class TwilightActivityRowEditor extends TwilightLocalizeMixin(LitElement)
     const expireInvalid = draft.auto_expire_enabled
       && draft.auto_expire !== null
       && !isValidDurationInput(draft.auto_expire)
-    return !hasNameOrId || expireInvalid
+    const releaseInvalid = draft.action_type !== 'reset'
+      && draft.release_action_type === 'activity'
+      && !this._hasValidReleaseTarget(draft)
+    return !hasNameOrId || expireInvalid || releaseInvalid
   }
 
   private _save() {
@@ -398,19 +448,12 @@ export class TwilightActivityRowEditor extends TwilightLocalizeMixin(LitElement)
     const action = { type: effectiveActionType } as ActivityAction
     if (effectiveActionType === 'entity') {
       action.entity_id = this._editDraft.action_entity_id
-    } else if (effectiveActionType === 'light') {
-      action.targets = this._editDraft.action_targets
-      action.state = this._editDraft.action_state
-      if (this._editDraft.action_state === 'on') {
-        action.brightness = this._editDraft.action_brightness
-        if (this._editDraft.action_color_temp > 0) {
-          action.color_temp = this._editDraft.action_color_temp
-        }
-        if (this._editDraft.action_transition != null && this._editDraft.action_transition > 0) {
-          action.transition = this._editDraft.action_transition
-        }
-      }
+      action.configured_entities = this._editDraft.action_configured_entities
     } else if (effectiveActionType === 'reset') {
+      action.scope = this._editDraft.action_reset_scope
+      if (this._editDraft.action_reset_scope === 'entities') {
+        action.configured_entities = this._editDraft.action_configured_entities
+      }
       if (this._editDraft.action_entity_targets.length > 0) {
         action.entity_targets = this._editDraft.action_entity_targets
       }
@@ -431,8 +474,11 @@ export class TwilightActivityRowEditor extends TwilightLocalizeMixin(LitElement)
       }
     }
 
-    const releaseType = effectiveActionType === 'reset' ? 'none' : (this._editDraft.release_action_type === '' ? null : this._editDraft.release_action_type)
+    const releaseType = effectiveActionType === 'reset' ? 'none' : this._editDraft.release_action_type
     const release_action = { type: releaseType } as ReleaseAction
+    if (releaseType === 'activity') {
+      release_action.activity = this._editDraft.release_activity
+    }
 
     // Normalize the lenient duration input to strict HH:MM:SS — the backend
     // only parses that form (helpers.parse_hms); a bare "12" would silently
@@ -503,16 +549,20 @@ export class TwilightActivityRowEditor extends TwilightLocalizeMixin(LitElement)
                     class="option-select"
                     .value=${draft.action_type}
                     @change=${(e: Event) => {
-                      this._editDraft = { ...this._editDraft!, action_type: (e.target as HTMLSelectElement).value as ActivityActionType | '' }
+                      // A turn-off list belongs to its action: a scene's list would end up in a reset.
+                      this._editDraft = {
+                        ...this._editDraft!,
+                        action_type: (e.target as HTMLSelectElement).value as ActivityActionType | '',
+                        action_configured_entities: [],
+                      }
                     }}
                   >
                     <option value="">${this.t('activity_row_editor.action_none')}</option>
                     <option value="slot">${this.t('activity_row_editor.action_slot')}</option>
                     <option value="entity">${this.t('activity_row_editor.action_entity')}</option>
-                    <option value="light">${this.t('activity_row_editor.action_light')}</option>
                     <option value="block">${this.t('activity_row_editor.action_block')}</option>
-                    <option value="reset">${this.t('activity_row_editor.action_reset')}</option>
                     <option value="simulation">${this.t('activity_row_editor.action_simulation')}</option>
+                    <option value="reset">${this.t('activity_row_editor.action_reset')}</option>
                   </select>
                 </div>
 
@@ -551,106 +601,46 @@ export class TwilightActivityRowEditor extends TwilightLocalizeMixin(LitElement)
                       .hass=${this.hass}
                       .value=${draft.action_entity_id}
                       .includeDomains=${['scene', 'script']}
+                      .entityFilter=${this._sceneFilter(draft)}
                       allow-custom-entity
                       @value-changed=${(e: CustomEvent) => {
-                        this._editDraft = { ...this._editDraft!, action_entity_id: e.detail.value ?? '' }
+                        const entityId = e.detail.value ?? ''
+                        if (entityId === this._editDraft!.action_entity_id) return
+                        // A turn-off list belongs to its scene or script: nothing is
+                        // extracted here, so an old list would apply to the new one.
+                        this._editDraft = { ...this._editDraft!, action_entity_id: entityId, action_configured_entities: [] }
                       }}
                     ></ha-entity-picker>
+                    <button class="turn-off-list-btn" @click=${() => { this._turnOffListOpen = true }}>
+                      ${this.t('activity_row_editor.turn_off_entities', { count: draft.action_configured_entities.length })}
+                    </button>
+                    <div class="form-hint">${this.t('activity_row_editor.turn_off_entities_help')}</div>
                   </div>
-                ` : ''}
-
-                ${isActionType(effectiveActionType, 'light') ? html`
-                  <div class="form-field">
-                    <span class="form-label">${this.t('activity_row_editor.target_lights')}</span>
-                    <div class="checkbox-list">
-                      ${draft.action_targets.map(tgt => html`
-                        <div class="checkbox-item" style="justify-content: space-between;">
-                          <span>${tgt}</span>
-                          <button class="row-action-btn remove" style="padding: 2px 6px;" aria-label=${this.t('activity_row_editor.remove_entity')} @click=${() => {
-                            this._editDraft = { ...this._editDraft!, action_targets: this._editDraft!.action_targets.filter(t => t !== tgt) }
-                          }}>✕</button>
-                        </div>
-                      `)}
-                      ${draft.action_targets.length === 0 ? html`<div style="font-style: italic; opacity: 0.4; font-size: 11px;">${this.t('activity_row_editor.no_lights_selected')}</div>` : ''}
-                    </div>
-                    <ha-entity-picker
-                      style="margin-top: 8px;"
-                      .hass=${this.hass}
-                      .includeDomains=${['light']}
-                      allow-custom-entity
-                      placeholder=${this.t('activity_row_editor.select_light_placeholder')}
-                      @value-changed=${(e: CustomEvent) => {
-                        const val = e.detail.value
-                        if (val) {
-                          const targets = this._editDraft!.action_targets
-                          if (!targets.includes(val)) {
-                            this._editDraft = { ...this._editDraft!, action_targets: [...targets, val] }
-                          }
-                          const target = e.target as any
-                          if (target) target.value = ''
-                        }
-                      }}
-                    ></ha-entity-picker>
-                  </div>
-
-                  <div class="form-field">
-                    <span class="form-label">${this.t('activity_row_editor.state')}</span>
-                    <select class="option-select" .value=${draft.action_state} @change=${(e: Event) => {
-                      this._editDraft = { ...this._editDraft!, action_state: (e.target as HTMLSelectElement).value as 'on' | 'off' }
-                    }}>
-                      <option value="on">${this.t('activity_row_editor.state_on')}</option>
-                      <option value="off">${this.t('activity_row_editor.state_off')}</option>
-                    </select>
-                  </div>
-
-                  ${draft.action_state === 'on' ? html`
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                      <div class="form-field">
-                        <span class="form-label">${this.t('activity_row_editor.brightness')}</span>
-                        <input
-                          type="number"
-                          class="activity-input"
-                          min="1"
-                          max="255"
-                          .value=${String(draft.action_brightness)}
-                          @input=${(e: Event) => {
-                            this._editDraft = { ...this._editDraft!, action_brightness: Number((e.target as HTMLInputElement).value) }
-                          }}
-                        />
-                      </div>
-                      <div class="form-field">
-                        <span class="form-label">${this.t('activity_row_editor.color_temp')}</span>
-                        <input
-                          type="number"
-                          class="activity-input"
-                          min="0"
-                          max="500"
-                          .value=${String(draft.action_color_temp)}
-                          @input=${(e: Event) => {
-                            this._editDraft = { ...this._editDraft!, action_color_temp: Number((e.target as HTMLInputElement).value) }
-                          }}
-                        />
-                      </div>
-                    </div>
-                    <div class="form-field" style="margin-top: 8px;">
-                      <span class="form-label">${this.t('activity_row_editor.transition')}</span>
-                      <input
-                        type="number"
-                        class="activity-input"
-                        min="0"
-                        max="300"
-                        placeholder="0"
-                        .value=${draft.action_transition != null ? String(draft.action_transition) : ''}
-                        @input=${(e: Event) => {
-                          const raw = (e.target as HTMLInputElement).value.trim()
-                          this._editDraft = { ...this._editDraft!, action_transition: raw === '' ? null : (parseInt(raw, 10) || 0) }
-                        }}
-                      />
-                    </div>
-                  ` : ''}
                 ` : ''}
 
                 ${isActionType(effectiveActionType, 'reset') ? html`
+                  <div class="form-field">
+                    <span class="form-label">${this.t('activity_row_editor.reset_scope')}</span>
+                    <select
+                      class="option-select"
+                      .value=${draft.action_reset_scope}
+                      @change=${(e: Event) => {
+                        this._editDraft = { ...this._editDraft!, action_reset_scope: (e.target as HTMLSelectElement).value as ResetScope }
+                      }}
+                    >
+                      <option value="area">${this.t('activity_row_editor.reset_scope_area')}</option>
+                      <option value="entities">${this.t('activity_row_editor.reset_scope_entities')}</option>
+                    </select>
+                    <div class="form-hint">
+                      ${this.t(draft.action_reset_scope === 'entities' ? 'activity_row_editor.reset_scope_entities_help' : 'activity_row_editor.reset_scope_area_help')}
+                    </div>
+                    ${draft.action_reset_scope === 'entities' ? html`
+                      <button class="turn-off-list-btn" @click=${() => { this._turnOffListOpen = true }}>
+                        ${this.t('activity_row_editor.turn_off_entities', { count: draft.action_configured_entities.length })}
+                      </button>
+                    ` : ''}
+                  </div>
+
                   <div class="form-field">
                     <span class="form-label">${this.t('activity_row_editor.additional_entities')}</span>
                     <table class="sensor-table">
@@ -798,15 +788,38 @@ export class TwilightActivityRowEditor extends TwilightLocalizeMixin(LitElement)
                       class="option-select"
                       .value=${draft.release_action_type}
                       @change=${(e: Event) => {
-                        this._editDraft = { ...this._editDraft!, release_action_type: (e.target as HTMLSelectElement).value as ReleaseActionType | '' }
+                        this._editDraft = { ...this._editDraft!, release_action_type: (e.target as HTMLSelectElement).value as ReleaseActionType }
                       }}
                     >
-                      <option value="">${this.t('activity_row_editor.release_none_unset')}</option>
                       <option value="turn_off">${this.t('activity_row_editor.release_turn_off')}</option>
-                      <option value="slot">${this.t('activity_row_editor.release_restore_slot')}</option>
-                      <option value="none">${this.t('activity_row_editor.release_nothing')}</option>
+                      <option value="activity" ?disabled=${this._isReleaseTarget()}>${this.t('activity_row_editor.release_activity')}</option>
+                      <option value="none">${this.t('activity_row_editor.release_none')}</option>
                     </select>
+                    <div class="form-hint">${this.t(this._releaseHelpKey(draft))}</div>
+                    ${this._isReleaseTarget() ? html`
+                      <div class="form-hint">${this.t('activity_row_editor.release_target_in_use')}</div>
+                    ` : ''}
                   </div>
+                  ${draft.release_action_type === 'activity' ? html`
+                    <div class="form-field">
+                      <span class="form-label">${this.t('activity_row_editor.release_target')}</span>
+                      <select
+                        class="option-select"
+                        .value=${draft.release_activity}
+                        @change=${(e: Event) => {
+                          this._editDraft = { ...this._editDraft!, release_activity: (e.target as HTMLSelectElement).value }
+                        }}
+                      >
+                        <option value="">—</option>
+                        ${this._eligibleReleaseTargets().map(a => html`
+                          <option value=${a.id} ?selected=${a.id === draft.release_activity}>${a.name || a.id}</option>
+                        `)}
+                      </select>
+                      ${draft.release_activity && !this._hasValidReleaseTarget(draft) ? html`
+                        <div class="form-hint">${this.t('activity_row_editor.release_target_missing')}</div>
+                      ` : ''}
+                    </div>
+                  ` : ''}
                 ` : ''}
               </div>
 
@@ -909,6 +922,21 @@ export class TwilightActivityRowEditor extends TwilightLocalizeMixin(LitElement)
           </div>
         </div>
       </div>
+
+      <twilight-entity-list-dialog
+        .open=${this._turnOffListOpen}
+        .hass=${this.hass}
+        .value=${draft.action_configured_entities}
+        .entities=${this.entities}
+        .areaId=${this.areaId}
+        .areaName=${this.areaName}
+        .help=${isActionType(effectiveActionType, 'reset') ? this.t('entity_list_dialog.help_reset') : ''}
+        @save=${(e: CustomEvent<string[]>) => {
+          this._editDraft = { ...this._editDraft!, action_configured_entities: e.detail }
+          this._turnOffListOpen = false
+        }}
+        @close=${() => { this._turnOffListOpen = false }}
+      ></twilight-entity-list-dialog>
     `
   }
 }

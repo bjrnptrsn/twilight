@@ -1,6 +1,6 @@
-import { Slot, SlotConfig, CalculatedSlotTime, SLOT_COLORS, STANDARD_ZONE_IDS, STANDARD_NAMES, type HomeAssistant } from './types'
-import { formatTime } from './i18n'
-import type { DayData } from './sun-zones'
+import { Slot, SlotConfig, CalculatedSlotTime, SLOT_COLORS, STANDARD_ZONE_IDS, STANDARD_NAMES, PRIMARY_CHANNEL_ID, type HomeAssistant } from './types'
+import { formatTime, t, usesAmPm, type TranslationKey } from './i18n'
+import { buildSlots, elToZone, type DayData } from './sun-zones'
 
 /** Today's date as YYYY-MM-DD in the browser's local timezone (not UTC —
  * `toISOString()` would return the wrong calendar day near local midnight). */
@@ -63,7 +63,9 @@ export function formatSlotTime(m: number, locale?: HomeAssistant['locale']): str
   const h = Math.floor(mm / 60)
   const min = mm % 60
   const d = new Date(Date.UTC(2000, 0, 1, h, min))
-  return formatTime(d, locale, { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' })
+  // 24h times are zero-padded ("05:29") so a column of them lines up; 12h keeps "5:29 AM".
+  const hour = usesAmPm(locale) ? 'numeric' : '2-digit'
+  return formatTime(d, locale, { hour, minute: '2-digit', timeZone: 'UTC' })
 }
 
 export function slotToZone(s: Slot): string {
@@ -129,15 +131,59 @@ export function zoneColor(zone: string): string {
   return SLOT_COLORS[ZONE_COLOR_KEYS[zone] ?? zone] || SLOT_COLORS.day
 }
 
+/** Colour of the sun zone `minuteOfDay` falls into on `day`. A minute no zone
+ * covers (polar day or night) takes the colour of the sun at midnight. */
+export function sunZoneColorAt(day: DayData, minuteOfDay: number): string {
+  const zone = buildSlots(day).find(z => isSlotActiveAt(z, minuteOfDay))
+  return zone ? zone.color : elToZone(day.midnight_el)
+}
+
+export const ZONE_LABEL_KEYS: Record<string, TranslationKey> = {
+  astro_dawn:    'slot_editor.event_astro_dawn',
+  nautical_dawn: 'slot_editor.event_nautical_dawn',
+  civil_dawn:    'slot_editor.event_civil_dawn',
+  gold_dawn:     'slot_editor.event_gold_dawn',
+  day:           'slot_editor.event_day',
+  gold_dusk:     'slot_editor.event_gold_dusk',
+  civil_dusk:    'slot_editor.event_civil_dusk',
+  nautical_dusk: 'slot_editor.event_nautical_dusk',
+  astro_dusk:    'slot_editor.event_astro_dusk',
+  night:         'slot_editor.event_night',
+}
+
+/** Localized name of a standard zone; undefined for anything else. */
+export function zoneLabel(zone: string | null | undefined, lang?: string): string | undefined {
+  const key = zone ? ZONE_LABEL_KEYS[zone] : undefined
+  return key ? t(lang, key) : undefined
+}
+
+/** Display name of a slot. A standard slot only carries its English default
+ *  name (the store does not persist one), which gives way to the localized
+ *  label; any other name was chosen by the user and stays. */
+export function slotDisplayName(slot: { id: string; name?: string | null }, lang?: string): string {
+  const hasDefaultName = !slot.name || slot.name === STANDARD_NAMES[slot.id]
+  return (hasDefaultName ? zoneLabel(slot.id, lang) : undefined) || slot.name || slot.id
+}
+
+/** Display name of a channel; the Primary channel's stored default name is localized. */
+export function channelDisplayName(channelId: string, name: string | null | undefined, lang?: string): string {
+  if (channelId === PRIMARY_CHANNEL_ID && (!name || name === 'Primary')) return t(lang, 'common.primary_channel')
+  return name || channelId
+}
+
 /**
  * Convert backend calculated slot times ({id, start}) into rich Slot display objects.
  * - Does NOT sort (backend returns pre-sorted list by start minute).
  * - Only computes `to = start of next slot` (or start + 1440 for single slot).
  * - Preserves all raw config fields 1:1.
+ * - A fixed-time slot has no zone of its own and takes the colour of the sun
+ *   zone its start falls into on `dayData`'s day.
  */
 export function convertCalculatedTimesToSlots(
   calculatedList: CalculatedSlotTime[],
-  rawSlots: SlotConfig[]
+  rawSlots: SlotConfig[],
+  lang?: string,
+  dayData?: DayData | null
 ): Slot[] {
   if (!calculatedList || calculatedList.length === 0) return []
 
@@ -154,22 +200,24 @@ export function convertCalculatedTimesToSlots(
     const isFixed = raw?.start_type === 'fixed'
     const zone = raw?.zone || cur.id
 
-    const color = zoneColor(zone)
+    const color = isFixed && dayData ? sunZoneColorAt(dayData, cur.start) : zoneColor(zone)
 
     result.push({
       id: cur.id,
-      label: raw?.name || STANDARD_NAMES[cur.id] || cur.id,
+      label: slotDisplayName({ id: cur.id, name: raw?.name }, lang),
       color,
       from: cur.start,
       to: nextStart,
       scene: raw?.scene_entity_id || null,
+      configured_entities: raw?.configured_entities ?? [],
       isCustom: !(STANDARD_ZONE_IDS as readonly string[]).includes(cur.id),
       startType: isFixed ? 'fixed' : 'astral',
       startEvent: isFixed ? undefined : zone,
       startOffset: raw?.offset_minutes || 0,
       fixedStartTime: isFixed ? (raw?.fixed_time || undefined) : undefined,
-      hue_activate_dynamic: raw?.hue_activate_dynamic || false,
+      hue_activate_dynamic: raw?.hue_activate_dynamic ?? 'hue',
       hue_dynamic_speed: raw?.hue_dynamic_speed ?? null,
+      not_before: isFixed ? null : (raw?.not_before || null),
     })
   }
 
@@ -179,23 +227,27 @@ export function convertCalculatedTimesToSlots(
 export function generateGradient(slots: { from: number; to: number; color: string }[]): string {
   if (slots.length === 0) return 'var(--divider-color)'
   const norm = (m: number) => ((m % 1440) + 1440) % 1440
-  const rawStops: { pos: number; color: string }[] = []
+  const rawStops: { pos: number; color: string; isEnd: boolean }[] = []
 
   for (const slot of slots) {
     const s = (norm(slot.from) / 1440) * 100
     const e = (norm(slot.to) / 1440) * 100
     if (norm(slot.from) > norm(slot.to)) {
-      rawStops.push({ pos: s, color: slot.color })
-      rawStops.push({ pos: 100, color: slot.color })
-      rawStops.push({ pos: 0, color: slot.color })
-      rawStops.push({ pos: e, color: slot.color })
+      rawStops.push({ pos: s, color: slot.color, isEnd: false })
+      rawStops.push({ pos: 100, color: slot.color, isEnd: true })
+      rawStops.push({ pos: 0, color: slot.color, isEnd: false })
+      rawStops.push({ pos: e, color: slot.color, isEnd: true })
     } else {
-      rawStops.push({ pos: s, color: slot.color })
-      rawStops.push({ pos: e, color: slot.color })
+      rawStops.push({ pos: s, color: slot.color, isEnd: false })
+      rawStops.push({ pos: e, color: slot.color, isEnd: true })
     }
   }
 
-  rawStops.sort((a, b) => a.pos - b.pos)
+  // At a shared position a slot's end must precede the next slot's start, or
+  // the stops cross and the browser draws a fade instead of a hard edge. Push
+  // order alone does not guarantee it: the slot wrapping past midnight comes
+  // last in start order, yet its tail sits at the left edge of the bar.
+  rawStops.sort((a, b) => a.pos - b.pos || Number(b.isEnd) - Number(a.isEnd))
   const stops = rawStops.map(st => `${st.color} ${st.pos.toFixed(1)}%`)
   return `linear-gradient(to right, ${stops.join(', ')})`
 }

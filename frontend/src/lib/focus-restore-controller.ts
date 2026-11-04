@@ -6,9 +6,9 @@ export interface FocusRestoreHost extends ReactiveControllerHost {
 
 /** Restores keyboard focus to the element that opened a dialog/panel once it
  * closes — without this, focus is silently dropped to <body> and a keyboard
- * or screen reader user loses their place in the page. Captures
- * document.activeElement on the false->true transition of host.open, and
- * refocuses it on the true->false transition. */
+ * or screen reader user loses their place in the page. Captures the focused
+ * element on the false->true transition of host.open, and refocuses it on the
+ * true->false transition. */
 export class FocusRestoreController implements ReactiveController {
   private _host: FocusRestoreHost
   private _prevOpen = false
@@ -26,7 +26,11 @@ export class FocusRestoreController implements ReactiveController {
     if (this._host.open !== this._prevOpen) {
       this._prevOpen = this._host.open
       if (this._host.open) {
-        this._trigger = document.activeElement as HTMLElement | null
+        // document.activeElement stops at the outermost shadow host, which
+        // is not focusable itself — descend to the element actually focused.
+        let active = document.activeElement
+        while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement
+        this._trigger = active as HTMLElement | null
       } else if (this._trigger) {
         const trigger = this._trigger
         this._trigger = null

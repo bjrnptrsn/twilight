@@ -24,7 +24,9 @@ from ..const import (
     SIGNAL_ENGINES_CHANGED,
     STANDARD_ZONES,
     ActionType,
+    HueDynamicMode,
     InputType,
+    ReleaseActionType,
     StartType,
 )
 from ..engine import TwilightEngine
@@ -46,7 +48,7 @@ from ..helpers import (
     remove_area_lock,
     simulation_template_eligible,
 )
-from ..slot_calc import resolve_slot_times
+from ..slot_calc import normalize_not_before_str, resolve_slot_times
 from ..sun_calc import compute_sun_day_data
 from .sun import clear_timeline_slot_cache
 
@@ -64,6 +66,14 @@ def _valid_hhmm(value: Any) -> str:
     if not (0 <= h <= 23 and 0 <= m <= 59):
         raise vol.Invalid("fixed_time out of range")
     return f"{h:02d}:{m:02d}"
+
+
+def _valid_not_before(value: Any) -> str:
+    """Validate a "not before" floor as HH:MM (12:00–03:59 across midnight)."""
+    normalized = normalize_not_before_str(value)
+    if normalized is None:
+        raise vol.Invalid("not_before must be HH:MM within 12:00–03:59")
+    return normalized
 
 
 def _require_fixed_time_for_fixed_slots(slot: dict[str, Any]) -> dict[str, Any]:
@@ -122,6 +132,10 @@ def _ws_area_extracted() -> websocket_api.WebSocketCommandHandler:
                     "slot_id": slot_id,
                     "extracted": sorted(slot_info.extracted_entities),
                     "configured": sorted(slot_info.configured_entities),
+                    "scene_entity_id": slot_info.scene_entity_id,
+                    "scene_type": slot_info.scene_type.value,
+                    "supports_dynamic": slot_info.supports_dynamic,
+                    "dynamic_entities": sorted(slot_info.dynamic_entities),
                 }
             return out
 
@@ -230,6 +244,33 @@ async def _async_turn_off_entities(
         )
 
 
+def _channel_has_scene(channel: dict[str, Any]) -> bool:
+    """True if a slot of the stored channel still has a scene or script."""
+    return any(slot.get("scene_entity_id") for slot in channel.get("slots", []))
+
+
+def _channels_with_replaced_scene(
+    old_config: AreaConfig, old_active_slots: dict[str, str], engine: TwilightEngine
+) -> set[str]:
+    """Channels that stayed in their active slot, but whose scene the save replaced.
+
+    A channel that moved to another slot is left out: setup has applied it already.
+    """
+    replaced: set[str] = set()
+    for channel_id, slot_id in engine.run_state.active_slots.items():
+        if old_active_slots.get(channel_id) != slot_id:
+            continue
+        old_slot = old_config.slot(channel_id, slot_id)
+        new_slot = engine.config.slot(channel_id, slot_id)
+        if (
+            old_slot
+            and new_slot
+            and old_slot.scene_entity_id != new_slot.scene_entity_id
+        ):
+            replaced.add(channel_id)
+    return replaced
+
+
 def _disable_mismatched_rules(config: dict[str, Any]) -> list[str]:
     """Disable rules whose configured fields no longer match target activity capabilities. Return list of disabled rule IDs."""
     raw_rules = config.get("rules")
@@ -299,7 +340,6 @@ def _ws_area_save() -> websocket_api.WebSocketCommandHandler:
             vol.Required("area_id"): str,
             vol.Optional("name"): str,
             vol.Optional("enabled", default=True): bool,
-            vol.Optional("manual_only", default=False): bool,
             vol.Optional("sensors", default=[]): vol.All(
                 cv.ensure_list,
                 [
@@ -357,6 +397,11 @@ def _ws_area_save() -> websocket_api.WebSocketCommandHandler:
                                         vol.Optional("fixed_time"): vol.Any(
                                             None, _valid_hhmm
                                         ),
+                                        # A floor on a zone that cannot carry one
+                                        # is dropped by the store normalization.
+                                        vol.Optional("not_before"): vol.Any(
+                                            None, _valid_not_before
+                                        ),
                                         vol.Optional("offset_minutes"): vol.All(
                                             vol.Coerce(int),
                                             vol.Range(
@@ -371,8 +416,9 @@ def _ws_area_save() -> websocket_api.WebSocketCommandHandler:
                                             "configured_entities", default=[]
                                         ): cv.entity_ids,
                                         vol.Optional(
-                                            "hue_activate_dynamic", default=False
-                                        ): bool,
+                                            "hue_activate_dynamic",
+                                            default=HueDynamicMode.HUE.value,
+                                        ): vol.In([mode.value for mode in HueDynamicMode]),
                                         vol.Optional(
                                             "hue_dynamic_speed", default=None
                                         ): vol.Any(
@@ -432,7 +478,10 @@ def _ws_area_save() -> websocket_api.WebSocketCommandHandler:
                             vol.Schema(
                                 {
                                     vol.Required("type"): vol.In(
-                                        [action_type.value for action_type in ActionType]
+                                        [
+                                            release_type.value
+                                            for release_type in ReleaseActionType
+                                        ]
                                     )
                                 },
                                 extra=vol.ALLOW_EXTRA,
@@ -504,7 +553,6 @@ def _ws_area_save() -> websocket_api.WebSocketCommandHandler:
             "area_id": area_id,
             "name": msg.get("name"),
             "enabled": msg.get("enabled", True),
-            "manual_only": msg.get("manual_only", False),
             "sensors": msg.get("sensors", []),
             "lux_threshold": msg.get("lux_threshold"),
             "lux_watch_window": msg.get("lux_watch_window"),
@@ -527,6 +575,12 @@ def _ws_area_save() -> websocket_api.WebSocketCommandHandler:
         # engines.clear(), only to be discarded (leaked) right after. See
         # get_setup_lock()'s docstring for the full mechanism.
         async with get_setup_lock(hass), get_area_lock(hass, area_id):
+            # Profiles are written by heatmap/profile/save|delete only. A panel
+            # draft can predate those writes, so its copy never replaces the list.
+            stored_area = store.get_area(area_id)
+            if stored_area is not None:
+                config["heatmap_profiles"] = stored_area.get("heatmap_profiles", [])
+
             await store.async_save_area(area_id, config)
 
             # Use the normalized stored config (Primary channel always complete) for the engine.
@@ -537,21 +591,33 @@ def _ws_area_save() -> websocket_api.WebSocketCommandHandler:
 
             if saved_area and area_wants_engine(saved_area):
                 initial_state = None
+                old_config = None
                 if existing_engine:
                     initial_state = existing_engine.run_state
+                    old_config = existing_engine.config
                     entities_to_turn_off: set[str] = set()
+                    surviving_entities: set[str] = set()
                     new_channels = saved_area.get("channels", {})
                     if not isinstance(new_channels, dict):
                         new_channels = {}
                     for ch_id, old_ch in existing_engine.config.channels.items():
                         if old_ch.enabled:
                             new_ch = new_channels.get(ch_id)
-                            if not new_ch or not new_ch.get("enabled", True):
-                                # Channel was deleted or disabled → collect entities
+                            if (
+                                not new_ch
+                                or not new_ch.get("enabled", True)
+                                or not _channel_has_scene(new_ch)
+                            ):
+                                # Channel was deleted or disabled, or lost its
+                                # last scene → collect entities
                                 ch_ents = channel_entities(
                                     existing_engine.scene_map, ch_id
                                 )
                                 entities_to_turn_off.update(ch_ents)
+                            else:
+                                surviving_entities.update(
+                                    channel_entities(existing_engine.scene_map, ch_id)
+                                )
 
                     try:
                         await existing_engine.async_teardown()
@@ -561,7 +627,6 @@ def _ws_area_save() -> websocket_api.WebSocketCommandHandler:
                         )
                     engines.pop(area_id, None)
 
-                    surviving_entities: set[str] = set()
                     for ch in saved_area.get("channels", {}).values():
                         if isinstance(ch, dict) and ch.get("enabled", True):
                             for slot in ch.get("slots", []):
@@ -599,6 +664,12 @@ def _ws_area_save() -> websocket_api.WebSocketCommandHandler:
                         msg["id"], "engine_setup_failed", "Engine setup failed"
                     )
                     return
+                if old_config is not None and initial_state is not None:
+                    engine.coordinator.slot_scenes_replaced(
+                        _channels_with_replaced_scene(
+                            old_config, initial_state.active_slots, engine
+                        )
+                    )
             else:
                 if existing_engine:
                     entities_to_turn_off = set()
@@ -780,15 +851,20 @@ def _ws_area_slot_times() -> websocket_api.WebSocketCommandHandler:
         def _compute() -> dict[str, Any]:
             channels_res: dict[str, dict[str, list[dict[str, Any]]]] = {}
             channels_config = area_config.get("channels", {})
+            # One day more than requested: each day's cap needs the next morning.
+            sun_by_day = [
+                compute_sun_day_data(lat, lon, tz_str, anchor_d + dt.timedelta(days=i))
+                for i in (-1, 0, 1, 2)
+            ]
             for ch_id, ch_cfg in channels_config.items():
                 if not isinstance(ch_cfg, dict):
                     continue
                 ch_slots = ch_cfg.get("slots", [])
                 channels_res[ch_id] = {}
-                for d_str in dates:
-                    cur_d = dt.date.fromisoformat(d_str)
-                    sun_data = compute_sun_day_data(lat, lon, tz_str, cur_d)
-                    channels_res[ch_id][d_str] = resolve_slot_times(ch_slots, sun_data)
+                for i, d_str in enumerate(dates):
+                    channels_res[ch_id][d_str] = resolve_slot_times(
+                        ch_slots, sun_by_day[i], sun_by_day[i + 1]
+                    )
 
             return {
                 "area_id": area_id,
@@ -842,7 +918,10 @@ def _ws_slot_times_preview() -> websocket_api.WebSocketCommandHandler:
 
         def _compute() -> dict[str, Any]:
             sun_data = compute_sun_day_data(lat, lon, tz_str, cur_d)
-            return {"slots": resolve_slot_times(msg["slots"], sun_data)}
+            next_sun_data = compute_sun_day_data(
+                lat, lon, tz_str, cur_d + dt.timedelta(days=1)
+            )
+            return {"slots": resolve_slot_times(msg["slots"], sun_data, next_sun_data)}
 
         result = await hass.async_add_executor_job(_compute)
         connection.send_result(msg["id"], result)

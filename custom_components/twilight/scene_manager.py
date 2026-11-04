@@ -4,14 +4,18 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from typing import TYPE_CHECKING, Any
 
+from homeassistant.components.homeassistant.scene import EVENT_SCENE_RELOADED
+from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.helpers.event import async_call_later
 
 from .const import (
     SCENE_EXTRACTION_MAX_RETRIES,
     SCENE_EXTRACTION_RETRY_INTERVAL,
+    SCENE_REFRESH_DEBOUNCE,
     SIGNAL_ENGINES_CHANGED,
     SceneType,
 )
@@ -19,6 +23,7 @@ from .state import SlotSceneInfo
 
 if TYPE_CHECKING:
     from asyncio import Task
+    from datetime import datetime
 
     from .config_model import SlotConfig
     from .engine import TwilightEngine
@@ -70,6 +75,10 @@ class SceneManager:
         self.engine = engine
         self.hass = engine.hass
         self.retry_task: Task[None] | None = None
+        self.refresh_task: Task[None] | None = None
+        self._unsub_scene_reloaded: Callable[[], None] | None = None
+        self._unsub_hue_scenes: list[Callable[[], None]] = []
+        self._unsub_refresh_timer: Callable[[], None] | None = None
 
     def _iter_channel_slots(self) -> Iterator[tuple[str, SlotConfig]]:
         """Yield (channel_id, SlotConfig) across all configured channels."""
@@ -91,11 +100,24 @@ class SceneManager:
 
         try:
             scene_type = self._classify_scene(scene_entity_id)
-            supports_dynamic = self._supports_dynamic(scene_entity_id)
-            configured = frozenset(slot.configured_entities)
             extracted, expected = await self._async_extract_scene(
                 scene_entity_id, scene_type
             )
+            # The extraction is the truth: the manual list only stands in where
+            # it found nothing (scripts, unreadable scenes).
+            configured = frozenset() if extracted else frozenset(slot.configured_entities)
+
+            # A dynamic palette is only playable if at least one of the scene's
+            # lamps can rotate it — a GLEDOPTO-only room never runs dynamic.
+            dynamic_entities: frozenset[str] = frozenset()
+            auto_dynamic = False
+            if self._supports_dynamic(scene_entity_id):
+                hue_manager = self.engine.hue_manager
+                scene_data = await hue_manager.async_get_scene_data(scene_entity_id)
+                dynamic_entities = frozenset(extracted) & hue_manager.get_dynamic_entities(
+                    scene_entity_id, scene_data
+                )
+                auto_dynamic = bool(getattr(scene_data, "auto_dynamic", False))
 
             return SlotSceneInfo(
                 channel_id=channel_id,
@@ -104,7 +126,8 @@ class SceneManager:
                 extracted_entities=frozenset(extracted),
                 configured_entities=configured,
                 expected_states=expected,
-                supports_dynamic=supports_dynamic,
+                dynamic_entities=dynamic_entities,
+                auto_dynamic=auto_dynamic,
             )
         except Exception:
             _LOGGER.exception(
@@ -114,6 +137,21 @@ class SceneManager:
                 slot.id,
             )
             return None
+
+    def _log_resolved_scenes(self, infos: list[SlotSceneInfo]) -> None:
+        """Log one line per scene, however many slots use it."""
+        hue_scenes = self.engine.hue_manager.hue_scenes
+        for info in {i.scene_entity_id: i for i in infos}.values():
+            _LOGGER.info(
+                "[%s] Scene %s: %s, %d lights, %d dynamic, auto_dynamic=%s, unique_id=%s",
+                self.engine.area_id,
+                info.scene_entity_id,
+                info.scene_type,
+                len(info.extracted_entities),
+                len(info.dynamic_entities),
+                info.auto_dynamic,
+                hue_scenes.get(info.scene_entity_id, {}).get("unique_id"),
+            )
 
     async def async_setup(self) -> None:
         """Classify all scene/script entities for slots across every channel and build scene_map."""
@@ -141,6 +179,7 @@ class SceneManager:
 
             self.engine.scene_map[(channel_id, slot_id)] = info
 
+        self._log_resolved_scenes(list(self.engine.scene_map.values()))
         _LOGGER.info(
             "[%s] SceneManager setup complete. Resolved scenes: %s",
             self.engine.area_id,
@@ -173,19 +212,105 @@ class SceneManager:
                 f"twilight_scene_retry_{self.engine.area_id}",
             )
 
+        self._unsub_scene_reloaded = self.hass.bus.async_listen(
+            EVENT_SCENE_RELOADED, self._schedule_refresh
+        )
+        self._subscribe_hue_scenes()
+
     async def async_teardown(self) -> None:
         """Tear down scene manager.
 
-        The cancel is awaited: task.cancel() only schedules the CancelledError,
-        so without the await the retry loop can still resume once after teardown
-        returned and write into the (possibly already replaced) engine's
-        scene_map.
+        The cancels are awaited: task.cancel() only schedules the CancelledError,
+        so without the await a task can still resume once after teardown returned
+        and write into the (possibly already replaced) engine's scene_map.
         """
-        task = self.retry_task
+        if self._unsub_scene_reloaded:
+            self._unsub_scene_reloaded()
+            self._unsub_scene_reloaded = None
+        self._unsubscribe_hue_scenes()
+        if self._unsub_refresh_timer:
+            self._unsub_refresh_timer()
+            self._unsub_refresh_timer = None
+
+        tasks = [self.retry_task, self.refresh_task]
         self.retry_task = None
-        if task and not task.done():
-            task.cancel()
-            await asyncio.gather(task, return_exceptions=True)
+        self.refresh_task = None
+        for task in tasks:
+            if task and not task.done():
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+
+    def _unsubscribe_hue_scenes(self) -> None:
+        for unsub in self._unsub_hue_scenes:
+            unsub()
+        self._unsub_hue_scenes = []
+
+    def _subscribe_hue_scenes(self) -> None:
+        """Listen for changes to this area's Hue scenes, per Bridge.
+
+        Goes to aiohue directly: the scene entity's state does not change when
+        only lamp colours do. Recalls are reported here as well, which is why a
+        refresh compares before it acts.
+        """
+        self._unsubscribe_hue_scenes()
+        hue_manager = self.engine.hue_manager
+        bridges: dict[str, list[str]] = {}
+        for scene_info in hue_manager.hue_scenes.values():
+            bridges.setdefault(scene_info["config_entry_id"], []).append(
+                scene_info["unique_id"]
+            )
+        for config_entry_id, scene_ids in bridges.items():
+            api = hue_manager.get_bridge_api(config_entry_id)
+            if api and hasattr(api, "scenes"):
+                self._unsub_hue_scenes.append(
+                    api.scenes.subscribe(self._schedule_refresh, tuple(scene_ids))
+                )
+
+    @callback
+    def _schedule_refresh(self, *_args: Any) -> None:
+        """Read the scenes again once a burst of change reports has settled.
+
+        Also lets a reload finish: `scene_reloaded` may fire before HA has added
+        the reloaded entities back.
+        """
+        if self._unsub_refresh_timer is None:
+            self._unsub_refresh_timer = async_call_later(
+                self.hass, SCENE_REFRESH_DEBOUNCE, self._start_refresh
+            )
+
+    @callback
+    def _start_refresh(self, _now: datetime) -> None:
+        self._unsub_refresh_timer = None
+        self.refresh_task = self.hass.async_create_background_task(
+            self._async_refresh_scene_map(),
+            f"twilight_scene_refresh_{self.engine.area_id}",
+        )
+
+    async def _async_refresh_scene_map(self) -> None:
+        """Take over edited scenes and bring running channels onto them."""
+        changed: list[SlotSceneInfo] = []
+        active_channels: set[str] = set()
+        active_slots = self.engine.run_state.active_slots
+        for channel_id, slot in self._iter_channel_slots():
+            if not slot.id:
+                continue
+            key = (channel_id, slot.id)
+            info = await self._process_slot(channel_id, slot)
+            # A scene that cannot be read right now keeps its last known state.
+            if info is None or is_extraction_incomplete(info):
+                continue
+            if info == self.engine.scene_map.get(key):
+                continue
+            self.engine.scene_map[key] = info
+            changed.append(info)
+            if active_slots.get(channel_id) == slot.id:
+                active_channels.add(channel_id)
+
+        if not changed:
+            return
+        self._log_resolved_scenes(changed)
+        async_dispatcher_send(self.hass, SIGNAL_ENGINES_CHANGED)
+        self.engine.coordinator.slot_scenes_replaced(active_channels)
 
     async def _async_retry_extraction_loop(self) -> None:
         """Retry scene extraction in background for incomplete slots."""
@@ -246,6 +371,7 @@ class SceneManager:
                 if info is not None and not is_extraction_incomplete(info):
                     self.engine.scene_map[(channel_id, slot_id)] = info
                     any_resolved = True
+                    self._log_resolved_scenes([info])
                     _LOGGER.info(
                         "[%s] Successfully extracted scene %s for slot %s/%s on retry",
                         self.engine.area_id,
@@ -255,6 +381,7 @@ class SceneManager:
                     )
 
             if any_resolved:
+                self._subscribe_hue_scenes()
                 # Open subscriptions build their entity watch-list from scene_map
                 # at subscribe-time; without this signal they'd never notice
                 # entities extracted after startup (until the next save/re-subscribe).
@@ -321,7 +448,7 @@ class SceneManager:
         return SceneType.PLAIN_SCENE
 
     def _supports_dynamic(self, entity_id: str) -> bool:
-        """Return True if the scene entity supports dynamic palette playback."""
+        """Return True if the scene's palette is dynamic (says nothing about its lamps)."""
         if entity_id in self.engine.hue_manager.hue_scenes:
             scene_info = self.engine.hue_manager.hue_scenes.get(entity_id)
             if scene_info:

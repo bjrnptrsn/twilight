@@ -9,10 +9,35 @@ from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util.color import color_xy_to_RGB
 
+from .const import HUE_DYNAMIC_PALETTE
+
 if TYPE_CHECKING:
     from .engine import TwilightEngine
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def scene_dynamic_light_ids(api: Any, scene_data: Any) -> set[str]:
+    """Hue light ids targeted by the scene's actions that can play a dynamic palette.
+
+    A dynamic palette on the scene says nothing about its lamps: third-party
+    lights behind the Bridge (GLEDOPTO, IKEA) only ever take a static value.
+    Each light reports its own capability in `dynamics.status_values`.
+    """
+    capable = {
+        light.id
+        for light in getattr(api, "lights", None) or []
+        if any(
+            str(getattr(status, "value", status)) == HUE_DYNAMIC_PALETTE
+            for status in getattr(getattr(light, "dynamics", None), "status_values", None)
+            or []
+        )
+    }
+    targets = {
+        getattr(getattr(action, "target", None), "rid", None)
+        for action in getattr(scene_data, "actions", None) or []
+    }
+    return capable & targets
 
 
 class HueManager:
@@ -40,12 +65,6 @@ class HueManager:
                     "config_entry_id": entry.config_entry_id,
                     "unique_id": entry.unique_id,
                 }
-                _LOGGER.debug(
-                    "[%s] Hue scene detected: %s (unique_id: %s)",
-                    self.engine.area_id,
-                    entity_id,
-                    entry.unique_id,
-                )
 
         _LOGGER.debug(
             "[%s] Detected %d Hue scenes", self.engine.area_id, len(self.hue_scenes)
@@ -95,13 +114,6 @@ class HueManager:
             unique_id = scene_info["unique_id"]
             for scene in api.scenes:
                 if getattr(scene, "id", None) == unique_id:
-                    _LOGGER.debug(
-                        "[%s] Scene found: %s (id: %s, type: %s)",
-                        self.engine.area_id,
-                        getattr(scene.metadata, "name", "unnamed"),
-                        unique_id,
-                        type(scene).__name__,
-                    )
                     return scene
         except Exception as err:
             _LOGGER.error(
@@ -144,6 +156,21 @@ class HueManager:
 
         return self._lights_from_ha_state(entity_id), {}
 
+    def get_dynamic_entities(self, entity_id: str, scene_data: Any | None) -> frozenset[str]:
+        """HA entity_ids of the scene's lamps that can play a dynamic palette."""
+        scene_info = self.hue_scenes.get(entity_id)
+        if not scene_data or not scene_info:
+            return frozenset()
+        api = self.get_bridge_api(scene_info["config_entry_id"])
+        if api is None:
+            return frozenset()
+        mapping = self.get_entity_mapping(scene_info["config_entry_id"])
+        return frozenset(
+            mapping[light_id]
+            for light_id in scene_dynamic_light_ids(api, scene_data)
+            if light_id in mapping
+        )
+
     def _resolve_lights_from_group(self, entity_id: str, scene_data: Any) -> list[str]:
         """Traverse aiohue Room/Zone → Device → Light to resolve HA entity_ids."""
         group_ref = getattr(scene_data, "group", None)
@@ -184,14 +211,7 @@ class HueManager:
                 return []
 
             mapping = self.get_entity_mapping(scene_info["config_entry_id"])
-            lights = [mapping[hid] for hid in hue_light_ids if hid in mapping]
-            _LOGGER.info(
-                "[%s] Extracted %d lights for scene %s",
-                self.engine.area_id,
-                len(lights),
-                entity_id,
-            )
-            return lights
+            return [mapping[hid] for hid in hue_light_ids if hid in mapping]
         except Exception as err:
             _LOGGER.error(
                 "[%s] Exception while resolving lights from group for %s: %s",

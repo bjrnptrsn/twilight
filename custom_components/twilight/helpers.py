@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Coroutine, Iterator, Sequence
+from collections.abc import Coroutine, Iterable, Iterator, Sequence
 from typing import TYPE_CHECKING, Any
 
+from homeassistant.const import STATE_OFF, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import Context, HomeAssistant
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 
-from .config_model import ActionConfig, SlotActionConfig
+from .config_model import ActionConfig, ActivityReleaseConfig, SlotActionConfig
 from .const import (
     CONTEXT_PREFIX,
     DEFAULT_BINARY_AGGREGATION,
@@ -20,13 +23,18 @@ from .const import (
     DEFAULT_MOTION_RETRIGGER,
     DEFAULT_TRANSITION_ON_SECONDS,
     DOMAIN,
+    DYNAMIC_SAFE_STATE_KEYS,
     ActionType,
     AggregationMode,
+    HueDynamicMode,
     InputType,
+    ReleaseActionType,
 )
+from .deviation import check_entity_deviation
 
-SIM_TEMPLATE_ELIGIBLE_TYPES = frozenset(
-    {ActionType.SLOT, ActionType.ENTITY, ActionType.LIGHT}
+SIM_TEMPLATE_ELIGIBLE_TYPES = frozenset({ActionType.SLOT, ActionType.ENTITY})
+HANDOVER_TARGET_TYPES = frozenset(
+    {ActionType.SLOT, ActionType.ENTITY, ActionType.BLOCK, ActionType.SIMULATION}
 )
 
 if TYPE_CHECKING:
@@ -36,6 +44,7 @@ if TYPE_CHECKING:
         ChannelConfig,
         InputConfig,
         MotionInputConfig,
+        SlotConfig,
     )
     from .rule_manager import RuleManager
     from .state import RunState, SlotSceneInfo
@@ -113,6 +122,43 @@ def get_slot_info(
     return scene_map.get((channel_id, slot_id))
 
 
+def is_dynamic_slot(slot: SlotConfig | None, scene_info: SlotSceneInfo | None) -> bool:
+    """True if the slot runs Bridge-side dynamic playback.
+
+    Wanted: the slot's own setting, or — when it has none — the Hue scene's
+    "start dynamic" setting from the Hue app. Possible: a dynamic palette plus
+    at least one lamp that can play it. Both are required: the UI only offers
+    the setting for capable scenes, but the WS schema accepts it on any slot,
+    and a saved override outlives a lamp swap. Without the capability check
+    the slot would get a pointless or failing hue.activate_scene call instead
+    of the per-light path.
+    """
+    if not slot or not scene_info or not scene_info.supports_dynamic:
+        return False
+    if slot.hue_activate_dynamic is HueDynamicMode.HUE:
+        return scene_info.auto_dynamic
+    return slot.hue_activate_dynamic is HueDynamicMode.ON
+
+
+def enforced_scene_states(
+    scene_info: SlotSceneInfo, dynamic: bool
+) -> dict[str, dict[str, Any]]:
+    """Expected states Twilight may check and re-drive for a slot's scene.
+
+    A static slot enforces the scene's full expected states. A dynamic slot
+    leaves the lamps that rotate the palette to the Bridge, and enforces only
+    on/off and brightness on the other lamps — a color retry on any lamp of
+    the scene would end the dynamic playback.
+    """
+    if not dynamic:
+        return scene_info.expected_states
+    return {
+        entity_id: {k: v for k, v in expected.items() if k in DYNAMIC_SAFE_STATE_KEYS}
+        for entity_id, expected in scene_info.expected_states.items()
+        if entity_id not in scene_info.dynamic_entities
+    }
+
+
 def iter_channel_slots(
     scene_map: SceneMap, channel_id: str
 ) -> Iterator[tuple[str, SlotSceneInfo]]:
@@ -122,22 +168,58 @@ def iter_channel_slots(
             yield slot_id, info
 
 
-def channel_entities(
-    scene_map: SceneMap, channel_id: str, manual_only: bool = False
-) -> set[str]:
+def channel_entities(scene_map: SceneMap, channel_id: str) -> set[str]:
     """Union of all controlled entities across one channel's slots.
 
     Used for the per-channel turn_off (null-slot / disabled channel) so the
-    main channel stays untouched. With manual_only, only configured_entities
-    are returned (mirrors Coordinator._get_active_slot_entities).
+    main channel stays untouched.
     """
     out: set[str] = set()
     for _slot_id, info in iter_channel_slots(scene_map, channel_id):
-        if manual_only:
-            out |= set(info.configured_entities)
-        else:
-            out |= set(info.extracted_entities) | set(info.configured_entities)
+        out |= set(info.extracted_entities) | set(info.configured_entities)
     return out
+
+
+def entities_all_off(hass: HomeAssistant, entities: Iterable[str]) -> bool:
+    """True if every entity is off; an empty set counts as off.
+
+    An entity HA reports as unavailable/unknown is skipped (see
+    channel_already_off()); one with no state object at all is not off.
+    """
+    for entity_id in entities:
+        ha_state = hass.states.get(entity_id)
+        if ha_state is not None and ha_state.state in (
+            STATE_UNAVAILABLE,
+            STATE_UNKNOWN,
+        ):
+            continue
+        if check_entity_deviation(ha_state, {"state": STATE_OFF}):
+            return False
+    return True
+
+
+def area_light_entities(hass: HomeAssistant, area_id: str) -> list[str]:
+    """The lights `light.turn_off` with this area as its target would reach.
+
+    Hidden and config entities stay out, as in HA's own area expansion: a status
+    LED is a device setting that nothing turns back on.
+    """
+    entity_registry = er.async_get(hass)
+    entries = list(er.async_entries_for_area(entity_registry, area_id))
+    for device in dr.async_entries_for_area(dr.async_get(hass), area_id):
+        entries.extend(
+            entry
+            for entry in er.async_entries_for_device(entity_registry, device.id)
+            if not entry.area_id
+        )
+    return [
+        entry.entity_id
+        for entry in entries
+        if entry.domain == "light"
+        and entry.disabled_by is None
+        and entry.hidden_by is None
+        and entry.entity_category is None
+    ]
 
 
 def detect_channel_collisions(scene_map: SceneMap) -> dict[str, list[str]]:
@@ -258,9 +340,9 @@ async def dispatch_entity_target(
     """Call the HA service matching an EntityTargetConfig's domain/action.
 
     Used by the `reset` activity action to drive additional entities beyond
-    turn_off_all_channels() (input_boolean/switch on/off/toggle, script
-    activate). Unknown domain/action combos are logged and skipped — a
-    misconfigured target must not crash the reset.
+    what it turns off (input_boolean/switch on/off/toggle, script activate).
+    Unknown domain/action combos are logged and skipped — a misconfigured
+    target must not crash the reset.
     """
     if not entity_id or "." not in entity_id or not action:
         _LOGGER.warning(
@@ -496,8 +578,9 @@ def simulation_template_eligible(config: AreaConfig, template: str | None) -> bo
     """Whether an activity may serve as a presence-simulation template.
 
     Eligible = it exists and its start action switches a light on
-    (slot/entity/light). No implicit type default — a `None`-typed action is
-    not eligible.
+    (slot/entity). No implicit type default — a `None`-typed action is
+    not eligible. Neither is one that hands over on release: the simulation's
+    off step has no real activity to end.
     """
     if not template:
         return False
@@ -506,7 +589,29 @@ def simulation_template_eligible(config: AreaConfig, template: str | None) -> bo
         return False
     action = activity.action
     action_type = action.type if action else None
-    return action_type in SIM_TEMPLATE_ELIGIBLE_TYPES
+    return action_type in SIM_TEMPLATE_ELIGIBLE_TYPES and not _hands_over(activity)
+
+
+def _hands_over(activity: ActivityConfig) -> bool:
+    """True if an activity's release action switches to another activity."""
+    release = activity.release_action
+    return release is not None and release.type == ReleaseActionType.ACTIVITY
+
+
+def release_handover_target(config: AreaConfig, activity: ActivityConfig) -> str | None:
+    """The activity taking over when `activity` ends, or None without a valid one.
+
+    One hop only: a target that hands over itself is rejected, which also rules
+    out loops that would keep the lights on for good.
+    """
+    release = activity.release_action
+    if not isinstance(release, ActivityReleaseConfig) or not release.activity:
+        return None
+    target = config.activity_by_id(release.activity)
+    if target is None or target.id == activity.id or _hands_over(target):
+        return None
+    action_type = target.action.type if target.action else None
+    return target.id if action_type in HANDOVER_TARGET_TYPES else None
 
 
 def get_activity_supports_excluded_slots(activity: ActivityConfig | None) -> bool:

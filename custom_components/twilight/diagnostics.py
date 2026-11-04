@@ -61,6 +61,8 @@ def build_diagnostics(hass: HomeAssistant) -> dict[str, Any]:
                 "scene_type": str(info.scene_type),
                 "extracted_entities": sorted(info.extracted_entities),
                 "configured_entities": sorted(info.configured_entities),
+                "dynamic_entities": sorted(info.dynamic_entities),
+                "auto_dynamic": info.auto_dynamic,
             }
 
         light_states: dict[str, Any] = {}

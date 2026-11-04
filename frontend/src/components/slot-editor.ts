@@ -1,31 +1,25 @@
 import { html, css, PropertyValues } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import type { HomeAssistant } from '../lib/types'
-import { type Slot, type LabEntity, SlotsChangedEvent, MAX_SLOTS_PER_CHANNEL, MIN_SLOT_DISTANCE_MINUTES, type PlaceholderDefaults } from '../lib/types'
-import { minsToHHMM, preloadHaComponents } from '../lib/utils'
+import { type Slot, type LabEntity, type HueDynamicMode, SlotsChangedEvent, MAX_SLOTS_PER_CHANNEL, MIN_SLOT_DISTANCE_MINUTES, NOT_BEFORE_ZONES, type PlaceholderDefaults } from '../lib/types'
+import { ZONE_LABEL_KEYS, minsToHHMM, preloadHaComponents } from '../lib/utils'
+import {
+  HUE_DYNAMIC_SPEED_LEVELS,
+  nearestSpeedPercent,
+  speedPercentToLevel,
+} from '../lib/hue-dynamic-speed'
 import { dialogChromeStyles } from '../lib/shared-styles'
-import { type TranslationKey } from '../lib/i18n'
 import { PortalDialog } from './dialogs'
 import './dialogs'
-
-const EVENT_LABEL_KEYS: Record<string, TranslationKey> = {
-  astro_dawn:    'slot_editor.event_astro_dawn',
-  nautical_dawn: 'slot_editor.event_nautical_dawn',
-  civil_dawn:    'slot_editor.event_civil_dawn',
-  gold_dawn:     'slot_editor.event_gold_dawn',
-  day:           'slot_editor.event_day',
-  gold_dusk:     'slot_editor.event_gold_dusk',
-  civil_dusk:    'slot_editor.event_civil_dusk',
-  nautical_dusk: 'slot_editor.event_nautical_dusk',
-  astro_dusk:    'slot_editor.event_astro_dusk',
-  night:         'slot_editor.event_night',
-}
+import './entity-list-dialog'
+import { areaSceneIds } from '../lib/area-scenes'
 
 @customElement('twilight-slot-editor')
 export class TwilightSlotEditor extends PortalDialog {
   @property({ attribute: false }) hass: HomeAssistant | null = null
   @property({ type: Array }) slots: Slot[] = []
   @property({ type: Array }) entities: LabEntity[] = []
+  @property({ type: Array }) emptyExtractionSlotIds: string[] = []
   @property({ type: Boolean }) open = false
   @property({ type: String }) highlightSlotId: string | null = null
   @property({ type: String }) areaId = ''
@@ -41,6 +35,7 @@ export class TwilightSlotEditor extends PortalDialog {
 
   @state() private _draft: Slot[] | null = null
   @state() private _draftTransitionOnSeconds: number | null = null
+  @state() private _turnOffListSlotId: string | null = null
   private _transitionDraftInitialized = false
 
   static styles = [
@@ -74,7 +69,7 @@ export class TwilightSlotEditor extends PortalDialog {
 
     .slots-header {
       display: grid;
-      grid-template-columns: minmax(110px, 1.1fr) minmax(110px, 1fr) minmax(180px, 1.6fr) minmax(100px, 1fr) minmax(220px, 2.5fr) minmax(150px, 0.9fr) 30px;
+      grid-template-columns: minmax(110px, 1.1fr) minmax(110px, 1fr) minmax(180px, 1.6fr) minmax(100px, 1fr) minmax(220px, 2.5fr) minmax(240px, 0.9fr) 30px;
       gap: 12px;
       padding: 0 16px 8px;
       font-size: 11px;
@@ -85,12 +80,12 @@ export class TwilightSlotEditor extends PortalDialog {
       border-bottom: 1px solid var(--divider-color, color-mix(in srgb, var(--primary-text-color) 8%, transparent));
     }
     .slots-header--no-time {
-      grid-template-columns: minmax(110px, 1.1fr) minmax(110px, 1fr) minmax(180px, 1.6fr) minmax(220px, 2.5fr) minmax(150px, 0.9fr) 30px;
+      grid-template-columns: minmax(110px, 1.1fr) minmax(110px, 1fr) minmax(180px, 1.6fr) minmax(220px, 2.5fr) minmax(240px, 0.9fr) 30px;
     }
 
     .slot-edit-card {
       display: grid;
-      grid-template-columns: minmax(110px, 1.1fr) minmax(110px, 1fr) minmax(180px, 1.6fr) minmax(100px, 1fr) minmax(220px, 2.5fr) minmax(150px, 0.9fr) 30px;
+      grid-template-columns: minmax(110px, 1.1fr) minmax(110px, 1fr) minmax(180px, 1.6fr) minmax(100px, 1fr) minmax(220px, 2.5fr) minmax(240px, 0.9fr) 30px;
       gap: 12px;
       align-items: center;
       padding: 4px 16px;
@@ -103,7 +98,7 @@ export class TwilightSlotEditor extends PortalDialog {
       margin-bottom: 0;
     }
     .slot-edit-card--no-time {
-      grid-template-columns: minmax(110px, 1.1fr) minmax(110px, 1fr) minmax(180px, 1.6fr) minmax(220px, 2.5fr) minmax(150px, 0.9fr) 30px;
+      grid-template-columns: minmax(110px, 1.1fr) minmax(110px, 1fr) minmax(180px, 1.6fr) minmax(220px, 2.5fr) minmax(240px, 0.9fr) 30px;
     }
 
     .slot-edit-card.highlighted {
@@ -215,6 +210,31 @@ export class TwilightSlotEditor extends PortalDialog {
       width: 100%;
     }
 
+    .turn-off-list-btn {
+      margin-top: 6px;
+    }
+
+    .not-before-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .not-before-label {
+      font-size: 11px;
+      color: var(--secondary-text-color);
+      white-space: nowrap;
+    }
+    .not-before-input {
+      flex: 1;
+      min-width: 0;
+      padding: 4px 8px;
+    }
+    .not-before-clear {
+      font-size: 13px;
+      padding: 2px 4px;
+    }
+
     .mobile-label {
       display: none;
     }
@@ -256,15 +276,38 @@ export class TwilightSlotEditor extends PortalDialog {
     return h >= 0 && h <= 23 && mi >= 0 && mi <= 59
   }
 
-  /** Any fixed slot with an invalid time blocks saving. */
-  private _hasInvalidSlot(): boolean {
-    const slots = this._draft ?? this.slots
-    return slots.some(s => s.startType === 'fixed' && !this._isValidHHMM(s.fixedStartTime))
+  /** A "not before" floor is valid when unset or HH:MM within 12:00–03:59:
+   *  12:00–23:59 is the same evening, 00:00–03:59 after midnight. */
+  private _isValidNotBefore(v: string | null | undefined): boolean {
+    if (!v) return true
+    const h = Number(v.split(':')[0])
+    return this._isValidHHMM(v) && (h >= 12 || h < 4)
   }
 
-  /** Slot objects are flat (no nested arrays/objects, see the Slot interface
-   *  in types.ts) — a sorted-keys JSON comparison is a cheap, order-independent
-   *  structural equality check without pulling in a deep-equal dependency. */
+  private _isInvalidSlot(s: Slot): boolean {
+    return (s.startType === 'fixed' && !this._isValidHHMM(s.fixedStartTime))
+      || !this._isValidNotBefore(s.not_before)
+  }
+
+  /** Any slot with an invalid fixed time or "not before" floor blocks saving. */
+  private _hasInvalidSlot(): boolean {
+    const slots = this._draft ?? this.slots
+    return slots.some(s => this._isInvalidSlot(s))
+  }
+
+  private _hasInvalidNotBefore(): boolean {
+    const slots = this._draft ?? this.slots
+    return slots.some(s => !this._isValidNotBefore(s.not_before))
+  }
+
+  private _setNotBefore(slotId: string, value: string | null) {
+    this._updateDraft((this._draft ?? this.slots).map(s => s.id === slotId ? { ...s, not_before: value } : s))
+  }
+
+  /** Slot objects hold nothing deeper than the string array of the turn-off
+   *  list, which a key-list replacer leaves intact — a sorted-keys JSON
+   *  comparison is a cheap, order-independent structural equality check without
+   *  pulling in a deep-equal dependency. */
   private _slotsEqual(a: Slot[], b: Slot[]): boolean {
     if (a.length !== b.length) return false
     const normalize = (s: Slot) =>
@@ -367,9 +410,11 @@ export class TwilightSlotEditor extends PortalDialog {
       from: 720,
       to: 780,
       scene: null,
+      configured_entities: [],
       isCustom: true,
       startType: 'fixed',
-      fixedStartTime: '12:00'
+      fixedStartTime: '12:00',
+      not_before: null
     }
     this._updateDraft([...current, newSlot])
   }
@@ -379,14 +424,35 @@ export class TwilightSlotEditor extends PortalDialog {
   }
 
   private _setSlotScene(slotId: string, scene: string | null) {
-    this._updateDraft((this._draft ?? this.slots).map(s => s.id === slotId ? { ...s, scene } : s))
+    // A turn-off list belongs to its scene or script: carried over, an old list
+    // would silently come back to life on a new script.
+    this._updateDraft((this._draft ?? this.slots).map(s => s.id === slotId ? { ...s, scene, configured_entities: [] } : s))
+  }
+
+  private _hasTurnOffList(slot: Slot): boolean {
+    if (!slot.scene) return false
+    if (slot.scene.startsWith('script.')) return true
+    // The saved extraction says nothing about a scene picked since.
+    const savedScene = this.slots.find(s => s.id === slot.id)?.scene
+    return slot.scene === savedScene && this.emptyExtractionSlotIds.includes(slot.id)
+  }
+
+  private _setTurnOffList(entities: string[]) {
+    this._updateDraft((this._draft ?? this.slots).map(s =>
+      s.id === this._turnOffListSlotId ? { ...s, configured_entities: entities } : s
+    ))
+    this._turnOffListSlotId = null
   }
 
   willUpdate(changedProperties: PropertyValues) {
     if (changedProperties.has('open')) {
       if (this.open) {
         if (this._draft === null) {
-          this._draft = this.slots.map(s => ({ ...s }))
+          // The speed select only knows the Hue levels, so a custom value
+          // from an older version starts on the nearest one.
+          this._draft = this.slots.map(s => s.hue_dynamic_speed == null
+            ? { ...s }
+            : { ...s, hue_dynamic_speed: nearestSpeedPercent(s.hue_dynamic_speed) })
         }
         if (!this._transitionDraftInitialized) {
           this._draftTransitionOnSeconds = this.transitionOnSeconds
@@ -406,41 +472,14 @@ export class TwilightSlotEditor extends PortalDialog {
     const draft = this._draft
     if (!draft) return html``
 
-    const normalizeForSearch = (s: string) =>
-      s.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    const areaIdLower = normalizeForSearch((this.areaId || '').toLowerCase())
-    const areaNameLower = normalizeForSearch((this.areaName || '').toLowerCase())
-    const searchTerms = new Set<string>()
-    if (areaIdLower) searchTerms.add(areaIdLower)
-    if (areaNameLower) searchTerms.add(areaNameLower)
-
-    const matchesArea = (entityId: string, name: string) => {
-      const entityIdLower = normalizeForSearch(entityId.toLowerCase())
-      const nameLower = normalizeForSearch((name || '').toLowerCase())
-      for (const term of searchTerms) {
-        if (entityIdLower.includes(term) || nameLower.includes(term)) {
-          return true
-        }
-      }
-      return false
-    }
-
     const currentSceneIds = new Set(
       draft.map(s => s.scene).filter((id): id is string => !!id)
     )
 
     const useFilter = !!(this.areaId && this.entities && this.entities.length > 0)
-    const areaSceneIds = new Set(
-      useFilter
-        ? this.entities
-            .filter(e => {
-              if (e.domain !== 'scene' && e.domain !== 'script') return false
-              if (e.scene_type === 'HUE_SMART_SCENE') return false
-              return e.in_area || currentSceneIds.has(e.entity_id) || matchesArea(e.entity_id, e.name)
-            })
-            .map(e => e.entity_id)
-        : []
-    )
+    const areaScenes = useFilter
+      ? areaSceneIds(this.entities, this.areaId, this.areaName, currentSceneIds)
+      : new Set<string>()
 
     // Show slots in the backend-provided order (sorted by start). No rotation by
     // current time and no highlight-to-top reordering — the editor edits the
@@ -509,7 +548,8 @@ export class TwilightSlotEditor extends PortalDialog {
               ${orderedSlots.map(slot => {
                 const isHighlighted = slot.id === this.highlightSlotId
                 const editable = !this.isPrimaryChannel
-                const invalidTime = slot.startType === 'fixed' && !this._isValidHHMM(slot.fixedStartTime)
+                const invalidTime = this._isInvalidSlot(slot)
+                const canHaveNotBefore = slot.startType === 'astral' && NOT_BEFORE_ZONES.includes(slot.startEvent ?? '')
                 return html`
                   <div class="slot-edit-card ${isHighlighted ? 'highlighted' : ''} ${invalidTime ? 'invalid' : ''} ${this.templateMode ? 'slot-edit-card--no-time' : ''}">
                     <!-- Col 1: Icon/Dot + Label/Input -->
@@ -541,6 +581,7 @@ export class TwilightSlotEditor extends PortalDialog {
                         ? html`
                           <select
                             class="sensor-input"
+                            .value=${slot.startType || 'fixed'}
                             @change=${(e: Event) => {
                               const val = (e.target as HTMLSelectElement).value as 'astral' | 'fixed'
                               this._updateDraft(draft.map(s => s.id === slot.id ? {
@@ -548,12 +589,13 @@ export class TwilightSlotEditor extends PortalDialog {
                                 startType: val,
                                 startEvent: val === 'astral' ? 'civil_dawn' : undefined,
                                 fixedStartTime: val === 'fixed' ? '12:00' : undefined,
-                                startOffset: val === 'astral' ? 0 : undefined
+                                startOffset: val === 'astral' ? 0 : undefined,
+                                not_before: null
                               } : s))
                             }}
                           >
-                            <option value="fixed" ?selected=${(slot.startType || 'fixed') === 'fixed'}>${this.t('slot_editor.fixed_time')}</option>
-                            <option value="astral" ?selected=${slot.startType === 'astral'}>${this.t('slot_editor.sun_event')}</option>
+                            <option value="fixed">${this.t('slot_editor.fixed_time')}</option>
+                            <option value="astral">${this.t('slot_editor.sun_event')}</option>
                           </select>
                         `
                         : html`
@@ -583,20 +625,32 @@ export class TwilightSlotEditor extends PortalDialog {
                           <div style="display:flex; gap:6px;">
                             ${editable
                               ? html`
+                                <!-- Both bindings are needed. .value keeps a reused row in sync (a
+                                     "selected" attribute no longer moves the selection once the user
+                                     picked an option). ?selected covers the first render: these
+                                     options come from a map() child part, which Lit commits AFTER the
+                                     select's own .value — at that moment no matching option exists
+                                     yet, and the select would fall back to the first entry. (Selects
+                                     with static options need only .value.) -->
                                 <select
                                   class="sensor-input"
                                   style="flex:1"
+                                  .value=${slot.startEvent || 'civil_dawn'}
                                   @change=${(e: Event) => {
                                     const val = (e.target as HTMLSelectElement).value
-                                    this._updateDraft(draft.map(s => s.id === slot.id ? { ...s, startEvent: val } : s))
+                                    this._updateDraft(draft.map(s => s.id === slot.id ? {
+                                      ...s,
+                                      startEvent: val,
+                                      not_before: NOT_BEFORE_ZONES.includes(val) ? s.not_before : null
+                                    } : s))
                                   }}
                                 >
-                                  ${Object.entries(EVENT_LABEL_KEYS).map(([value, key]) => html`
+                                  ${Object.entries(ZONE_LABEL_KEYS).map(([value, key]) => html`
                                     <option value=${value} ?selected=${(slot.startEvent || 'civil_dawn') === value}>${this.t(key)}</option>
                                   `)}
                                 </select>
                               `
-                              : html`<input class="sensor-input" style="flex:1; opacity:0.6" disabled .value=${(slot.startEvent && EVENT_LABEL_KEYS[slot.startEvent] ? this.t(EVENT_LABEL_KEYS[slot.startEvent]) : slot.startEvent) || ''} />`
+                              : html`<input class="sensor-input" style="flex:1; opacity:0.6" disabled .value=${(slot.startEvent && ZONE_LABEL_KEYS[slot.startEvent] ? this.t(ZONE_LABEL_KEYS[slot.startEvent]) : slot.startEvent) || ''} />`
                             }
                             <input
                               type="number"
@@ -616,6 +670,30 @@ export class TwilightSlotEditor extends PortalDialog {
                               placeholder=${this.t('slot_editor.offset_placeholder')}
                             />
                           </div>
+                          ${canHaveNotBefore ? html`
+                            <div class="not-before-row" title=${this.t('slot_editor.not_before_title')}>
+                              <span class="not-before-label">${this.t('slot_editor.not_before')}</span>
+                              <!-- No min/max: the valid range wraps past midnight, which
+                                   only some browsers accept as a reversed range;
+                                   _isValidNotBefore() alone decides. -->
+                              <input
+                                type="time"
+                                class="sensor-input not-before-input"
+                                .value=${slot.not_before ?? ''}
+                                @change=${(e: Event) => {
+                                  this._setNotBefore(slot.id, (e.target as HTMLInputElement).value.trim() || null)
+                                }}
+                              />
+                              ${slot.not_before ? html`
+                                <button
+                                  class="panel-close not-before-clear"
+                                  @click=${() => this._setNotBefore(slot.id, null)}
+                                  title=${this.t('slot_editor.not_before_clear')}
+                                  aria-label=${this.t('slot_editor.not_before_clear')}
+                                >✕</button>
+                              ` : ''}
+                            </div>
+                          ` : ''}
                         `
                       }
                     </div>
@@ -647,7 +725,7 @@ export class TwilightSlotEditor extends PortalDialog {
                           // never listed reach this branch — hide them rather than risk
                           // showing an unfiltered Smart Scene.
                           if (!entry) return e.entity_id?.startsWith('script.') ?? false
-                          return useFilter ? areaSceneIds.has(e.entity_id) : true
+                          return useFilter ? areaScenes.has(e.entity_id) : true
                         }}
                         allow-custom-entity
                         @value-changed=${(e: CustomEvent) => {
@@ -657,6 +735,11 @@ export class TwilightSlotEditor extends PortalDialog {
                           }
                         }}
                       ></ha-entity-picker>
+                      ${this._hasTurnOffList(slot) ? html`
+                        <button class="turn-off-list-btn" @click=${() => { this._turnOffListSlotId = slot.id }}>
+                          ${this.t('slot_editor.turn_off_entities', { count: slot.configured_entities?.length ?? 0 })}
+                        </button>
+                      ` : ''}
                     </div>
 
                     <!-- Col 6: Dynamic (Hue scenes with a palette only) + Respect Off State -->
@@ -666,39 +749,51 @@ export class TwilightSlotEditor extends PortalDialog {
                         const ent = this.entities?.find(e => e.entity_id === slot.scene)
                         if (!ent?.supports_dynamic) return ''
 
+                        const setting = slot.hue_activate_dynamic ?? 'hue'
+                        const hueDefault = this.t(ent.auto_dynamic ? 'slot_editor.dynamic_on' : 'slot_editor.dynamic_off')
+                        const effective = setting === 'hue' ? !!ent.auto_dynamic : setting === 'on'
+                        const selectedSpeed = slot.hue_dynamic_speed ?? null
+                        const sceneLevel = ent.scene_speed != null
+                          ? speedPercentToLevel(ent.scene_speed)
+                          : null
+
+                        // `.selected`, not `?selected`: the rows are reused, and the
+                        // attribute no longer moves an option the user picked before.
                         return html`
                           <span class="mobile-label">${this.t('slot_editor.col_dynamic')}</span>
                           <div style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
-                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--secondary-text-color);">
-                              <input
-                                type="checkbox"
-                                style="width: 16px; height: 16px; cursor: pointer;"
-                                .checked=${!!slot.hue_activate_dynamic}
-                                @change=${(e: Event) => {
-                                  const checked = (e.target as HTMLInputElement).checked
-                                  this._updateDraft(draft.map(s => s.id === slot.id ? { ...s, hue_activate_dynamic: checked } : s))
-                                }}
-                              />
-                              On
-                            </label>
-                            <input
-                              type="number"
+                            <select
                               class="sensor-input"
-                              style="width: 64px;"
-                              min="0"
-                              max="100"
-                              ?disabled=${!slot.hue_activate_dynamic}
-                              placeholder=${ent.scene_speed != null ? String(ent.scene_speed) : 'Speed'}
-                              .value=${slot.hue_dynamic_speed !== undefined && slot.hue_dynamic_speed !== null ? String(slot.hue_dynamic_speed) : ''}
-                              @input=${(e: Event) => {
-                                const raw = (e.target as HTMLInputElement).value.trim()
-                                const speed = raw === '' ? null : Math.min(100, Math.max(0, parseInt(raw, 10) || 0))
+                              style="width: auto; flex: none;"
+                              .value=${setting}
+                              @change=${(e: Event) => {
+                                const next = (e.target as HTMLSelectElement).value as HueDynamicMode
+                                this._updateDraft(draft.map(s => s.id === slot.id ? { ...s, hue_activate_dynamic: next } : s))
+                              }}
+                            >
+                              <option value="hue">${this.t('slot_editor.dynamic_follow_hue', { state: hueDefault })}</option>
+                              <option value="on">${this.t('slot_editor.dynamic_on')}</option>
+                              <option value="off">${this.t('slot_editor.dynamic_off')}</option>
+                            </select>
+                            <select
+                              class="sensor-input"
+                              style="width: auto; flex: none;"
+                              ?disabled=${!effective}
+                              aria-label=${this.t('slot_editor.dynamic_speed')}
+                              title=${this.t('slot_editor.dynamic_speed_title')}
+                              @change=${(e: Event) => {
+                                const raw = (e.target as HTMLSelectElement).value
+                                const speed = raw === '' ? null : parseInt(raw, 10)
                                 this._updateDraft(draft.map(s => s.id === slot.id ? { ...s, hue_dynamic_speed: speed } : s))
                               }}
-                              title=${ent.scene_speed != null
-                                ? `Speed of dynamic palette (0-100) — scene default: ${ent.scene_speed}`
-                                : 'Speed of dynamic palette (0-100)'}
-                            />
+                            >
+                              <option value="" .selected=${selectedSpeed === null}>${sceneLevel !== null
+                                ? this.t('slot_editor.dynamic_speed_default_level', { level: sceneLevel })
+                                : this.t('slot_editor.dynamic_speed_default')}</option>
+                              ${HUE_DYNAMIC_SPEED_LEVELS.map(entry => html`
+                                <option value=${String(entry.percent)} .selected=${selectedSpeed === entry.percent}>${this.t('slot_editor.dynamic_speed_level', { level: entry.level })}</option>
+                              `)}
+                            </select>
                           </div>
                         `
                       })()}
@@ -736,13 +831,24 @@ export class TwilightSlotEditor extends PortalDialog {
           <div class="panel-footer">
             ${this._hasInvalidSlot() ? html`
               <span style="flex:1; color:var(--error-color, #db4437); font-size:13px; align-self:center;">
-                ${this.t('slot_editor.fix_invalid_times')}
+                ${this.t(this._hasInvalidNotBefore() ? 'slot_editor.not_before_invalid' : 'slot_editor.fix_invalid_times')}
               </span>
             ` : ''}
             <button class="btn-done" ?disabled=${this._hasInvalidSlot()} @click=${this._closeAndSave}>${this.t('area_lights_dialog.done')}</button>
           </div>
         </div>
       </div>
+
+      <twilight-entity-list-dialog
+        .open=${this._turnOffListSlotId !== null}
+        .hass=${this.hass}
+        .value=${draft.find(s => s.id === this._turnOffListSlotId)?.configured_entities ?? []}
+        .entities=${this.entities}
+        .areaId=${this.areaId}
+        .areaName=${this.areaName}
+        @save=${(e: CustomEvent<string[]>) => this._setTurnOffList(e.detail)}
+        @close=${() => { this._turnOffListSlotId = null }}
+      ></twilight-entity-list-dialog>
     `
   }
 }

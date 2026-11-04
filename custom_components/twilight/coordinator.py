@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Callable, Coroutine
+from collections.abc import Callable, Coroutine, Iterable
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -12,7 +12,6 @@ from homeassistant.util import dt as dt_util
 
 from .call_handler import (
     BaseCallHandler,
-    LightCallHandler,
     SceneCallHandler,
 )
 from .config_model import (
@@ -85,13 +84,13 @@ class Coordinator:
         """The long-lived SceneCallHandler for a channel."""
         return self.slot.scene_handler(channel_id)
 
-    def light_handler(self, channel_id: str) -> LightCallHandler | None:
-        """The long-lived LightCallHandler for a channel."""
-        return self.slot.light_handler(channel_id)
-
     def cancel_all_handlers(self) -> None:
         """Cancel all channel handlers."""
         self.slot.cancel_all_handlers()
+
+    def fading_channels(self) -> dict[str, str]:
+        """Channels whose anticipatory fade is still running, with its target slot."""
+        return self.slot.fading_channels()
 
     def _create_task(self, coro: Coroutine[Any, Any, Any]) -> asyncio.Task[Any] | None:
         """Create a tracked task to prevent fire-and-forget memory leak or unhandled exceptions."""
@@ -213,6 +212,10 @@ class Coordinator:
         """Signal that the active time slots (per channel) have changed."""
         self.slot.slots_changed(active_slots, is_boot)
 
+    def slot_scenes_replaced(self, channel_ids: set[str]) -> None:
+        """Apply the active slot of channels whose scene a save replaced."""
+        self.slot.slot_scenes_replaced(channel_ids)
+
     async def async_start_slot_fade(
         self, channel_id: str, target_slot_id: str, target_slot_start: datetime
     ) -> bool:
@@ -255,13 +258,17 @@ class Coordinator:
         """Apply a single channel into its slot."""
         self.slot.apply_channel_slot(channel_id, slot_id, direct=direct)
 
-    def apply_all_channels_slots(self, direct: bool = False) -> None:
-        """Re-apply every channel into its current active slot (scene or off)."""
-        self.slot.apply_all_channels_slots(direct=direct)
-
-    def turn_off_all_channels(self, transition_off: int | None = None) -> None:
+    def turn_off_all_channels(
+        self, transition_off: int | None = None, extra_entities: Iterable[str] = ()
+    ) -> None:
         """Turn off every channel's active-slot entities via TurnOffCallHandler."""
-        self.slot.turn_off_all_channels(transition_off=transition_off)
+        self.slot.turn_off_all_channels(
+            transition_off=transition_off, extra_entities=extra_entities
+        )
+
+    def turn_off_entities(self, entities: Iterable[str]) -> None:
+        """Turn off only these entities, leaving every channel's slots alone."""
+        self.slot.turn_off_entities(entities)
 
     # ── Lifecycle (Orchestration) ──
     async def async_setup(self) -> None:

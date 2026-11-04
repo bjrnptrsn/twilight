@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import logging
 from enum import StrEnum
-from typing import Any
 
 from homeassistant.const import (
     STATE_HOME,
@@ -12,26 +10,13 @@ from homeassistant.const import (
     STATE_OPEN,
 )
 
-_LOGGER = logging.getLogger(__name__)
-
 DOMAIN = "twilight"
-STORAGE_VERSION = 2
+STORAGE_VERSION = 3
 
 # Prefix for HA Context IDs on Twilight's own service calls, used by echo
 # detection (echo.py) to distinguish them from externally-triggered state
 # changes on the same entities.
 CONTEXT_PREFIX = "twilight_"
-
-
-def _safe_bool(val: Any, default: bool = False) -> bool:
-    """Safely parse a boolean from boolean, string ("true"/"false"), or int/float."""
-    if isinstance(val, bool):
-        return val
-    if isinstance(val, str):
-        return val.strip().lower() in ("true", "1", "yes", "on")
-    if isinstance(val, (int, float)):
-        return bool(val)
-    return default
 
 # Dispatcher signals (homeassistant.helpers.dispatcher).
 # One global state signal for all areas — payload (area_id, old_state, new_state).
@@ -41,6 +26,9 @@ SIGNAL_STATE_CHANGED = "twilight_state_changed"
 # Fired (no payload) after area/save or area/delete created, replaced, or
 # removed an engine, so live subscriptions rebuild their caches and watchers.
 SIGNAL_ENGINES_CHANGED = "twilight_engines_changed"
+# Fired (payload: area_id) when an anticipatory fade starts or is cut short, so live
+# subscriptions push the fade badge — no RunState change carries it.
+SIGNAL_FADE_CHANGED = "twilight_fade_changed"
 
 # HA state strings considered "active" for binary-style inputs (binary_sensor,
 # person, device_tracker, ...).
@@ -78,16 +66,29 @@ class SensorType(StrEnum):
 
 
 class ActionType(StrEnum):
-    """Supported activity action/release_action types."""
+    """Supported activity start action types."""
 
-    NONE = "none"
     SLOT = "slot"
     ENTITY = "entity"
-    LIGHT = "light"
     BLOCK = "block"
     TURN_OFF = "turn_off"
     SIMULATION = "simulation"
     RESET = "reset"
+
+
+class ReleaseActionType(StrEnum):
+    """Supported activity release_action types."""
+
+    TURN_OFF = "turn_off"
+    ACTIVITY = "activity"
+    NONE = "none"
+
+
+class ResetScope(StrEnum):
+    """What a `reset` action turns off."""
+
+    AREA = "area"
+    ENTITIES = "entities"
 
 
 class LuxIgnoreScope(StrEnum):
@@ -108,6 +109,14 @@ class SimLuxMode(StrEnum):
     THRESHOLD = "threshold"  # only when current lux <= lux_threshold
     DUSK_DAWN = "dusk_dawn"  # only when the primary slot is in TWILIGHT_SLOTS
     ALWAYS = "always"  # no condition
+
+
+class HueDynamicMode(StrEnum):
+    """Whether a slot's Hue scene starts its dynamic palette."""
+
+    HUE = "hue"  # follow the Hue scene's own "start dynamic" setting (Hue app)
+    ON = "on"
+    OFF = "off"
 
 
 class SimFrequencyMode(StrEnum):
@@ -178,7 +187,9 @@ MAX_SLOTS_PER_CHANNEL = 10
 MIN_SLOT_DISTANCE_MINUTES = 10
 # Schema version of the config backup produced by export_all() / consumed by
 # async_import_all(). Bump when the exported snapshot shape changes incompatibly.
-BACKUP_VERSION = 1
+# 2: hue_activate_dynamic is a HueDynamicMode instead of a bool (see
+# store._migrate_legacy_dynamic_slots for how a version-1 backup is read).
+BACKUP_VERSION = 2
 # Maximum allowed offset magnitude in minutes for vertical vertipper protection in slot editor.
 MAX_OFFSET_MINUTES = 180
 
@@ -195,7 +206,26 @@ DEFAULT_LUX_AGGREGATION = "min"
 DEFAULT_MOTION_RETRIGGER = RetriggerMode.EVERY
 DEFAULT_BINARY_AGGREGATION = AggregationMode.ANY
 DEFAULT_RETRY_DELAYS = (1.2, 2.4, 3.6, 4.8, 6.0)
+# How often a call without transition that runs the retry loop is resent at the
+# first retry points, whatever the lamp reports. Lamps behind the Hue Bridge are
+# first reported at the commanded value and only seconds to minutes later at
+# their real one, so a check cannot see a command the lamp missed. Must stay
+# below the number of retry delays, or no check follows the last resend.
+HARD_CALL_RESENDS = 2
 ECHO_SETTLE_WINDOW_SECONDS = 1.0
+
+# Expected-state keys Twilight may still enforce on a lamp of a running Hue
+# dynamic scene. Live-verified on the Bridge: a color or color-temperature
+# command to ANY lamp of the scene — even one that cannot play dynamics itself —
+# ends the scene's dynamic playback, while on/off and brightness leave it running.
+DYNAMIC_SAFE_STATE_KEYS = frozenset({"state", "brightness"})
+
+# How long the remaining calls wait for lead calls (static values for lamps that
+# can't rotate, sent before a dynamic scene recall). A Bridge answers in ~0.1 s;
+# the cap only matters when it is overloaded and the Hue integration keeps
+# retrying without a timeout. A lead color that lands after the recall ends the
+# scene's dynamics (static fallback) — preferable to holding back the recall.
+LEAD_CALL_MAX_WAIT_SECONDS = 1.0
 
 # Re-arm delay when the slot scheduler could not determine any active slot
 # (in practice: a broken time zone, which makes the sun calculation raise).
@@ -254,6 +284,9 @@ TWILIGHT_SLOTS = frozenset(
 ALL_IGNORE_SLOTS = TWILIGHT_SLOTS | {"day"}
 SCENE_EXTRACTION_MAX_RETRIES = 6  # Try for 1 minute (6 attempts * 10 seconds)
 SCENE_EXTRACTION_RETRY_INTERVAL = 10.0  # seconds
+SCENE_REFRESH_DEBOUNCE = 1.0  # seconds
+
+HUE_DYNAMIC_PALETTE = "dynamic_palette"  # a Hue lamp's dynamics status while it rotates
 
 # Deviation comparison tolerances.
 # Per-attribute, individually switchable for live A/B testing. 0 = EXACT
@@ -301,147 +334,24 @@ STANDARD_NAMES = {
     "night": "Night",
 }
 
-
-def default_primary_slots() -> list[dict[str, Any]]:
-    """Build a fresh list of the 10 fixed Primary-Channel slots."""
-    return materialize_primary_slots({})
-
-
-def materialize_primary_slots(
-    raw_slots: dict[str, Any] | list[dict[str, Any]] | None,
-) -> list[dict[str, Any]]:
-    """Materialize Primary-Channel slots into 10 complete slot dicts.
-
-    Accepts two input shapes:
-      - the sparse overrides dict (the store's persistence format): keyed by
-        standard zone ID, each value a dict with only the fields that deviate
-        from default (offset_minutes/scene_entity_id/configured_entities).
-      - a full slot list (the frontend's `area/save` payload / call-site
-        format used throughout config_model.py and tests): one dict per zone
-        with all seven SlotConfig fields; only the three override fields are
-        actually read, the rest is recomputed from STANDARD_ZONES/STANDARD_NAMES.
-
-    Unknown zone keys/ids or fields, and fields with an implausible type, are
-    pruned and replaced by their default — logged as a warning so a
-    corrupted/hand-edited entry is visible, not silently accepted.
-
-    The list path projects each item onto the three override fields before that
-    validation runs — otherwise the structurally fixed fields of a full slot dict
-    (id/name/start_type/zone/fixed_time) would each be reported as an unknown field.
-    """
-    override_by_zone: dict[str, dict[str, Any]] = {}
-
-    if isinstance(raw_slots, dict):
-        for zone_id, override in raw_slots.items():
-            if not isinstance(zone_id, str) or zone_id not in STANDARD_ZONES:
-                _LOGGER.warning(
-                    "Discarding Primary-Channel slot override for unknown zone %r "
-                    "(not one of the 10 standard zones)",
-                    zone_id,
-                )
-                continue
-            if not isinstance(override, dict):
-                _LOGGER.warning(
-                    "Discarding Primary-Channel slot override for zone %r: "
-                    "expected a dict, got %s",
-                    zone_id,
-                    type(override).__name__,
-                )
-                continue
-            override_by_zone[zone_id] = override
-    elif isinstance(raw_slots, list):
-        for item in raw_slots:
-            if not isinstance(item, dict):
-                continue
-            item_zone = item.get("zone") or item.get("id")
-            if isinstance(item_zone, str) and item_zone in STANDARD_ZONES:
-                override_by_zone[item_zone] = {
-                    "offset_minutes": item.get("offset_minutes"),
-                    "scene_entity_id": item.get("scene_entity_id"),
-                    "configured_entities": item.get("configured_entities"),
-                    "hue_activate_dynamic": item.get("hue_activate_dynamic"),
-                    "hue_dynamic_speed": item.get("hue_dynamic_speed"),
-                }
-    elif raw_slots is not None:
-        _LOGGER.warning(
-            "Discarding Primary-Channel slots: expected a dict or list, got %s",
-            type(raw_slots).__name__,
-        )
-
-    result: list[dict[str, Any]] = []
-    for zone in STANDARD_ZONES:
-        override = override_by_zone.get(zone) or {}
-
-        offset_mins = override.get("offset_minutes")
-        if offset_mins is not None and not isinstance(offset_mins, (int, float)):
-            _LOGGER.warning(
-                "Discarding invalid offset_minutes %r for Primary-Channel zone %r "
-                "(expected a number)",
-                offset_mins,
-                zone,
-            )
-            offset_mins = None
-
-        scene_id = override.get("scene_entity_id")
-        if scene_id is not None and not isinstance(scene_id, str):
-            _LOGGER.warning(
-                "Discarding invalid scene_entity_id %r for Primary-Channel zone %r "
-                "(expected a string)",
-                scene_id,
-                zone,
-            )
-            scene_id = None
-
-        entities = override.get("configured_entities")
-        if entities is not None and not isinstance(entities, (list, tuple)):
-            _LOGGER.warning(
-                "Discarding invalid configured_entities %r for Primary-Channel zone %r "
-                "(expected a list)",
-                entities,
-                zone,
-            )
-            entities = None
-
-        unknown_keys = set(override) - {
-            "offset_minutes",
-            "scene_entity_id",
-            "configured_entities",
-            "hue_activate_dynamic",
-            "hue_dynamic_speed",
-        }
-        if unknown_keys:
-            _LOGGER.warning(
-                "Discarding unknown field(s) %s in Primary-Channel override for zone %r",
-                sorted(unknown_keys),
-                zone,
-            )
-
-        speed_val = override.get("hue_dynamic_speed")
-        result.append(
-            {
-                "id": zone,
-                "name": STANDARD_NAMES[zone],
-                "start_type": StartType.ASTRAL.value,
-                "zone": zone,
-                "offset_minutes": int(offset_mins) if offset_mins is not None else 0,
-                "scene_entity_id": scene_id,
-                "configured_entities": list(entities) if entities is not None else [],
-                "hue_activate_dynamic": _safe_bool(override.get("hue_activate_dynamic"), False),
-                "hue_dynamic_speed": int(speed_val) if isinstance(speed_val, (int, float)) else None,
-            }
-        )
-    return result
-
-
-def default_channels() -> dict[str, Any]:
-    """Build the default channels dict for a new area (Primary only)."""
-    return {
-        PRIMARY_CHANNEL_ID: {
-            "name": "Primary",
-            "enabled": True,
-            "slots": {},
-        }
-    }
+# The evening zones that may carry a "not before" floor, in chain order. A floor
+# that pushes one of them later shifts every later zone of this chain by the same
+# delta; the order here is the order that delta propagates in.
+NOT_BEFORE_ZONES: tuple[str, ...] = (
+    "gold_dusk",
+    "civil_dusk",
+    "nautical_dusk",
+    "astro_dusk",
+    "night",
+)
+# The zones a pushed evening slot is capped against on the following day.
+MORNING_ZONES: tuple[str, ...] = tuple(
+    z for z in STANDARD_ZONES if z not in NOT_BEFORE_ZONES
+)
+# A floor of 12:00–23:59 is the same evening, 00:00–03:59 is after midnight of the
+# following night; 04:00–11:59 is invalid.
+NOT_BEFORE_EVENING_FROM_MINUTES = 12 * 60
+NOT_BEFORE_AFTER_MIDNIGHT_UNTIL_MINUTES = 4 * 60
 
 
 # Default template configuration for newly created areas
@@ -561,7 +471,12 @@ DEFAULT_AREA_TEMPLATE = {
             "suppress_inputs": [],
             "auto_expire_enabled": False,
             "auto_expire": None,
-            "action": {"type": ActionType.RESET.value, "entity_targets": []},
+            "action": {
+                "type": ActionType.RESET.value,
+                "entity_targets": [],
+                "scope": ResetScope.AREA.value,
+                "configured_entities": [],
+            },
             "release_action": {"type": "none"},
             "transition_off_seconds": 0,
         },
@@ -600,6 +515,9 @@ DEFAULT_AREA_TEMPLATE = {
                     "offset_minutes": 0,
                     "scene_entity_id": None,
                     "configured_entities": [],
+                    "hue_activate_dynamic": HueDynamicMode.HUE.value,
+                    "hue_dynamic_speed": None,
+                    "not_before": None,
                 },
                 {
                     "id": "custom_ea7c9f51",
@@ -610,6 +528,9 @@ DEFAULT_AREA_TEMPLATE = {
                     "offset_minutes": 0,
                     "scene_entity_id": None,
                     "configured_entities": [],
+                    "hue_activate_dynamic": HueDynamicMode.HUE.value,
+                    "hue_dynamic_speed": None,
+                    "not_before": None,
                 },
                 {
                     "id": "custom_631b9f14",
@@ -620,6 +541,9 @@ DEFAULT_AREA_TEMPLATE = {
                     "offset_minutes": 0,
                     "scene_entity_id": None,
                     "configured_entities": [],
+                    "hue_activate_dynamic": HueDynamicMode.HUE.value,
+                    "hue_dynamic_speed": None,
+                    "not_before": None,
                 },
                 {
                     "id": "custom_5cb9c9a3",
@@ -630,6 +554,9 @@ DEFAULT_AREA_TEMPLATE = {
                     "offset_minutes": 0,
                     "scene_entity_id": None,
                     "configured_entities": [],
+                    "hue_activate_dynamic": HueDynamicMode.HUE.value,
+                    "hue_dynamic_speed": None,
+                    "not_before": None,
                 },
                 {
                     "id": "custom_8148b20b",
@@ -640,6 +567,9 @@ DEFAULT_AREA_TEMPLATE = {
                     "offset_minutes": 0,
                     "scene_entity_id": None,
                     "configured_entities": [],
+                    "hue_activate_dynamic": HueDynamicMode.HUE.value,
+                    "hue_dynamic_speed": None,
+                    "not_before": None,
                 },
                 {
                     "id": "custom_159cacc9",
@@ -650,6 +580,9 @@ DEFAULT_AREA_TEMPLATE = {
                     "offset_minutes": 0,
                     "scene_entity_id": None,
                     "configured_entities": [],
+                    "hue_activate_dynamic": HueDynamicMode.HUE.value,
+                    "hue_dynamic_speed": None,
+                    "not_before": None,
                 },
                 {
                     "id": "custom_489cd4cb",
@@ -660,6 +593,9 @@ DEFAULT_AREA_TEMPLATE = {
                     "offset_minutes": 0,
                     "scene_entity_id": None,
                     "configured_entities": [],
+                    "hue_activate_dynamic": HueDynamicMode.HUE.value,
+                    "hue_dynamic_speed": None,
+                    "not_before": None,
                 },
             ],
         },

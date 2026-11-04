@@ -1,4 +1,4 @@
-import { LitElement, html } from 'lit'
+import { LitElement, html, type PropertyValues } from 'lit'
 import { property, state } from 'lit/decorators.js'
 import './components/tab-bar'
 import './components/dialogs'
@@ -24,6 +24,10 @@ export class TwilightPanelBase extends TwilightLocalizeMixin(LitElement) {
   @state() protected _activeTab: TabId = 'areas'
   @property({ attribute: false }) hass: HomeAssistant | null = null
   @state() protected _globalConfigOverride: GlobalConfig | null = null
+  // Keep-alive tabs that have been active at least once. They mount on their
+  // first visit, not at panel start, so opening the panel does not load data
+  // for tabs that are never opened — and stay mounted from then on.
+  @state() private _visitedTabs = new Set<TabId>()
 
   private _dialog = new DialogController(this)
 
@@ -31,8 +35,8 @@ export class TwilightPanelBase extends TwilightLocalizeMixin(LitElement) {
   // each tab that can have one. A plain conditional render unmounts the
   // previously active view on a tab switch with no lifecycle hook of its own
   // to warn, so panel-base must ask before switching away from one of these.
-  // The areas view is exempt: it stays mounted (keep-alive) across tab
-  // switches, so its draft survives a switch without any guard.
+  // The keep-alive views (areas, analytics, timeline) are exempt: they stay
+  // mounted across tab switches, so their state survives without any guard.
   private static readonly DRAFT_VIEW_TAG: Partial<Record<TabId, string>> = {
     settings: 'twilight-settings-view',
   }
@@ -59,6 +63,15 @@ export class TwilightPanelBase extends TwilightLocalizeMixin(LitElement) {
       if (!proceed) return
     }
     this._activeTab = nextTab
+  }
+
+  protected willUpdate(changed: PropertyValues): void {
+    super.willUpdate(changed)
+    // Recorded here, on the actual switch: a switch cancelled in the discard
+    // dialog never changes _activeTab and so never mounts the target tab.
+    if (changed.has('_activeTab') && !this._visitedTabs.has(this._activeTab)) {
+      this._visitedTabs = new Set([...this._visitedTabs, this._activeTab])
+    }
   }
 
   render() {
@@ -218,21 +231,23 @@ export class TwilightPanelBase extends TwilightLocalizeMixin(LitElement) {
           .globalConfigOverride=${this._globalConfigOverride}
         ></twilight-areas-view>
       ` : ''}
-      ${active === 'analytics' && this._isTabAvailable('analytics') ? html`
+      ${this._isKeptAlive('analytics') ? html`
         <twilight-analytics-view
           id="tabpanel-analytics"
           role="tabpanel"
           aria-labelledby="tab-analytics"
-          class="view-container active"
+          class="view-container ${active === 'analytics' ? 'active' : ''}"
+          .active=${active === 'analytics'}
           .hass=${this.hass}
         ></twilight-analytics-view>
       ` : ''}
-      ${active === 'timeline' && this._isTabAvailable('timeline') ? html`
+      ${this._isKeptAlive('timeline') ? html`
         <twilight-timeline-view
           id="tabpanel-timeline"
           role="tabpanel"
           aria-labelledby="tab-timeline"
-          class="view-container active"
+          class="view-container ${active === 'timeline' ? 'active' : ''}"
+          .active=${active === 'timeline'}
           .hass=${this.hass}
         ></twilight-timeline-view>
       ` : ''}
@@ -269,6 +284,10 @@ export class TwilightPanelBase extends TwilightLocalizeMixin(LitElement) {
 
   private _isTabAvailable(id: TabId): boolean {
     return this.tabs.some(t => t.id === id)
+  }
+
+  private _isKeptAlive(id: TabId): boolean {
+    return this._isTabAvailable(id) && (this._activeTab === id || this._visitedTabs.has(id))
   }
 
   private _onGlobalChanged(e: CustomEvent) {

@@ -30,6 +30,10 @@ export interface ExtractedSlotInfo {
   slot_id: string
   extracted: string[]
   configured: string[]
+  scene_entity_id: string
+  scene_type: string
+  supports_dynamic: boolean
+  dynamic_entities: string[]
 }
 
 export function areaExtracted(
@@ -49,8 +53,8 @@ export function globalGet(hass: HomeAssistant): Promise<GlobalConfig> {
   return hass.callWS<GlobalConfig>({ type: 'twilight/global/get' })
 }
 
-export function globalSave(hass: HomeAssistant, config: GlobalConfig): Promise<unknown> {
-  return hass.callWS({ type: 'twilight/global/save', config })
+export function globalSave(hass: HomeAssistant, config: GlobalConfig): Promise<GlobalConfig> {
+  return hass.callWS<GlobalConfig>({ type: 'twilight/global/save', config })
 }
 
 export function globalExport(hass: HomeAssistant): Promise<BackupPayload> {

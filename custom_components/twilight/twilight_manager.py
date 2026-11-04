@@ -136,6 +136,9 @@ class TwilightManager:
 
         try:
             sun_data = compute_sun_day_data(lat, lon, tz_str, target_date)
+            next_sun_data = compute_sun_day_data(
+                lat, lon, tz_str, target_date + timedelta(days=1)
+            )
         except Exception as err:
             _LOGGER.error(
                 "[%s] Error computing sun data for %s: %s",
@@ -152,18 +155,9 @@ class TwilightManager:
             if not channel.enabled:
                 continue
 
-            slot_dicts = [
-                {
-                    "id": slot.id,
-                    "start_type": slot.start_type,
-                    "zone": slot.zone,
-                    "fixed_time": slot.fixed_time,
-                    "offset_minutes": slot.offset_minutes,
-                }
-                for slot in channel.slots
-            ]
+            slot_dicts = [slot.to_resolver_dict() for slot in channel.slots]
 
-            resolved = resolve_slot_times(slot_dicts, sun_data)
+            resolved = resolve_slot_times(slot_dicts, sun_data, next_sun_data)
             for item in resolved:
                 mins = int(item["start"])
                 day_offset, mins_of_day = divmod(mins, 1440)

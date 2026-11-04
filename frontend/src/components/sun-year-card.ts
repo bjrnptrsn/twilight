@@ -220,10 +220,10 @@ export class SunYearCard extends TwilightLocalizeMixin(LitElement) {
     // ── Zone fills ──────────────────────────────────────────────────────────
     if (!this.scatterMode) {
       const useSlot = this.clamped
-      // With an area selected, the SLOTS/CLAMPED fill follows that area's
-      // resolved slot offsets — same source the reference curves use — so fill
-      // and lines can't disagree. Without one, slotCurves is null and the
-      // generic per-day zones are drawn.
+      // When clamped with slotCurves present (an area is selected and Sun mode
+      // is off), the fill follows that area's resolved slot offsets — same
+      // source the reference curves use — so fill and lines can't disagree.
+      // When clamped is false (Location or Sun mode on), raw solar zones are drawn.
       const sc = this.slotCurves
       const dayFor = (idx: number): DayData =>
         useSlot && sc ? daySlotsFromCurves(days[idx], sc, idx) : days[idx]

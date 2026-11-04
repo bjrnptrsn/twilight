@@ -3,7 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js'
 import type { HomeAssistant } from '../lib/types'
 import { type Slot, type ChannelConfig, type LabEntity, PRIMARY_CHANNEL_ID, MAX_CUSTOM_CHANNELS } from '../lib/types'
 import { sortChannelIds } from '../lib/channel-helpers'
-import { formatSlotTime, isSlotActiveAt, sceneDisplayName, localDateString } from '../lib/utils'
+import { formatSlotTime, isSlotActiveAt, sceneDisplayName, localDateString, zoneLabel } from '../lib/utils'
 import { DialogController } from '../lib/dialog-controller'
 import { LiveClockController } from '../lib/live-clock-controller'
 import { cardDotStyles } from '../lib/shared-styles'
@@ -258,9 +258,8 @@ export class TwilightTimetableCard extends TwilightLocalizeMixin(LitElement) {
     }
 
     .slot-summary-scene {
-      font-size: 11px;
+      font-size: 12px;
       color: var(--secondary-text-color);
-      font-style: italic;
       text-align: left;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -271,7 +270,7 @@ export class TwilightTimetableCard extends TwilightLocalizeMixin(LitElement) {
       font-size: 12px;
       font-weight: 500;
       color: var(--secondary-text-color);
-      font-family: monospace;
+      font-variant-numeric: tabular-nums;
       white-space: nowrap;
     }
 
@@ -285,7 +284,7 @@ export class TwilightTimetableCard extends TwilightLocalizeMixin(LitElement) {
         font-size: 11px;
       }
       .slot-summary-scene {
-        font-size: 10px;
+        font-size: 11px;
       }
       .slot-summary-time {
         font-size: 11px;
@@ -372,10 +371,6 @@ export class TwilightTimetableCard extends TwilightLocalizeMixin(LitElement) {
           : (this.activeSlotId === null ? -1 : this.slots.findIndex(slot => isSlotActiveAt(slot, liveMins))))
       : -1
 
-    const displaySlots = activeIdx !== -1
-      ? [...this.slots.slice(activeIdx), ...this.slots.slice(0, activeIdx)]
-      : this.slots
-
     return html`
       <div class="slot-card">
         ${!this.noHeader ? html`
@@ -453,19 +448,19 @@ export class TwilightTimetableCard extends TwilightLocalizeMixin(LitElement) {
         <div class="slot-summary">
           ${this.loading
             ? html`<div class="entity-list-empty">${this.t('common.loading')}</div>`
-            : displaySlots.length > 0
-              ? displaySlots.map(slot => {
+            : this.slots.length > 0
+              ? this.slots.map(slot => {
                   const active = activeIdx !== -1 && this.slots[activeIdx]?.id === slot.id
                   const timeDisplay = this.templateMode
                     ? (slot.startType === 'fixed'
                         ? (slot.fixedStartTime || '12:00')
-                        : `${slot.startEvent || 'astral'}${slot.startOffset ? (slot.startOffset > 0 ? ` +${slot.startOffset}m` : ` ${slot.startOffset}m`) : ''}`)
+                        : `${zoneLabel(slot.startEvent, this.hass?.locale?.language) || slot.startEvent || 'astral'}${slot.startOffset ? (slot.startOffset > 0 ? ` +${slot.startOffset}m` : ` ${slot.startOffset}m`) : ''}`)
                     : `${formatSlotTime(slot.from, this.hass?.locale)} → ${formatSlotTime(slot.to, this.hass?.locale)}`
                   return html`
                     <div class="slot-summary-row ${active ? 'active' : ''}" style="cursor: pointer;" @click=${() => this._fireEditRequested()}>
                       <div class="slot-color-dot" style="background:${slot.color}; box-shadow:${active ? `0 0 6px ${slot.color}` : 'none'}"></div>
-                      <span class="slot-summary-label">${slot.label}</span>
-                      <span class="slot-summary-scene">
+                      <span class="slot-summary-label" title=${slot.label}>${slot.label}</span>
+                      <span class="slot-summary-scene" title=${slot.scene ?? ''}>
                         ${slot.scene
                           ? sceneDisplayName(this.hass, slot.scene)
                           : '—'}
@@ -480,6 +475,7 @@ export class TwilightTimetableCard extends TwilightLocalizeMixin(LitElement) {
       </div>
 
       <twilight-confirm-dialog
+        .hass=${this.hass}
         .open=${this._dialog.confirmOpen}
         .dialogTitle=${this._dialog.confirmTitle}
         .message=${this._dialog.confirmMessage}
@@ -488,6 +484,7 @@ export class TwilightTimetableCard extends TwilightLocalizeMixin(LitElement) {
       ></twilight-confirm-dialog>
 
       <twilight-prompt-dialog
+        .hass=${this.hass}
         .open=${this._dialog.promptOpen}
         .dialogTitle=${this._dialog.promptTitle}
         .placeholder=${this._dialog.promptPlaceholder}

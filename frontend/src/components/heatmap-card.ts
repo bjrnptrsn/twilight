@@ -576,6 +576,15 @@ export class HeatmapCard extends TwilightLocalizeMixin(LitElement) {
     super.disconnectedCallback()
   }
 
+  willUpdate(changed: Map<string, unknown>) {
+    // Profiles belong to one area — a profile id from the previous area is
+    // not in the new area's list and would leave the range/resolution
+    // toggles pinned to a profile that is no longer shown.
+    if (changed.has('activeAreaId') && this._activeSource !== 'live') {
+      this._setSource('live')
+    }
+  }
+
   updated(changed: Map<string, unknown>) {
     if (!this._ro) {
       const wrap = this.shadowRoot?.querySelector('.canvas-wrap')

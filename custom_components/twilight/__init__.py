@@ -113,6 +113,9 @@ async def async_setup(hass: HomeAssistant, _config: dict[str, Any]) -> bool:
         # concurrent area/save or area/delete registering/removing an engine
         # during this whole block, old or brand new.
         engines.clear()
+        # Until _async_setup_engines() has run, a missing engine means "not set
+        # up yet", not "setup failed" (subscribe_all's engine_setup_failed).
+        hass.data[DOMAIN]["engine_setup_pending"] = True
 
     # Set up the shared button/switch EntityComponents. Entities are reconciled
     # per area on boot and on every area/save|delete WS command.
@@ -173,7 +176,7 @@ async def async_setup(hass: HomeAssistant, _config: dict[str, Any]) -> bool:
         # untorn-down engine that outlives the reload it should have lost to.
         async with get_setup_lock(hass):
             areas = store.get_areas()
-            engines_created = False
+            engines_attempted = False
             for area_id, config in areas.items():
                 # Held for the same area_id as area/save and area/delete, so an
                 # area/save racing this boot loop can't create a second engine
@@ -188,13 +191,15 @@ async def async_setup(hass: HomeAssistant, _config: dict[str, Any]) -> bool:
                         # area's bad config (or a transient failure, e.g. Hue bridge
                         # unreachable) must not leave every subsequent area without
                         # light control.
-                        if await async_start_engine(hass, area_id, config):
-                            engines_created = True
+                        await async_start_engine(hass, area_id, config)
+                        engines_attempted = True
+            hass.data[DOMAIN]["engine_setup_pending"] = False
 
         # Subscriptions opened before the deferred boot setup finished (e.g. a
         # panel that reconnected right after HA restart) have an empty entity
-        # watch list and push cache — tell them to rebuild from the new engines.
-        if engines_created:
+        # watch list and push cache — tell them to rebuild from the new engines,
+        # and to report the areas whose setup failed.
+        if engines_attempted:
             async_dispatcher_send(hass, SIGNAL_ENGINES_CHANGED)
 
     async def _async_boot(_event: Any = None) -> None:

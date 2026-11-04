@@ -2,6 +2,7 @@
   "domain": "twilight",
   "name": "Twilight",
   "after_dependencies": ["hue", "recorder"],
+  "categories": ["lighting"],
   "codeowners": ["@bjrnptrsn"],
   "config_flow": true,
   "dependencies": ["http"],
@@ -12,5 +13,5 @@
   "quality_scale": "internal",
   "requirements": [],
   "single_config_entry": true,
-  "version": "0.6.2"
+  "version": "0.7.0"
 }

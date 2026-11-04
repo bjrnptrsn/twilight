@@ -393,7 +393,9 @@ export class TwilightBackupRestoreDialog extends PortalDialog {
       this._loading = true
       this._error = ''
       await globalImport(this.hass, {
-        twilight_backup_version: 1,
+        // Mirrors the backend's backup schema version; for this empty reset
+        // payload any accepted version gives the same result.
+        twilight_backup_version: 2,
         areas: {},
         global: {}
       })
@@ -518,6 +520,7 @@ export class TwilightBackupRestoreDialog extends PortalDialog {
       ></twilight-confirm-dialog>
 
       <twilight-reset-dialog
+        .hass=${this.hass}
         .open=${this._resetDialogOpen}
         title=${this.t('backup_restore.reset_title')}
         description=${this.t('backup_restore.reset_dialog_desc')}

@@ -25,16 +25,19 @@ from .config_model import (
 from .const import (
     BACKUP_VERSION,
     DEFAULT_AREA_TEMPLATE,
+    NOT_BEFORE_ZONES,
     PRIMARY_CHANNEL_ID,
     STANDARD_ZONES,
     STORAGE_VERSION,
     ActionType,
     AggregationMode,
+    HueDynamicMode,
+    ReleaseActionType,
     RetriggerMode,
     StartType,
-    default_channels,
-    materialize_primary_slots,
 )
+from .primary_slots import default_channels, materialize_primary_slots
+from .slot_calc import normalize_not_before_str, slot_not_before
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,7 +52,6 @@ AREA_DEFAULTS: dict[str, Any] = {
     "area_id": None,
     "name": "",
     "enabled": True,
-    "manual_only": False,
     "lux_threshold": None,
     "lux_watch_window": None,
     "transition_on_seconds": None,
@@ -105,9 +107,12 @@ def _normalize_channels(config: dict[str, Any]) -> bool:
     Guarantees:
       - a "channels" dict exists with a complete Primary channel
       - Primary slots are stored as a sparse dict keyed by standard zone ID, containing
-        only non-default overrides (offset_minutes != 0, scene_entity_id set, or configured_entities non-empty)
+        only non-default overrides (offset_minutes != 0, scene_entity_id set,
+        configured_entities non-empty, or not_before on an evening zone); a stored
+        slot always also states hue_activate_dynamic and hue_dynamic_speed
       - custom channels keep their free slot lists; slots get start_type
-        defaulted to astral and configured_entities defaulted to []
+        defaulted to astral, configured_entities defaulted to [] and not_before
+        normalized
     """
     modified = False
 
@@ -188,20 +193,65 @@ def normalize_primary_slots_sparse(
             zone_override["scene_entity_id"] = scene_id
         if isinstance(entities, (list, tuple)) and len(entities) > 0:
             zone_override["configured_entities"] = list(entities)
-        if src.get("hue_activate_dynamic"):
-            zone_override["hue_activate_dynamic"] = True
+        not_before = (
+            normalize_not_before_str(src.get("not_before"))
+            if zone in NOT_BEFORE_ZONES
+            else None
+        )
+        if not_before is not None:
+            zone_override["not_before"] = not_before
+        dynamic = HueDynamicMode(src.get("hue_activate_dynamic", HueDynamicMode.HUE))
         speed = src.get("hue_dynamic_speed")
-        if isinstance(speed, (int, float)):
-            zone_override["hue_dynamic_speed"] = int(speed)
+        speed = int(speed) if isinstance(speed, (int, float)) else None
 
+        # The Hue fields are no Twilight defaults to prune: "hue" and a null
+        # speed defer to the Hue app, so a stored slot always states them. Only
+        # Twilight's own fields decide whether a slot is stored at all — the Hue
+        # fields only act together with a scene.
         if zone_override:
+            zone_override["hue_activate_dynamic"] = dynamic.value
+            zone_override["hue_dynamic_speed"] = speed
             new_sparse_slots[zone] = zone_override
 
     return new_sparse_slots
 
 
+def _migrate_legacy_dynamic_slots(slots: Any) -> None:
+    """Convert the former bool `hue_activate_dynamic` to a HueDynamicMode (one-time).
+
+    True becomes "on". False becomes "hue", not "off": the frontend wrote False
+    into every custom-channel slot it saved, while the Primary channel's sparse
+    store dropped it, so it means "never set" — an explicit "off" was not
+    expressible yet. A slot without the fields (saved before they existed) gets
+    "hue" and a null speed, so every stored slot states both. Takes a slot list
+    (custom channel) or a sparse slot dict (Primary).
+    """
+    if isinstance(slots, dict):
+        slots = list(slots.values())
+    if not isinstance(slots, list):
+        return
+    for slot in slots:
+        if not isinstance(slot, dict):
+            continue
+        slot["hue_activate_dynamic"] = (
+            HueDynamicMode.ON.value
+            if slot.get("hue_activate_dynamic") is True
+            else HueDynamicMode.HUE.value
+        )
+        slot.setdefault("hue_dynamic_speed", None)
+
+
+def _migrate_legacy_dynamic_channels(channels: Any) -> None:
+    """Apply _migrate_legacy_dynamic_slots() to every channel of a channels dict."""
+    if not isinstance(channels, dict):
+        return
+    for channel in channels.values():
+        if isinstance(channel, dict):
+            _migrate_legacy_dynamic_slots(channel.get("slots"))
+
+
 def _normalize_custom_channels(channels: dict[str, Any]) -> bool:
-    """Default start_type / configured_entities / stable ID / canonical order for custom channels."""
+    """Default start_type / configured_entities / not_before / stable ID / canonical order for custom channels."""
     modified = False
     existing_slot_ids: set[str] = set(STANDARD_ZONES)
     for _ch_id, channel in channels.items():
@@ -260,6 +310,10 @@ def _normalize_custom_channels(channels: dict[str, Any]) -> bool:
                 modified = True
             if "configured_entities" not in slot:
                 slot["configured_entities"] = []
+                modified = True
+            not_before = slot_not_before(slot)
+            if "not_before" not in slot or slot["not_before"] != not_before:
+                slot["not_before"] = not_before
                 modified = True
 
             start_type = slot.get("start_type")
@@ -383,13 +437,14 @@ def _normalize_activity(act: dict[str, Any], existing_ids: set[str]) -> bool:
         act["suppress_inputs"] = []
         modified = True
 
-    for action_key in ("action", "release_action"):
+    for action_key, type_enum in (
+        ("action", ActionType),
+        ("release_action", ReleaseActionType),
+    ):
         action_raw = act.get(action_key)
         if isinstance(action_raw, dict):
-            if "type" not in action_raw:
-                action_raw["type"] = None
-                modified = True
-            action_type = action_raw.get("type")
+            modified = _normalize_typed_choice(action_raw, "type", type_enum) or modified
+            action_type = action_raw["type"]
             action_cls = (
                 _ACTION_CONFIG_TYPES.get(action_type, ActionConfig)
                 if isinstance(action_type, str)
@@ -617,7 +672,7 @@ def _migrate_store_data(data: dict[str, Any]) -> bool:
                 if not isinstance(action, dict):
                     continue
 
-                # --- 1. ActionType.NONE -> ActionType.BLOCK migration ---
+                # --- 1. Start action "none" -> ActionType.BLOCK migration ---
                 if action.get("type") == "none":
                     action["type"] = ActionType.BLOCK.value
                     modified = True
@@ -670,6 +725,24 @@ def _migrate_store_data(data: dict[str, Any]) -> bool:
                     _migrate_activities(area_cfg.get("activities"))
 
         data["version"] = 2
+        modified = True
+
+    if version < 3:
+        _LOGGER.info("Migrating TwilightStore data to version 3")
+        # hue_activate_dynamic became a HueDynamicMode.
+        areas = data.get("areas")
+        if isinstance(areas, dict):
+            for area_cfg in areas.values():
+                if isinstance(area_cfg, dict):
+                    _migrate_legacy_dynamic_channels(area_cfg.get("channels"))
+        global_cfg = data.get("global")
+        if isinstance(global_cfg, dict):
+            area_tpl = global_cfg.get("area_template")
+            if isinstance(area_tpl, dict):
+                _migrate_legacy_dynamic_slots(area_tpl.get("primary_slots"))
+                _migrate_legacy_dynamic_channels(area_tpl.get("custom_channels"))
+
+        data["version"] = 3
         modified = True
 
     return modified
@@ -930,7 +1003,6 @@ class TwilightStore:
             "area_id": area_id,
             "name": "",
             "enabled": True,
-            "manual_only": False,
             "lux_threshold": None,
             "lux_watch_window": None,
             "transition_on_seconds": None,
@@ -1000,6 +1072,8 @@ class TwilightStore:
         areas_in = payload.get("areas")
         if not isinstance(areas_in, dict):
             areas_in = {}
+        # Backups from before version 2 carry hue_activate_dynamic as a bool.
+        legacy_dynamic = version is None or version < 2
 
         async with self._global_write_lock:
             # Deep-copy each incoming area dict — a shallow dict() still shares
@@ -1013,6 +1087,8 @@ class TwilightStore:
                 cleaned = copy.deepcopy(area_cfg)
                 cleaned.pop("_state", None)
                 cleaned["area_id"] = area_id
+                if legacy_dynamic:
+                    _migrate_legacy_dynamic_channels(cleaned.get("channels"))
                 _normalize_area_config(cleaned)
                 existing = self.data["areas"].get(area_id)
                 if existing and "_state" in existing:
@@ -1028,6 +1104,8 @@ class TwilightStore:
             area_template = new_global.get("area_template")
             if isinstance(area_template, dict):
                 raw_primary = area_template.get("primary_slots")
+                if legacy_dynamic:
+                    _migrate_legacy_dynamic_slots(raw_primary)
                 area_template["primary_slots"] = normalize_primary_slots_sparse(raw_primary)
                 custom_ch = area_template.get("custom_channels")
                 if not isinstance(custom_ch, dict) or not custom_ch:
@@ -1036,6 +1114,8 @@ class TwilightStore:
                     )
                     custom_ch = area_template["custom_channels"]
                 if isinstance(custom_ch, dict):
+                    if legacy_dynamic:
+                        _migrate_legacy_dynamic_channels(custom_ch)
                     _normalize_custom_channels(custom_ch)
                 _normalize_config_lists(area_template)
 

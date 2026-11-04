@@ -8,7 +8,15 @@ import logging
 import re
 from typing import Any
 
-from .const import MIN_SLOT_DISTANCE_MINUTES, STANDARD_ZONES, StartType
+from .const import (
+    MIN_SLOT_DISTANCE_MINUTES,
+    MORNING_ZONES,
+    NOT_BEFORE_AFTER_MIDNIGHT_UNTIL_MINUTES,
+    NOT_BEFORE_EVENING_FROM_MINUTES,
+    NOT_BEFORE_ZONES,
+    STANDARD_ZONES,
+    StartType,
+)
 from .sun_calc import compute_sun_day_data
 
 _LOGGER = logging.getLogger(__name__)
@@ -30,6 +38,47 @@ def parse_fixed_time(fixed_time: str | None) -> int | None:
     if 0 <= h <= 23 and 0 <= mi <= 59:
         return h * 60 + mi
     return None
+
+
+def parse_not_before(value: Any) -> int | None:
+    """Parse a "not before" floor HH:MM into minutes from the evening's midnight.
+
+    The floor only exists on evening slots, so the range is unambiguous without
+    any reference to the sun: 12:00–23:59 is the same evening, 00:00–03:59 is
+    after midnight (returned as minutes > 1440, the day-overflow convention of
+    compute_sun_day_data). Returns None if missing, invalid or 04:00–11:59.
+    """
+    if not isinstance(value, str):
+        return None
+    mins = parse_fixed_time(value)
+    if mins is None:
+        return None
+    if mins >= NOT_BEFORE_EVENING_FROM_MINUTES:
+        return mins
+    if mins < NOT_BEFORE_AFTER_MIDNIGHT_UNTIL_MINUTES:
+        return mins + 1440
+    return None
+
+
+def normalize_not_before_str(value: Any) -> str | None:
+    """Return a valid "not before" floor as canonical "HH:MM", else None."""
+    mins = parse_not_before(value)
+    if mins is None:
+        return None
+    mins %= 1440
+    return f"{mins // 60:02d}:{mins % 60:02d}"
+
+
+def slot_not_before(slot: dict[str, Any]) -> str | None:
+    """A slot dict's valid "not before" floor, or None if the slot cannot carry one.
+
+    Only astral slots of a NOT_BEFORE_ZONES zone can; on any other slot a stored
+    value would never take effect, so it is dropped rather than kept.
+    """
+    start_type = slot.get("start_type") or StartType.ASTRAL.value
+    if start_type != StartType.ASTRAL.value or slot.get("zone") not in NOT_BEFORE_ZONES:
+        return None
+    return normalize_not_before_str(slot.get("not_before"))
 
 
 @functools.lru_cache(maxsize=32)
@@ -83,13 +132,34 @@ def compute_dynamic_min_slot_distance(
     return float(MIN_SLOT_DISTANCE_MINUTES)
 
 
+def _next_morning_start(
+    slots_config: list[dict[str, Any]],
+    next_sun_data: dict[str, Any],
+    morning_ids: set[str],
+) -> float | None:
+    """Start of the following day's first real morning slot, in this day's minutes."""
+    starts = [
+        s["start"]
+        for s in resolve_slot_times(slots_config, next_sun_data)
+        if s["id"] in morning_ids and not s["synthetic"]
+    ]
+    return min(starts) + 1440 if starts else None
+
+
 def resolve_slot_times(
     slots_config: list[dict[str, Any]],
     sun_data: dict[str, Any],
+    next_sun_data: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Resolve slot start times for a given day and channel slot configuration.
 
     - Astral slots: start = raw_zone_time + offset_minutes.
+    - Evening slots (NOT_BEFORE_ZONES) with a "not_before" floor start no
+      earlier than it; pushing one later shifts every later evening slot by the
+      same delta, so the phase before the floor lengthens and the ones after it
+      keep their natural length. With `next_sun_data` (the following day), a
+      pushed evening slot is capped to start before that day's first morning
+      slot, so a floor after midnight never runs the night into the dawn.
     - Fixed slots: start = parsed fixed_time (invalid/missing fixed_time slots are discarded).
     - Resolves fixed-slot collisions with astral slots (+1 min transitive while loop).
     - Returns list of {"id": slot_id, "start": start_minutes} sorted by start.
@@ -159,8 +229,44 @@ def resolve_slot_times(
                     "zone": zone,
                     "start": float(raw_val) + offset_mins,
                     "synthetic": synthetic,
+                    "not_before": parse_not_before(slot.get("not_before")),
                 }
             )
+
+    # "Not before" floors along the evening chain. Synthetic slots take part
+    # neither with their own floor nor in the delta: their solar-noon
+    # placeholder is no evening time to defer. Sorted by zone first so the delta
+    # propagates in phase order even when an offset swapped two base times.
+    chain_slots = sorted(
+        (
+            s
+            for s in astral_slots
+            if not s["synthetic"] and s["zone"] in NOT_BEFORE_ZONES
+        ),
+        key=lambda s: (NOT_BEFORE_ZONES.index(s["zone"]), s["start"]),
+    )
+    chain_shift = 0.0
+    for c_slot in chain_slots:
+        c_slot["base"] = c_slot["start"]
+        shifted = c_slot["start"] + chain_shift
+        floor_mins = c_slot["not_before"]
+        if floor_mins is not None and floor_mins > shifted:
+            chain_shift += floor_mins - shifted
+            shifted = float(floor_mins)
+        c_slot["start"] = shifted
+
+    # Cap pushed slots before the next morning, walking backwards so the chain
+    # keeps its order one minute apart. Only a pushed slot is capped, and never
+    # below its own sun time: the cap undoes a floor, it does not move a slot.
+    if chain_shift > 0 and next_sun_data is not None:
+        morning_ids = {s["id"] for s in astral_slots if s["zone"] in MORNING_ZONES}
+        next_morning = _next_morning_start(slots_config, next_sun_data, morning_ids)
+        if next_morning is not None:
+            latest = next_morning - 1
+            for c_slot in reversed(chain_slots):
+                if c_slot["start"] > max(latest, c_slot["base"]):
+                    c_slot["start"] = max(latest, c_slot["base"])
+                latest = min(latest, c_slot["start"]) - 1
 
     # Collision handling: two fixed slots configured for the same fixed_time are
     # not immovable relative to each other — the earlier one claims the minute,

@@ -16,7 +16,8 @@ from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
-from ..const import DOMAIN, PRIMARY_CHANNEL_ID, default_primary_slots
+from ..const import DOMAIN, PRIMARY_CHANNEL_ID
+from ..primary_slots import default_primary_slots
 from ..slot_calc import resolve_slot_times
 from ..sun_calc import _is_leap, _sun_safe, compute_sun_day_data
 
@@ -430,10 +431,15 @@ def _ws_timeline_slot_times() -> websocket_api.WebSocketCommandHandler:
 
             start = dt.date(year, 1, 1)
             days_cnt = 366 if _is_leap(year) else 365
+            # One day more than the year: each day's cap needs the next morning.
+            sun_by_day = [
+                compute_sun_day_data(lat, lon, tz_str, start + dt.timedelta(days=i))
+                for i in range(days_cnt + 1)
+            ]
             for i in range(days_cnt):
-                d = start + dt.timedelta(days=i)
-                sun_data = compute_sun_day_data(lat, lon, tz_str, d)
-                resolved = resolve_slot_times(primary_slots, sun_data)
+                resolved = resolve_slot_times(
+                    primary_slots, sun_by_day[i], sun_by_day[i + 1]
+                )
                 # A synthetic slot has no real sun event on this day (polar
                 # day/night) and only carries the solar-noon placeholder the
                 # scheduler needs. Emit None so the chart renders a gap instead

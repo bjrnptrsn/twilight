@@ -3,7 +3,7 @@ import { customElement, property } from 'lit/decorators.js'
 import { type HomeAssistant, type InputConfig, type RunState, type ActivityConfig, type RuleConfig, type PlaceholderDefaults } from '../lib/types'
 import * as api from '../lib/api'
 import { activityBadgeStyles, cardDotStyles } from '../lib/shared-styles'
-import { getResolvedMotionInfo, getDisablerText, getEntityDisplay, formatMotionInfo, getInputDisplayName, getInputTypeLabel } from '../lib/input-helpers'
+import { getButtonModeText, getEventTypeHint, getResolvedMotionInfo, getDisablerText, getEntityDisplay, getEntitySubline, formatMotionInfo, getInputDisplayName, getInputTypeLabel } from '../lib/input-helpers'
 import { getActivityActionType } from '../lib/activity-helpers'
 import { TwilightLocalizeMixin } from '../lib/i18n'
 import { DialogController } from '../lib/dialog-controller'
@@ -205,7 +205,6 @@ export class TwilightInputsCard extends TwilightLocalizeMixin(LitElement) {
       .entity-id {
         font-size: 11px;
         color: var(--secondary-text-color);
-        font-family: monospace;
         text-overflow: ellipsis;
         overflow: hidden;
         white-space: nowrap;
@@ -441,16 +440,16 @@ export class TwilightInputsCard extends TwilightLocalizeMixin(LitElement) {
                   subHtml = html`<span class="entity-id">${this.t('inputs_card.event_type', { type: input.event_type })}</span>`
                 }
               } else if (input.type === 'button') {
-                subHtml = html`<span class="entity-id">${this.t('inputs_card.mode', { mode: input.button_mode ?? 'click' })}</span>`
+                subHtml = html`<span class="entity-id">${getButtonModeText(input, this.hass)}</span>`
               }
             } else {
               if (input.type === 'motion') {
-                const { friendlyName, subText } = this._getEntityDisplay(input)
-                nameHtml = html`<span class="entity-name">${input.name || friendlyName}</span>`
+                const display = this._getEntityDisplay(input)
+                nameHtml = html`<span class="entity-name" title=${display.entityIds}>${input.name || display.friendlyName}</span>`
                 const p = getResolvedMotionInfo(input, this.placeholderDefaults)
                 const infoStr = formatMotionInfo(p, this.hass?.locale?.language)
                 subHtml = html`
-                  <span class="entity-id" style="font-family: monospace;">${input.name ? `${friendlyName} (${subText})` : subText}</span>
+                  <span class="entity-id" title=${display.entityIds}>${getEntitySubline(input, display)}</span>
                   <span class="entity-id" style="margin-top: 2px; font-family: inherit;">${infoStr}</span>
                 `
               } else if (input.type === 'timer') {
@@ -460,17 +459,15 @@ export class TwilightInputsCard extends TwilightLocalizeMixin(LitElement) {
                 `
               } else if (input.type === 'button') {
                 nameHtml = html`<span class="entity-name">${input.name || input.label || this.t('inputs_card.button')}</span>`
-                subHtml = html`<span class="entity-id">${this.t('inputs_card.mode', { mode: input.button_mode ?? 'click' })}${input.create_entity ? html` <ha-icon icon="mdi:home-assistant" style="--mdc-icon-size: 12px; vertical-align: middle;"></ha-icon>` : ''}</span>`
+                subHtml = html`<span class="entity-id">${getButtonModeText(input, this.hass)}${input.create_entity ? html` <ha-icon icon="mdi:home-assistant" style="--mdc-icon-size: 12px; vertical-align: middle;"></ha-icon>` : ''}</span>`
               } else {
-                const { friendlyName, subText } = this._getEntityDisplay(input)
-                nameHtml = html`<span class="entity-name">${input.name || friendlyName}</span>`
-                let extra = ''
-                if (input.type === 'event' && input.event_type) {
-                  extra = ` [event: ${input.event_type}]`
-                }
-                subHtml = html`
-                  <span class="entity-id">${input.name ? `${friendlyName} (${subText})` : subText}${extra}</span>
-                `
+                const display = this._getEntityDisplay(input)
+                nameHtml = html`<span class="entity-name" title=${display.entityIds}>${input.name || display.friendlyName}</span>`
+                const extra = getEventTypeHint(input, this.hass)
+                const subline = getEntitySubline(input, display, extra)
+                subHtml = subline
+                  ? html`<span class="entity-id" title=${display.entityIds}>${subline}</span>`
+                  : html``
               }
             }
 
@@ -507,6 +504,7 @@ export class TwilightInputsCard extends TwilightLocalizeMixin(LitElement) {
       </div>
 
       <twilight-alert-dialog
+        .hass=${this.hass}
         .open=${this._dialog.alertOpen}
         .dialogTitle=${this._dialog.alertTitle}
         .message=${this._dialog.alertMessage}

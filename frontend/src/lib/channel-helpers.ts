@@ -36,3 +36,10 @@ export function getChannelSlots(cfg: AreaConfig, channelId: string): SlotConfig[
 export function slugifyChannelId(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
 }
+
+/** Id for a new channel. A name without latin letters or digits has no slug and
+ *  gets a generated id: the id is internal, the UI only shows the name. */
+export function newChannelId(name: string): string {
+  return slugifyChannelId(name) || `channel_${Math.random().toString(36).slice(2, 10)}`
+}
+

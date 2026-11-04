@@ -4,9 +4,9 @@ import type { HomeAssistant } from '../lib/types'
 import { type Slot, type SensorConfig, type RunState, type EngineStateInfo, type InputConfig, type ActivityConfig, type ChannelConfig, PRIMARY_CHANNEL_ID } from '../lib/types'
 import { resolveEngineState } from '../lib/status-helpers'
 import { sortChannelIds } from '../lib/channel-helpers'
-import { formatSlotTime, isSlotActiveAt, sceneDisplayName } from '../lib/utils'
+import { channelDisplayName, formatSlotTime, isSlotActiveAt, sceneDisplayName } from '../lib/utils'
 import { LiveClockController } from '../lib/live-clock-controller'
-import { getInputDisplayName } from '../lib/input-helpers'
+import { getInputDisplayName, getTriggerSource } from '../lib/input-helpers'
 import { cardDotStyles } from '../lib/shared-styles'
 import { TwilightLocalizeMixin } from '../lib/i18n'
 
@@ -351,13 +351,14 @@ export class TwilightStatusCard extends TwilightLocalizeMixin(LitElement) {
       const triggerInput = t?.input_id ? this.inputs.find(i => i.id === t.input_id) : undefined
       const triggerDisplayName = triggerInput ? getInputDisplayName(triggerInput, this.hass) : t?.input_id
       const sub = t?.input_id
-        ? this.t('status_card.via_input', { input: `${triggerDisplayName}${t.entity_id ? ` (${t.entity_id})` : ''}` })
+        ? this.t('status_card.via_input', { input: getTriggerSource(triggerDisplayName ?? t.input_id, t.entity_id, this.hass) })
         : ''
       return {
         label,
         color: '#9c27b0',
         class: 'pulse-glow',
         sub,
+        subTitle: t?.entity_id ?? undefined,
       }
     }
 
@@ -414,7 +415,7 @@ export class TwilightStatusCard extends TwilightLocalizeMixin(LitElement) {
               ${channelIds.map(chId => {
                 const ch = this.channels?.[chId]
                 const enabled = ch ? ch.enabled !== false : true
-                const name = ch?.name || (chId === PRIMARY_CHANNEL_ID ? 'Twilight' : chId)
+                const name = channelDisplayName(chId, ch?.name, this.hass?.locale?.language)
                 
                 if (!enabled) {
                   return html`
@@ -458,9 +459,9 @@ export class TwilightStatusCard extends TwilightLocalizeMixin(LitElement) {
                       <div class="slot-color-dot" style="background:${slotColor}; box-shadow: 0 0 6px ${slotColor}; flex-shrink: 0;"></div>
                       <span style="font-weight: 600; color: var(--secondary-text-color); font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px;">${name}:</span>
                       <span style="color: var(--primary-text-color); font-weight: 500; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${slotLabel}</span>
-                      <span style="color: var(--secondary-text-color); font-size: 11px; font-style: italic; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">(${activeScene})</span>
+                      <span style="color: var(--secondary-text-color); font-size: 11px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" title=${activeSlot.scene ?? ''}>(${activeScene})</span>
                     </div>
-                    <span style="font-family: monospace; font-size: 11px; color: var(--secondary-text-color); flex-shrink: 0;">${slotRange}</span>
+                    <span style="font-variant-numeric: tabular-nums; font-size: 11px; color: var(--secondary-text-color); flex-shrink: 0;">${slotRange}</span>
                   </div>
                 `
               })}
@@ -475,9 +476,9 @@ export class TwilightStatusCard extends TwilightLocalizeMixin(LitElement) {
               ${engineState.label}
             </div>
             <div class="status-widget-sub">
-              <div style="text-overflow:ellipsis; overflow:hidden; white-space:nowrap">${engineState.sub}</div>
+              <div style="text-overflow:ellipsis; overflow:hidden; white-space:nowrap" title=${engineState.subTitle ?? ''}>${engineState.sub}</div>
               ${rs && this._activityCountdown(rs) ? html`
-                <div style="font-family: monospace; font-size: 11px; color: var(--secondary-text-color);">
+                <div style="font-variant-numeric: tabular-nums; font-size: 11px; color: var(--secondary-text-color);">
                   ${this.t('status_card.ends_in', { time: this._activityCountdown(rs)! })}
                 </div>
               ` : ''}

@@ -6,21 +6,18 @@ import asyncio
 import logging
 import random
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Coroutine
+from collections.abc import Callable, Coroutine, Iterable
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, cast
 
-from homeassistant.const import STATE_OFF, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import callback as ha_callback
 from homeassistant.helpers.event import async_call_later
 from homeassistant.util import dt as dt_util
 
-from .call_handler import TurnOffCallHandler
 from .config_model import (
     ActionConfig,
     EntityActionConfig,
     HeatmapProfileConfig,
-    LightActionConfig,
     SimulationActionConfig,
     SlotActionConfig,
 )
@@ -32,6 +29,7 @@ from .const import (
     SIM_LOOP_TICK_S,
     TWILIGHT_SLOTS,
     ActionType,
+    ReleaseActionType,
     SimFrequencyMode,
     SimLuxMode,
 )
@@ -40,8 +38,11 @@ from .heatmap import async_compute_heatmap
 from .helpers import (
     channel_entities,
     create_tracked_task,
+    enforced_scene_states,
+    entities_all_off,
     get_slot_info,
     get_store,
+    is_dynamic_slot,
     simulation_template_eligible,
 )
 
@@ -58,50 +59,47 @@ def _channel_matches_slot(
     scene_info = get_slot_info(coordinator.engine.scene_map, channel_id, slot_id)
     if not scene_info or not scene_info.expected_states:
         return False
-    # Dynamic-Hue slots always "match": the Bridge rotates the palette on its
-    # own, so a per-entity comparison would deviate and dispatch a pointless
-    # reapply on every re-trigger (reapply() guards itself, but the dispatch
-    # work is wasted — the same reasoning as the retry guard in _can_retry()).
+    # In a dynamic slot the Bridge rotates the palette on its own, so only the
+    # non-rotating lamps' on/off and brightness are compared — a full
+    # comparison would always deviate and dispatch a reapply on every re-trigger.
     slot = coordinator.engine.config.slot(channel_id, slot_id)
-    if slot and slot.hue_activate_dynamic and scene_info.supports_dynamic:
-        return True
+    enforced = enforced_scene_states(scene_info, is_dynamic_slot(slot, scene_info))
     hass = coordinator.engine.hass
-    for entity_id, expected in scene_info.expected_states.items():
+    for entity_id, expected in enforced.items():
         ha_state = hass.states.get(entity_id)
         if check_entity_deviation(ha_state, expected):
             return False
     return True
 
 
+def entity_turn_off_list(action: ActionConfig) -> tuple[str, ...]:
+    """The entities an entity action adds to a turn-off release."""
+    return action.configured_entities if isinstance(action, EntityActionConfig) else ()
+
+
 def apply_release_over_channels(
     coordinator: Coordinator,
     release: ActionConfig,
     transition_off: int | None,
+    extra_entities: Iterable[str] = (),
 ) -> None:
-    """Apply a release action's slot/turn_off/none dispatch across all channels.
+    """Apply a release action's turn_off/none dispatch across all channels.
 
     Shared by ``BaseActionHandler.stop()`` (real activity release) and
     ``PresenceSimulationActionHandler._off_step()`` (per-motion off-timer). The
     caller is responsible for any preceding teardown (cancel/cancel_all_handlers)
     that this function deliberately does not perform.
 
-    A release action is only turn_off | slot | none (ReleaseActionType in
-    types.ts; the UI offers only these). The else branch handles ``none``
-    and a `None`-typed release (no implicit type default) — whose correct
-    behaviour is to do nothing to the lights (just clear scene_activated_at,
-    no service call). entity/light can never be a release type, so "the else
-    issues no call" is intended, not a bug.
+    Everything but turn_off — ``none`` and a `None`-typed release (no implicit
+    type default) — does nothing to the lights: it only clears
+    scene_activated_at, without a service call.
     """
-    t = release.type
-    if t == ActionType.SLOT:
-        coordinator.update_state(scene_activated_at=datetime.now(UTC))
-        coordinator.lux_manager.update_lux_state()
-        coordinator.apply_all_channels_slots()
-    else:
-        coordinator.update_state(scene_activated_at=None)
-        coordinator.lux_manager.update_lux_state()
-        if t == ActionType.TURN_OFF:
-            coordinator.turn_off_all_channels(transition_off=transition_off)
+    coordinator.update_state(scene_activated_at=None)
+    coordinator.lux_manager.update_lux_state()
+    if release.type == ReleaseActionType.TURN_OFF:
+        coordinator.turn_off_all_channels(
+            transition_off=transition_off, extra_entities=extra_entities
+        )
 
 
 def apply_slot_action_over_channels(
@@ -118,9 +116,7 @@ def apply_slot_action_over_channels(
     ``PresenceSimulationActionHandler._on_step()``. The simulation always passes
     ``was_activated=False`` so it re-applies the slot directly on every tick
     (it never needs ``reapply_deviating_slot``). Only the ``slot`` action type
-    is handled here; entity/light stay in their respective call sites because
-    they diverge too much (e.g. LightActionHandler's STATE_OFF branch) to share
-    without hiding behaviour behind flags.
+    is handled here; entity stays in its own call sites.
     """
     default_excluded = action.excluded_slots or {}
     activity_id = coordinator.run_state.active_activity
@@ -136,9 +132,9 @@ def apply_slot_action_over_channels(
         if not slot_id:
             continue
         if slot_id in excluded_slots.get(channel_id, ()):
-            if not _channel_already_off(coordinator, channel_id):
+            if not channel_already_off(coordinator, channel_id):
                 coordinator.turn_off_channel(channel_id, transition_off=transition_off)
-        elif not was_activated or _channel_already_off(coordinator, channel_id):
+        elif not was_activated or channel_already_off(coordinator, channel_id):
             # A channel that is fully off (e.g. turned off by a previous
             # activity's excluded_slots, while scene_activated_at stayed set
             # for the area as a whole) is a fresh entry, not a correction —
@@ -151,7 +147,7 @@ def apply_slot_action_over_channels(
             coordinator.reapply_deviating_slot(channel_id, slot_id)
 
 
-def _channel_already_off(coordinator: Coordinator, channel_id: str) -> bool:
+def channel_already_off(coordinator: Coordinator, channel_id: str) -> bool:
     """True if every entity controlled by the channel is already off.
 
     Used to skip redundant turn_off_channel() calls for excluded slots — every
@@ -168,24 +164,10 @@ def _channel_already_off(coordinator: Coordinator, channel_id: str) -> bool:
     "we have never heard from it", not "it is known to be offline", and the
     channel must still get its turn_off.
     """
-    entities = channel_entities(
-        coordinator.engine.scene_map,
-        channel_id,
-        coordinator.engine.config.manual_only,
+    return entities_all_off(
+        coordinator.engine.hass,
+        channel_entities(coordinator.engine.scene_map, channel_id),
     )
-    if not entities:
-        return True
-    hass = coordinator.engine.hass
-    for entity_id in entities:
-        ha_state = hass.states.get(entity_id)
-        if ha_state is not None and ha_state.state in (
-            STATE_UNAVAILABLE,
-            STATE_UNKNOWN,
-        ):
-            continue
-        if check_entity_deviation(ha_state, {"state": STATE_OFF}):
-            return False
-    return True
 
 
 class BaseActionHandler(ABC):
@@ -266,7 +248,10 @@ class BaseActionHandler(ABC):
         """Start execution of the action."""
 
     async def stop(
-        self, release: ActionConfig, transition_off: int | None = None
+        self,
+        release: ActionConfig,
+        transition_off: int | None = None,
+        extra_entities: Iterable[str] = (),
     ) -> None:
         """Standard release behavior for action handlers."""
         await self.cancel()
@@ -274,7 +259,7 @@ class BaseActionHandler(ABC):
 
         c.cancel_all_handlers()
 
-        apply_release_over_channels(c, release, transition_off)
+        apply_release_over_channels(c, release, transition_off, extra_entities)
         self._after_stop()
 
 
@@ -367,68 +352,6 @@ class EntityActionHandler(BaseActionHandler):
                     handler,
                     lambda grace_elapsed: handler.start(entity_id),
                 )
-
-
-class LightActionHandler(BaseActionHandler):
-    """Handler that sets direct light parameters on the primary channel."""
-
-    async def start(
-        self,
-        action: ActionConfig,
-        active_slots: dict[str, str],
-        transition_off: int | None = None,
-    ) -> None:
-        """Apply direct light settings.
-
-        A re-trigger while the Light-Action is already active goes through
-        `reapply()` instead of `start()` — same
-        was_activated pattern as SlotActionHandler/EntityActionHandler. Does
-        not apply to the `state == off` branch: TurnOffCallHandler's turn_off
-        is idempotent, nothing to compare against.
-        """
-        if not isinstance(action, LightActionConfig):
-            raise TypeError(
-                f"LightActionHandler.start() requires a LightActionConfig, got {type(action).__name__}"
-            )
-        c = self._coordinator
-        was_activated = c.run_state.scene_activated_at is not None
-        c.update_state(
-            scene_activated_at=c.run_state.scene_activated_at or datetime.now(UTC)
-        )
-        c.lux_manager.update_lux_state()
-        targets = list(action.targets)
-        if action.state == STATE_OFF:
-            off_handler = TurnOffCallHandler(
-                c.engine, PRIMARY_CHANNEL_ID, transition_off=transition_off
-            )
-            c.swap_channel_handler(
-                PRIMARY_CHANNEL_ID,
-                off_handler,
-                lambda grace_elapsed: off_handler.execute(
-                    targets, grace_elapsed=grace_elapsed
-                ),
-            )
-            return
-        light_handler = c.light_handler(PRIMARY_CHANNEL_ID)
-        if light_handler is None:
-            _LOGGER.error(
-                "[%s] No LightCallHandler for primary channel — cannot apply "
-                "Light-Action",
-                c.engine.area_id,
-            )
-            return
-        if was_activated:
-            c.swap_channel_handler(
-                PRIMARY_CHANNEL_ID,
-                light_handler,
-                lambda grace_elapsed: light_handler.reapply(targets, action),
-            )
-        else:
-            c.swap_channel_handler(
-                PRIMARY_CHANNEL_ID,
-                light_handler,
-                lambda grace_elapsed: light_handler.start(targets, action),
-            )
 
 
 class BlockActionHandler(BaseActionHandler):
@@ -809,21 +732,6 @@ class PresenceSimulationActionHandler(BaseActionHandler):
                     entity_handler,
                     lambda grace_elapsed: entity_handler.start(entity_id),
                 )
-        elif t == ActionType.LIGHT and isinstance(action, LightActionConfig):
-            targets = list(action.targets)
-            light_handler = c.light_handler(PRIMARY_CHANNEL_ID)
-            if light_handler is None:
-                _LOGGER.error(
-                    "[%s] No LightCallHandler for primary channel — cannot apply "
-                    "presence-simulation Light-Action",
-                    c.engine.area_id,
-                )
-                return
-            c.swap_channel_handler(
-                PRIMARY_CHANNEL_ID,
-                light_handler,
-                lambda grace_elapsed: light_handler.start(targets, action),
-            )
 
     def _restart_off_timer(self) -> None:
         """Cancel + restart the internal off-timer (real motion retrigger semantics)."""
@@ -856,7 +764,9 @@ class PresenceSimulationActionHandler(BaseActionHandler):
         _LOGGER.info(
             "[%s] Presence simulation off-step: template=%s", c.engine.area_id, template
         )
-        apply_release_over_channels(c, release, transition_off)
+        apply_release_over_channels(
+            c, release, transition_off, entity_turn_off_list(c.resolve_action(template))
+        )
 
     async def cancel(self) -> None:
         """Cancel the loop, the internal off-timer, and all tracked tasks."""

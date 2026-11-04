@@ -632,7 +632,7 @@ export class TwilightInputRowEditor extends TwilightLocalizeMixin(LitElement) {
 
                 <div class="form-field" style="margin-top: 4px;">
                   <span class="form-label">${this.t('input_row_editor.ignore_lux_scene_active')}</span>
-                  <select class="option-select" .value=${String(draft.lux_ignore_active)} @change=${(e: Event) => {
+                  <select class="option-select" .value=${String(draft.lux_ignore_active ?? DEFAULT_LUX_IGNORE_ACTIVE)} @change=${(e: Event) => {
                     const val = (e.target as HTMLSelectElement).value
                     this._editDraft = { ...this._editDraft!, lux_ignore_active: val === 'true' }
                   }}>

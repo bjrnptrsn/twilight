@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 468" width="900" height="468" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title>Was beim Slot-Wechsel passiert, von oben nach unten gelesen</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#57606a"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="900" height="468" rx="16" fill="#f6f8fa" stroke="#d0d7de"/>
+
+  <line x1="16" y1="96" x2="884" y2="96" stroke="#d0d7de" stroke-dasharray="5 5"/>
+  <line x1="16" y1="186" x2="884" y2="186" stroke="#d0d7de" stroke-dasharray="5 5"/>
+  <line x1="16" y1="328" x2="884" y2="328" stroke="#d0d7de" stroke-dasharray="5 5"/>
+  <text x="24" y="38" text-anchor="start" font-size="13.5" font-weight="700" fill="#1f2328">Wann?</text>
+  <text x="24" y="58" text-anchor="start" font-size="12" font-weight="400" fill="#57606a">Sonne oder Uhr erreichen</text>
+  <text x="24" y="74" text-anchor="start" font-size="12" font-weight="400" fill="#57606a">den nächsten Slot.</text>
+  <text x="24" y="122" text-anchor="start" font-size="13.5" font-weight="700" fill="#1f2328">Läuft gerade etwas?</text>
+  <text x="24" y="142" text-anchor="start" font-size="12" font-weight="400" fill="#57606a">Ohne aktive Scene ändert</text>
+  <text x="24" y="158" text-anchor="start" font-size="12" font-weight="400" fill="#57606a">sich nichts.</text>
+  <text x="24" y="232" text-anchor="start" font-size="13.5" font-weight="700" fill="#1f2328">Was macht</text>
+  <text x="24" y="249" text-anchor="start" font-size="13.5" font-weight="700" fill="#1f2328">die Activity?</text>
+  <text x="24" y="269" text-anchor="start" font-size="12" font-weight="400" fill="#57606a">Ihre Aktion legt fest, ob</text>
+  <text x="24" y="285" text-anchor="start" font-size="12" font-weight="400" fill="#57606a">sie dem Slot folgt.</text>
+  <text x="24" y="372" text-anchor="start" font-size="13.5" font-weight="700" fill="#1f2328">Was passiert mit</text>
+  <text x="24" y="389" text-anchor="start" font-size="13.5" font-weight="700" fill="#1f2328">den Lichtern?</text>
+  <text x="24" y="409" text-anchor="start" font-size="12" font-weight="400" fill="#57606a">Das hängt davon ab, was im</text>
+  <text x="24" y="425" text-anchor="start" font-size="12" font-weight="400" fill="#57606a">neuen Slot eingestellt ist.</text>
+  <rect x="417" y="22" width="250" height="54" rx="11" fill="#ddf4ff" stroke="#0969da" stroke-width="2"/>
+  <text x="542" y="55" text-anchor="middle" font-size="16" font-weight="700" fill="#1f2328">Ein neuer Slot beginnt</text>
+  <line x1="542" y1="76" x2="542" y2="108" stroke="#57606a" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="417" y="112" width="250" height="54" rx="11" fill="#ffffff" stroke="#8c959f"/>
+  <text x="542" y="144.5" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2328">Ist eine Scene aktiv?</text>
+  <line x1="667" y1="139" x2="746" y2="139" stroke="#57606a" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="677" y="130" text-anchor="start" font-size="12.5" font-weight="600" fill="#57606a">nein</text>
+  <rect x="750" y="112" width="130" height="54" rx="11" fill="#eaeef2" stroke="#8c959f"/>
+  <text x="815" y="143.5" text-anchor="middle" font-size="13" font-weight="700" fill="#1f2328">Nichts passiert</text>
+  <line x1="542" y1="166" x2="542" y2="202" stroke="#57606a" stroke-width="2"/>
+  <text x="550" y="181" text-anchor="start" font-size="12.5" font-weight="600" fill="#57606a">ja</text>
+  <line x1="284" y1="202" x2="800" y2="202" stroke="#57606a" stroke-width="2"/>
+  <line x1="284" y1="202" x2="284" y2="222" stroke="#57606a" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="456" y1="202" x2="456" y2="222" stroke="#57606a" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="628" y1="202" x2="628" y2="222" stroke="#57606a" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="800" y1="202" x2="800" y2="222" stroke="#57606a" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="204" y="226" width="160" height="84" rx="11" fill="#fff8c5" stroke="#bf8700" stroke-width="2"/>
+  <text x="284" y="264.25" text-anchor="middle" font-size="13.5" font-weight="700" fill="#1f2328">Slot</text>
+  <text x="284" y="282.25" text-anchor="middle" font-size="12.5" fill="#57606a">Folgt dem neuen Slot</text>
+  <rect x="376" y="226" width="160" height="84" rx="11" fill="#eaeef2" stroke="#8c959f"/>
+  <text x="456" y="255.75" text-anchor="middle" font-size="13.5" font-weight="700" fill="#1f2328">Szene / Skript</text>
+  <text x="456" y="273.75" text-anchor="middle" font-size="12.5" fill="#57606a">Bleibt bei ihrer</text>
+  <text x="456" y="290.75" text-anchor="middle" font-size="12.5" fill="#57606a">festen Scene</text>
+  <rect x="548" y="226" width="160" height="84" rx="11" fill="#eaeef2" stroke="#8c959f"/>
+  <text x="628" y="264.25" text-anchor="middle" font-size="13.5" font-weight="700" fill="#1f2328">Nur blockieren</text>
+  <text x="628" y="282.25" text-anchor="middle" font-size="12.5" fill="#57606a">Nichts passiert</text>
+  <rect x="720" y="226" width="160" height="84" rx="11" fill="#eaeef2" stroke="#8c959f"/>
+  <text x="800" y="255.25" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1f2328">Anwesenheitssimulation</text>
+  <text x="800" y="273.25" text-anchor="middle" font-size="12.5" fill="#57606a">Ihre Lichter folgen</text>
+  <text x="800" y="290.25" text-anchor="middle" font-size="12.5" fill="#57606a">dem neuen Slot</text>
+  <line x1="284" y1="310" x2="284" y2="342" stroke="#57606a" stroke-width="2"/>
+  <line x1="284" y1="342" x2="771" y2="342" stroke="#57606a" stroke-width="2"/>
+  <line x1="313" y1="342" x2="313" y2="360" stroke="#57606a" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="542" y1="342" x2="542" y2="360" stroke="#57606a" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="771" y1="342" x2="771" y2="360" stroke="#57606a" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="204" y="364" width="218" height="88" rx="11" fill="#dafbe1" stroke="#1a7f37" stroke-width="2"/>
+  <text x="313" y="396" text-anchor="middle" font-size="14" font-weight="700" fill="#1f2328">Standard-Scene</text>
+  <text x="313" y="414" text-anchor="middle" font-size="12.5" fill="#57606a">Eingeschaltete Lichter blenden</text>
+  <text x="313" y="431" text-anchor="middle" font-size="12.5" fill="#57606a">über, ausgeschaltete bleiben aus.</text>
+  <rect x="433" y="364" width="218" height="88" rx="11" fill="#dafbe1" stroke="#1a7f37" stroke-width="2"/>
+  <text x="542" y="396" text-anchor="middle" font-size="14" font-weight="700" fill="#1f2328">Dynamische Scene oder Script</text>
+  <text x="542" y="414" text-anchor="middle" font-size="12.5" fill="#57606a">Startet immer komplett, auch</text>
+  <text x="542" y="431" text-anchor="middle" font-size="12.5" fill="#57606a">wenn einzelne Lichter aus sind.</text>
+  <rect x="662" y="364" width="218" height="88" rx="11" fill="#eaeef2" stroke="#8c959f"/>
+  <text x="771" y="396" text-anchor="middle" font-size="14" font-weight="700" fill="#1f2328">Keine Scene oder abgewählt</text>
+  <text x="771" y="414" text-anchor="middle" font-size="12.5" fill="#57606a">Der Channel geht aus und bleibt</text>
+  <text x="771" y="431" text-anchor="middle" font-size="12.5" fill="#57606a">aus bis zum nächsten Auslöser.</text>
+</svg>

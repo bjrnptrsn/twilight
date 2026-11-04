@@ -60,20 +60,32 @@ from .const import (
 # ---------------------------------------------------------------------------
 
 
+_PUSH_ATTRS = ("on", "brightness", "color")
+
+
 def build_light_states(
     hass_states: Any,
     expected_states: dict[str, dict[str, Any]],
     check_deviations: bool = True,
+    unchecked_attrs: dict[str, set[str]] | None = None,
 ) -> dict[str, dict[str, Any]]:
-    """Build the light_states push-map (ready-to-render) for all entities."""
+    """Build the light_states push-map (ready-to-render) for all entities.
+
+    `unchecked_attrs` names, per entity, push-map attributes that stay on
+    display but never count as a deviation (see unenforced_attrs()).
+    """
     result: dict[str, dict[str, Any]] = {}
     for entity_id, expected in expected_states.items():
         ha_state = hass_states.get(entity_id)
         entry = _compare_entity(entity_id, ha_state, expected)
-        if not check_deviations:
-            for key in ("on", "brightness", "color"):
-                if entry.get(key):
-                    entry[key]["deviates"] = False
+        unchecked = (
+            _PUSH_ATTRS
+            if not check_deviations
+            else (unchecked_attrs or {}).get(entity_id, ())
+        )
+        for key in unchecked:
+            if entry.get(key):
+                entry[key]["deviates"] = False
         result[entity_id] = entry
     return dict(
         sorted(
@@ -81,6 +93,22 @@ def build_light_states(
             key=lambda item: (item[1].get("name") or item[0]).lower(),
         )
     )
+
+
+def unenforced_attrs(enforced: dict[str, Any]) -> set[str]:
+    """Push-map attributes of one entity that `enforced` does not re-drive.
+
+    `enforced` is the entity's entry from enforced_scene_states() — empty for
+    a lamp left entirely to the Bridge.
+    """
+    unenforced = set()
+    if "state" not in enforced:
+        unenforced.add("on")
+    if "brightness" not in enforced:
+        unenforced.add("brightness")
+    if not set(enforced) - {"state", "brightness"}:
+        unenforced.add("color")
+    return unenforced
 
 
 def check_entity_deviation(ha_state: Any | None, expected: dict[str, Any]) -> bool:
@@ -105,7 +133,7 @@ def deviated_entities_from_map(light_states: dict[str, dict[str, Any]]) -> list[
     """Derive the list of entity_ids that deviate in the light_states map."""
     out: list[str] = []
     for entity_id, attrs in light_states.items():
-        for key in ("on", "brightness", "color"):
+        for key in _PUSH_ATTRS:
             entry = attrs.get(key)
             if entry is not None and entry.get("deviates"):
                 out.append(entity_id)

@@ -136,7 +136,7 @@ export class TwilightActivitiesCard extends TwilightLocalizeMixin(LitElement) {
             const autoExpireText = act.auto_expire_enabled === false
               ? this.t('common.none')
               : formatDuration(act.auto_expire, fallbacks.auto_expire, lang)
-            const releaseText = isReset ? '—' : formatReleaseCell(act.release_action, lang)
+            const releaseText = isReset ? '—' : formatReleaseCell(act.release_action, lang, this.config)
             const suppressesText = act.suppress_inputs?.length
               ? act.suppress_inputs.map(id => {
                   const found = this.inputs.find(i => i.id === id)

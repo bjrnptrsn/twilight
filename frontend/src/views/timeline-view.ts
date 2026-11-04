@@ -1,4 +1,4 @@
-import { LitElement, html, css } from 'lit'
+import { LitElement, html, css, type PropertyValues } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import type { HomeAssistant, AreaConfig, Slot } from '../lib/types'
 import { isDarkMode } from '../lib/theme-utils'
@@ -12,12 +12,12 @@ import {
 } from '../lib/sun-zones'
 import { viewHeaderStyles } from '../lib/shared-styles'
 import { StaleGuard } from '../lib/stale-guard'
-import { TwilightLocalizeMixin, formatTime } from '../lib/i18n'
+import { TwilightLocalizeMixin } from '../lib/i18n'
 import '../components/sun-path-card'
 import '../components/sun-year-card'
 
 // ---------------------------------------------------------------------------
-// Demo locations (Phase 5h)
+// Demo locations
 // ---------------------------------------------------------------------------
 
 interface DemoLocation {
@@ -64,6 +64,11 @@ const DEMO_SPEEDS = [10, 25, 50, 100, 250]
 @customElement('twilight-timeline-view')
 export class TimelineView extends TwilightLocalizeMixin(LitElement) {
   @property({ attribute: false }) hass: HomeAssistant | null = null
+  // True while the view's tab is active. panel-base keeps the view mounted
+  // across tab switches and toggles this instead of unmounting: while hidden
+  // the view neither renders nor ticks, and on reactivation it reloads only
+  // what the areas tab may have changed (_refreshAfterReactivate()).
+  @property({ type: Boolean }) active = true
 
   @state() private _days: DayData[] = []
   @state() private _year = new Date().getFullYear()
@@ -84,14 +89,14 @@ export class TimelineView extends TwilightLocalizeMixin(LitElement) {
   @state() private _scrubbing = false
   @state() private _isDark = false
 
-  // Phase 5h — Demo mode
+  // Demo mode
   @state() private _demoLocationIdx = -1   // -1 = HA home location
   @state() private _demoPlaying = false
   @state() private _demoDayIdx = 0         // day index for demo playback (0..364)
   @state() private _demoSpeed = DEMO_SPEEDS[2] || 50 // speed in ms
 
-  // Phase 7 — Zone visualisation mode
-  @state() private _clamped = false
+  // Zone visualisation mode
+  @state() private _showSun = false
   @state() private _showSlots = false
   @state() private _slotCurves: Record<string, (number | null)[]> | null = null
 
@@ -380,7 +385,7 @@ export class TimelineView extends TwilightLocalizeMixin(LitElement) {
     .demo-play:hover { background: color-mix(in srgb, var(--primary-text-color) 8%, transparent); color: var(--primary-text-color); }
     .demo-play.playing { border-color: var(--accent-color, #e91e8c); color: var(--accent-color, #e91e8c); }
 
-    /* ── Zone-mode toggle (Phase 7) ───────────────────────────── */
+    /* ── Zone-mode toggle ─────────────────────────────────────── */
     .zone-toggle {
       display: inline-flex;
       align-items: center;
@@ -402,6 +407,12 @@ export class TimelineView extends TwilightLocalizeMixin(LitElement) {
     }
     .zone-toggle button:first-child { border-left: 0; }
     .zone-toggle button:hover { background: color-mix(in srgb, var(--primary-text-color) 8%, transparent); color: var(--primary-text-color); }
+    .zone-toggle button:disabled {
+      background: transparent;
+      color: var(--secondary-text-color);
+      cursor: default;
+      opacity: 0.4;
+    }
     .zone-toggle button.active {
       background: color-mix(in srgb, var(--primary-text-color) 12%, transparent);
       color: var(--accent-color, #e91e8c);
@@ -423,15 +434,11 @@ export class TimelineView extends TwilightLocalizeMixin(LitElement) {
 
   connectedCallback() {
     super.connectedCallback()
-    this._updateInterval = window.setInterval(() => {
-      if (!this._scrubbing) {
-        this.requestUpdate()
-      }
-    }, 1000)
+    if (this.active) this._startClock()
   }
 
   disconnectedCallback() {
-    if (this._updateInterval) clearInterval(this._updateInterval)
+    this._stopClock()
     this._stopDemo()
     if (this._loadDayTimeout) {
       clearTimeout(this._loadDayTimeout)
@@ -441,17 +448,53 @@ export class TimelineView extends TwilightLocalizeMixin(LitElement) {
     super.disconnectedCallback()
   }
 
+  private _startClock() {
+    if (this._updateInterval) return
+    this._updateInterval = window.setInterval(() => {
+      if (!this._scrubbing) {
+        this.requestUpdate()
+      }
+    }, 1000)
+  }
+
+  private _stopClock() {
+    if (this._updateInterval) clearInterval(this._updateInterval)
+    this._updateInterval = null
+  }
+
+  // A hidden view would otherwise re-render on every hass update (every state
+  // change in HA). The `active` change itself always gets through.
+  protected shouldUpdate(changed: PropertyValues): boolean {
+    return this.active || changed.has('active')
+  }
+
   updated(changed: Map<string, unknown>) {
-    if (changed.has('hass') && this.hass) {
+    if (changed.has('active') && changed.get('active') !== undefined) {
+      if (this.active) {
+        this._startClock()
+        this._refreshAfterReactivate()
+      } else {
+        this._stopClock()
+        this._stopDemo()
+        this._hoverTime = null
+        this._hoverIdx = null
+        // A scrub left hanging would keep the clock from ticking after return.
+        this._scrubbing = false
+      }
+    }
+    // Updates skipped while hidden never saw a hass change — reactivation
+    // stands in for one.
+    const hassChanged = changed.has('hass') || (changed.has('active') && this.active)
+    if (hassChanged && this.hass) {
       const isDarkNow = isDarkMode(this.hass, this)
       if (isDarkNow !== this._isDark) {
         this._isDark = isDarkNow
         this.toggleAttribute('dark', isDarkNow)
       }
     }
-    if (changed.has('hass') && this.hass && !this._areas.length && !this._hasLoadedAreasOnce && !this._loadingAreas)
+    if (hassChanged && this.hass && !this._areas.length && !this._hasLoadedAreasOnce && !this._loadingAreas)
       this._loadAreas()
-    if (changed.has('hass') && this.hass && !this._days.length && !this._loading && !this._hasLoadedYearOnce)
+    if (hassChanged && this.hass && !this._days.length && !this._loading && !this._hasLoadedYearOnce)
       this._loadYear()
     // Follow the calendar day forward across midnight as long as the user
     // hasn't manually picked a different date.
@@ -475,8 +518,10 @@ export class TimelineView extends TwilightLocalizeMixin(LitElement) {
   private _hasLoadedYearOnce = false
   private _loadingAreas = false
 
-  private async _loadAreas() {
-    if (!this.hass || this._loadingAreas || this._hasLoadedAreasOnce) return
+  // `force` reloads past _hasLoadedAreasOnce — the areas tab may have changed
+  // the list while this view was hidden.
+  private async _loadAreas(force = false) {
+    if (!this.hass || this._loadingAreas || (this._hasLoadedAreasOnce && !force)) return
     this._loadingAreas = true
     try {
       this._areas = await api.areasList(this.hass)
@@ -507,11 +552,7 @@ export class TimelineView extends TwilightLocalizeMixin(LitElement) {
     try {
       const [r, slotTimes] = await Promise.all([
         api.sunYear(this.hass, { year: this._year, ...this._locParams() }),
-        api.timelineSlotTimes(this.hass, {
-          year: this._year,
-          ...this._locParams(),
-          area_id: this._selectedAreaId ?? undefined,
-        }).catch(() => null)
+        this._fetchSlotCurves(),
       ])
       if (!token.isCurrent()) return
       this._days = r.days; this._year = r.year
@@ -531,6 +572,50 @@ export class TimelineView extends TwilightLocalizeMixin(LitElement) {
         this._loading = false
       }
     }
+  }
+
+  // Slots belong to an area, and an area is always at the HA location.
+  private _fetchSlotCurves() {
+    if (!this.hass || !this._selectedAreaId) return null
+    return api.timelineSlotTimes(this.hass, { year: this._year, area_id: this._selectedAreaId }).catch(() => null)
+  }
+
+  // Only the year's slot curves, without _loadYear()'s sun data, date reset
+  // and loading state.
+  private async _loadSlotCurves() {
+    const key = `${this._demoLocationIdx}_${this._selectedAreaId}_${this._year}`
+    const result = await this._fetchSlotCurves()
+    if (key === `${this._demoLocationIdx}_${this._selectedAreaId}_${this._year}`) {
+      this._slotCurves = result?.curves ?? null
+    }
+  }
+
+  // Reloads, after the view was hidden, what the areas tab may have changed
+  // meanwhile — and nothing else, so the chosen area, date and charts stay.
+  // Not via _loadYear()/_loadDay(): the first resets the date and blanks the
+  // charts while loading, the second returns early on a day-cache hit.
+  private async _refreshAfterReactivate() {
+    if (!this.hass) return
+    const liveYear = Number(this._getLiveDateStr().slice(0, 4))
+    if (liveYear !== this._year) {
+      // Hidden across New Year: a full reload, where jumping to today is right.
+      this._year = liveYear
+      await this._loadYear()
+      return
+    }
+    // An area load in flight belongs to the first load or an earlier refresh,
+    // and that run goes on to load the slot data as well.
+    if (this._loadingAreas) return
+    await this._loadAreas(true)
+    if (this._selectedAreaId !== null && !this._areas.some(a => a.area_id === this._selectedAreaId)) {
+      this._selectedAreaId = null
+    }
+    // Both caches: a day-cache hit in _loadDay() takes its slots from the
+    // slot cache, so clearing only that one would drop the slot lines on the
+    // next visited date.
+    this._dayCache.clear()
+    this._channelSlotsCache.clear()
+    await Promise.all([this._loadSlotCurves(), this._loadChannelSlots(this._selectedDate)])
   }
 
   private _loadDay() {
@@ -613,8 +698,9 @@ export class TimelineView extends TwilightLocalizeMixin(LitElement) {
         entries.map(([, chCfg]) => api.slotTimesPreview(this.hass!, { slots: chCfg.slots || [], date: dateStr }))
       )
       const map: Record<string, Slot[]> = {}
+      const dayData = this._days.find(d => d.date === dateStr) ?? null
       entries.forEach(([chId, chCfg], i) => {
-        map[chId] = convertCalculatedTimesToSlots(results[i].slots, chCfg.slots || [])
+        map[chId] = convertCalculatedTimesToSlots(results[i].slots, chCfg.slots || [], this.hass?.locale?.language, dayData)
       })
       this._cacheSet(this._channelSlotsCache, cacheKey, map)
       if (isCurrent()) {
@@ -629,7 +715,7 @@ export class TimelineView extends TwilightLocalizeMixin(LitElement) {
   }
 
   // ---------------------------------------------------------------------------
-  // Demo mode (Phase 5h)
+  // Demo mode
   // ---------------------------------------------------------------------------
 
   private _stopDemo() {
@@ -688,8 +774,8 @@ export class TimelineView extends TwilightLocalizeMixin(LitElement) {
     await this._loadDay()
   }
 
-  private _toggleClamped() {
-    this._clamped = !this._clamped
+  private _toggleSun() {
+    this._showSun = !this._showSun
   }
 
   private _toggleSlots() {
@@ -701,16 +787,7 @@ export class TimelineView extends TwilightLocalizeMixin(LitElement) {
   // ---------------------------------------------------------------------------
 
   private _fmt(m: number | null): string {
-    if (m === null) return '—'
-    const c = Math.round(((m % 1440) + 1440) % 1440)
-    const h = Math.floor(c / 60) % 24
-    const min = c % 60
-    // Minutes-since-midnight has no calendar date; anchor to a fixed UTC
-    // instant and format in UTC so the local timezone never shifts it.
-    const d = new Date(Date.UTC(2000, 0, 1, h, min))
-    // 'numeric' (not '2-digit') so a 12h-format user sees "6:30 PM" instead
-    // of a padded "06:30 PM" — h23 still pads on its own ("06:30").
-    return formatTime(d, this.hass?.locale, { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' })
+    return m === null ? '—' : formatSlotTime(m, this.hass?.locale)
   }
 
   private _fmtDur(mins: number | null): string {
@@ -808,6 +885,10 @@ export class TimelineView extends TwilightLocalizeMixin(LitElement) {
 
     const selectedArea = this._selectedAreaId ? this._areas.find(a => a.area_id === this._selectedAreaId) : null
     const channelSlotsMap = selectedArea ? this._channelSlotsMap : undefined
+    const hasArea = !!selectedArea
+    const showSun = hasArea && this._showSun
+    const showSlots = hasArea && this._showSlots
+    const clamped = hasArea && !showSun
 
     return html`
     <!-- Header Grid (1 Row, 12 columns, max 6 items) -->
@@ -824,19 +905,21 @@ export class TimelineView extends TwilightLocalizeMixin(LitElement) {
               const val = (e.target as HTMLSelectElement).value
               this._selectArea(val === '' ? null : val)
             }}>
-            <option value="" ?selected=${this._selectedAreaId === null}>${this.t('timeline_view.area_default')}</option>
+            <option value="" ?selected=${this._selectedAreaId === null}>${this.t('timeline_view.location')}</option>
             ${this._areas.map(a => html`
               <option value=${a.area_id} ?selected=${this._selectedAreaId === a.area_id}>${a.name || a.area_id}</option>
             `)}
           </select>
 
           <div class="zone-toggle" style="margin-right: 8px;" role="group" aria-label=${this.t('timeline_view.zone_visualisation_mode')}>
-            <button class=${this._showSlots ? 'active' : ''}
-              title=${this.t('timeline_view.toggle_lines')}
+            <button class=${showSlots ? 'active' : ''}
+              ?disabled=${!hasArea}
+              title=${this.t(hasArea ? 'timeline_view.toggle_lines' : 'timeline_view.needs_area')}
               @click=${this._toggleSlots}>${this.t('timeline_view.lines')}</button>
-            <button class=${this._clamped ? 'active' : ''}
-              title=${this.t('timeline_view.toggle_fields')}
-              @click=${this._toggleClamped}>${this.t('timeline_view.fields')}</button>
+            <button class=${showSun ? 'active' : ''}
+              ?disabled=${!hasArea}
+              title=${this.t(hasArea ? 'timeline_view.toggle_sun' : 'timeline_view.needs_area')}
+              @click=${this._toggleSun}>${this.t('timeline_view.sun')}</button>
           </div>
 
           <select class="demo-select" style="width: auto;"
@@ -875,8 +958,8 @@ export class TimelineView extends TwilightLocalizeMixin(LitElement) {
               <twilight-sun-path-card
                 .hass=${this.hass}
                 .date=${this._selectedDate}
-                .clamped=${this._clamped}
-                .showSlots=${this._showSlots}
+                .clamped=${clamped}
+                .showSlots=${showSlots}
                 .primaryOnly=${true}
                 .noSolarNoonMidnight=${false}
                 .days=${this._days}
@@ -899,8 +982,8 @@ export class TimelineView extends TwilightLocalizeMixin(LitElement) {
                 .days=${this._days}
                 .slotCurves=${this._slotCurves}
                 .selectedDate=${this._selectedDate}
-                .clamped=${this._clamped}
-                .showSlots=${this._showSlots}
+                .clamped=${clamped}
+                .showSlots=${showSlots}
                 .noSolarNoonMidnight=${false}
                 .sunData=${this._sunData}
                 .hoverTime=${this._hoverTime}

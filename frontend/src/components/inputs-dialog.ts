@@ -4,7 +4,7 @@ import { type HomeAssistant, type InputConfig, InputsChangedEvent, type RunState
 import { activityBadgeStyles, dialogChromeStyles } from '../lib/shared-styles'
 import { DialogDraftController } from '../lib/dialog-draft-controller'
 import { DialogController } from '../lib/dialog-controller'
-import { getResolvedMotionInfo, getEntityDisplay, formatMotionInfo, getInputDisplayName, getInputTypeLabel } from '../lib/input-helpers'
+import { getButtonModeText, getEventTypeHint, getResolvedMotionInfo, getEntityDisplay, getEntitySubline, formatMotionInfo, getInputDisplayName, getInputTypeLabel } from '../lib/input-helpers'
 import { makeNewInput } from './input-row-editor'
 import { PortalDialog } from './dialogs'
 import './input-row-editor'
@@ -269,7 +269,6 @@ export class TwilightInputsDialog extends PortalDialog {
       .entity-id {
         font-size: 11px;
         color: var(--secondary-text-color);
-        font-family: monospace;
         text-overflow: ellipsis;
         overflow: hidden;
         white-space: nowrap;
@@ -438,16 +437,16 @@ export class TwilightInputsDialog extends PortalDialog {
                     } else if (input.type === 'event' && input.event_type) {
                       infoHtml = html`<div style="opacity: 0.7; font-size: 11px;">${this.t('inputs_card.event_type', { type: input.event_type })}</div>`
                     } else if (input.type === 'button') {
-                      infoHtml = html`<div style="opacity: 0.7; font-size: 11px;">${this.t('inputs_card.mode', { mode: input.button_mode ?? 'click' })}</div>`
+                      infoHtml = html`<div style="opacity: 0.7; font-size: 11px;">${getButtonModeText(input, this.hass)}</div>`
                     }
                   } else {
                     if (input.type === 'motion') {
-                      const { friendlyName, subText } = getEntityDisplay(input, this.hass ?? undefined)
-                      nameHtml = html`<div style="font-weight: 500; word-break: break-word;">${input.name || friendlyName}</div>`
+                      const display = getEntityDisplay(input, this.hass ?? undefined)
+                      nameHtml = html`<div style="font-weight: 500; word-break: break-word;" title=${display.entityIds}>${input.name || display.friendlyName}</div>`
                       const p = this._getResolvedMotionInfo(input)
                       const infoStr = formatMotionInfo(p, this.hass?.locale?.language)
                       infoHtml = html`
-                        <div class="entity-id">${input.name ? `${friendlyName} (${subText})` : subText}</div>
+                        <div class="entity-id" title=${display.entityIds}>${getEntitySubline(input, display)}</div>
                         <div style="opacity: 0.7; font-size: 11px; margin-top: 2px;">${infoStr}</div>
                       `
                     } else if (input.type === 'timer') {
@@ -455,15 +454,15 @@ export class TwilightInputsDialog extends PortalDialog {
                       infoHtml = html`<div class="entity-id">${this.t('inputs_card.trigger_time', { time: input.trigger_time ?? '00:00:00' })}</div>`
                     } else if (input.type === 'button') {
                       nameHtml = html`<div style="font-weight: 500; word-break: break-word;">${input.label || input.name || input.id}</div>`
-                      infoHtml = html`<div style="opacity: 0.7; font-size: 11px;">${this.t('inputs_card.mode', { mode: input.button_mode ?? 'click' })}${input.create_entity ? html` <ha-icon icon="mdi:home-assistant" style="--mdc-icon-size: 12px; vertical-align: middle;"></ha-icon>` : ''}</div>`
+                      infoHtml = html`<div style="opacity: 0.7; font-size: 11px;">${getButtonModeText(input, this.hass)}${input.create_entity ? html` <ha-icon icon="mdi:home-assistant" style="--mdc-icon-size: 12px; vertical-align: middle;"></ha-icon>` : ''}</div>`
                     } else if (input.entity_ids && input.entity_ids.length > 0) {
-                      const { friendlyName, subText: entitySubText } = getEntityDisplay(input, this.hass ?? undefined)
-                      nameHtml = html`<div style="font-weight: 500; word-break: break-word;">${input.name || friendlyName}</div>`
-                      let subText = entitySubText
-                      if (input.type === 'event' && input.event_type) {
-                        subText += ` [event: ${input.event_type}]`
-                      }
-                      infoHtml = html`<div class="entity-id">${input.name ? `${friendlyName} (${subText})` : subText}</div>`
+                      const display = getEntityDisplay(input, this.hass ?? undefined)
+                      nameHtml = html`<div style="font-weight: 500; word-break: break-word;" title=${display.entityIds}>${input.name || display.friendlyName}</div>`
+                      const extra = getEventTypeHint(input, this.hass)
+                      const subline = getEntitySubline(input, display, extra)
+                      infoHtml = subline
+                        ? html`<div class="entity-id" title=${display.entityIds}>${subline}</div>`
+                        : html``
                     }
                   }
 
@@ -573,6 +572,7 @@ export class TwilightInputsDialog extends PortalDialog {
       ></twilight-input-row-editor>
 
       <twilight-alert-dialog
+        .hass=${this.hass}
         .open=${this._dialog.alertOpen}
         .dialogTitle=${this._dialog.alertTitle}
         .message=${this._dialog.alertMessage}

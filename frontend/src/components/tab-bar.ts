@@ -10,6 +10,16 @@ export interface TabConfig {
   label: string;
 }
 
+// Literal keys, not a `nav.${id}` template: a key built at runtime is
+// invisible to a search for unused translation keys. The dev-only lab tabs
+// have no translation and show their English label.
+const NAV_LABEL_KEYS: Partial<Record<TabId, TranslationKey>> = {
+  areas: 'nav.areas',
+  analytics: 'nav.analytics',
+  timeline: 'nav.timeline',
+  settings: 'nav.settings',
+}
+
 @customElement('twilight-tab-bar')
 export class TabBar extends TwilightLocalizeMixin(LitElement) {
   @property({ attribute: false }) hass: HomeAssistant | null = null
@@ -75,9 +85,8 @@ export class TabBar extends TwilightLocalizeMixin(LitElement) {
   }
 
   private _label(tab: TabConfig): string {
-    const key = `nav.${tab.id}` as TranslationKey
-    const translated = this.t(key)
-    return translated === key ? tab.label : translated
+    const key = NAV_LABEL_KEYS[tab.id]
+    return key ? this.t(key) : tab.label
   }
 
   private _handleTabClick(id: TabId) {

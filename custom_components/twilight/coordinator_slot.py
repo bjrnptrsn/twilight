@@ -3,19 +3,23 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Coroutine
+from collections.abc import Callable, Coroutine, Iterable
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
+from homeassistant.helpers.dispatcher import async_dispatcher_send
+
+from .action_handler import channel_already_off
 from .call_handler import (
     BaseCallHandler,
-    LightCallHandler,
     SceneCallHandler,
     TurnOffCallHandler,
 )
+from .const import PRIMARY_CHANNEL_ID, SIGNAL_FADE_CHANGED
 from .helpers import (
     channel_entities,
     get_slot_info,
+    is_dynamic_slot,
     is_slot_excluded_effective,
 )
 
@@ -42,11 +46,6 @@ class SlotCoordinator:
             for channel_id, channel in self.coordinator.engine.config.channels.items()
             if channel.enabled
         }
-        self._light_handlers: dict[str, LightCallHandler] = {
-            channel_id: LightCallHandler(self.coordinator.engine, channel_id)
-            for channel_id, channel in self.coordinator.engine.config.channels.items()
-            if channel.enabled
-        }
         self._pending_grace: dict[str, float] = {}
 
     @property
@@ -63,10 +62,6 @@ class SlotCoordinator:
         """The long-lived SceneCallHandler for a channel."""
         return self._scene_handlers.get(channel_id)
 
-    def light_handler(self, channel_id: str) -> LightCallHandler | None:
-        """The long-lived LightCallHandler for a channel."""
-        return self._light_handlers.get(channel_id)
-
     def cancel_all_handlers(self) -> None:
         """Cancel all channel handlers and clear dictionary."""
         for channel_id, handler in self._handlers.items():
@@ -77,7 +72,28 @@ class SlotCoordinator:
             if handler:
                 handler.cancel()
         self._handlers.clear()
+        was_fading = bool(self.fading_channels())
         self.coordinator._fade_target_slot.clear()
+        if was_fading:
+            self._fade_changed()
+
+    def fading_channels(self) -> dict[str, str]:
+        """Channels whose anticipatory fade is still running, with its target slot.
+
+        Planned, not confirmed: a fade over lamps that are all off sends nothing.
+        """
+        return {
+            channel_id: slot_id
+            for channel_id, (slot_id, _start) in self.coordinator._fade_target_slot.items()
+            if self._is_fade_pending(channel_id, slot_id)
+        }
+
+    def _fade_changed(self) -> None:
+        async_dispatcher_send(
+            self.coordinator.engine.hass,
+            SIGNAL_FADE_CHANGED,
+            self.coordinator.engine.area_id,
+        )
 
     def _slot_active_entities(
         self, channel_id: str, filter_manual_off: bool = False
@@ -89,12 +105,9 @@ class SlotCoordinator:
         )
         if not scene_info:
             return []
-        if self.coordinator.engine.config.manual_only:
-            entities = set(scene_info.configured_entities)
-        else:
-            entities = set(scene_info.extracted_entities) | set(
-                scene_info.configured_entities
-            )
+        entities = set(scene_info.extracted_entities) | set(
+            scene_info.configured_entities
+        )
 
         if filter_manual_off and self.coordinator.is_respect_manual_off_active():
             entities -= set(self.coordinator.run_state.manual_off_entities)
@@ -124,13 +137,98 @@ class SlotCoordinator:
             self.coordinator.update_state(active_slots=dict(active_slots))
         self.coordinator.lux_manager.update_lux_state()
 
-        if is_boot or self.coordinator.run_state.scene_activated_at is None:
+        if not is_boot:
+            self._apply_slots(changed, self._apply_changed_slot)
+
+    def _is_held_dark(self, channel_id: str) -> bool:
+        """True if the channel was switched off by hand and the option respects it."""
+        return (
+            channel_id in self.coordinator.run_state.manual_off_channels
+            and self.coordinator.is_respect_manual_off_active()
+        )
+
+    def _apply_changed_slot(self, channel_id: str, slot_id: str) -> None:
+        """Bring a channel into its new slot on a slot change.
+
+        A slot change is no command: a channel switched off by hand stays dark.
+        A channel that is dark otherwise (Twilight turned it off for an excluded
+        or scene-less slot) is resumed — the fade would only reach lamps that
+        are on.
+        """
+        if self._is_held_dark(channel_id):
+            return
+        if channel_already_off(self.coordinator, channel_id):
+            self._resume_channel_slot(channel_id, slot_id)
+        else:
+            self.apply_channel_slot(channel_id, slot_id)
+
+    def _resume_channel_slot(self, channel_id: str, slot_id: str) -> None:
+        """Switch a dark channel back on into its slot.
+
+        reapply() switches on what deviates and leaves manual-off lamps out. It
+        cannot start a dynamic scene and has nothing to compare without per-lamp
+        states, so those enter the slot as a whole.
+        """
+        scene_info = get_slot_info(
+            self.coordinator.engine.scene_map, channel_id, slot_id
+        )
+        slot = self.coordinator.engine.config.slot(channel_id, slot_id)
+        if (
+            scene_info
+            and scene_info.expected_states
+            and not is_dynamic_slot(slot, scene_info)
+        ):
+            self.reapply_deviating_slot(channel_id, slot_id)
+        else:
+            self.apply_channel_slot(channel_id, slot_id, direct=True)
+
+    def slot_scenes_replaced(self, channel_ids: set[str]) -> None:
+        """Apply the active slot of channels whose scene was replaced or edited."""
+        active_slots = self.coordinator.run_state.active_slots
+        self._apply_slots(
+            {ch: active_slots[ch] for ch in channel_ids if ch in active_slots},
+            self._apply_replaced_scene,
+        )
+
+    def _apply_replaced_scene(self, channel_id: str, slot_id: str) -> None:
+        """Bring a lit channel onto its new scene; a dark channel stays dark.
+
+        Unlike a slot change this also reaches lamps that are off: the new scene
+        may want a lamp on that the old one kept off. reapply() sends exactly
+        what deviates and skips manual-off lamps. It cannot start a dynamic scene
+        and has nothing to compare without per-lamp states, so those two take
+        the slot-change path. A slot naming no lamp, like a script without a
+        turn-off list, always runs: nothing tells whether its room is dark.
+        """
+        scene_info = get_slot_info(
+            self.coordinator.engine.scene_map, channel_id, slot_id
+        )
+        names_no_lamp = scene_info is not None and not (
+            scene_info.extracted_entities or scene_info.configured_entities
+        )
+        if not names_no_lamp and channel_already_off(self.coordinator, channel_id):
+            return
+        slot = self.coordinator.engine.config.slot(channel_id, slot_id)
+        if (
+            scene_info
+            and scene_info.expected_states
+            and not is_dynamic_slot(slot, scene_info)
+        ):
+            self.reapply_deviating_slot(channel_id, slot_id)
+        else:
+            self.apply_channel_slot(channel_id, slot_id)
+
+    def _apply_slots(
+        self, slots: dict[str, str], apply: Callable[[str, str], None]
+    ) -> None:
+        """Run `apply` on running channels, unless slots are paused or excluded."""
+        if self.coordinator.run_state.scene_activated_at is None:
             return
 
         if self.coordinator.pauses_slots:
             return
 
-        for channel_id, slot_id in changed.items():
+        for channel_id, slot_id in slots.items():
             if is_slot_excluded_effective(
                 self.coordinator.engine.config,
                 self.coordinator.run_state,
@@ -145,14 +243,14 @@ class SlotCoordinator:
                 _LOGGER.debug(
                     "[%s] Dynamic scene fade for channel %s and slot %s still "
                     "transitioning; skipping the redundant slot-change re-call "
-                    "to avoid restarting the Bridge/HA-side rotation",
+                    "to avoid restarting the Bridge-side rotation",
                     self.coordinator.engine.area_id,
                     channel_id,
                     slot_id,
                 )
                 continue
 
-            self.apply_channel_slot(channel_id, slot_id)
+            apply(channel_id, slot_id)
 
     async def async_start_slot_fade(
         self, channel_id: str, target_slot_id: str, target_slot_start: datetime
@@ -168,6 +266,10 @@ class SlotCoordinator:
             return False
 
         if self.coordinator.run_state.scene_activated_at is None:
+            return False
+
+        # Before the fade is built: a dynamic recall would switch the room on.
+        if self._is_held_dark(channel_id):
             return False
 
         if is_slot_excluded_effective(
@@ -223,13 +325,19 @@ class SlotCoordinator:
                     grace_elapsed = max(grace_elapsed, elapsed)
             existing.cancel()
         self._handlers[channel_id] = handler
+        fade_changed = channel_id in self.fading_channels()
         if fade_target_slot is not None and fade_target_slot_start is not None:
             self.coordinator._fade_target_slot[channel_id] = (
                 fade_target_slot,
                 fade_target_slot_start,
             )
+            fade_changed = fade_changed or self._is_fade_pending(
+                channel_id, fade_target_slot
+            )
         else:
             self.coordinator._fade_target_slot.pop(channel_id, None)
+        if fade_changed:
+            self._fade_changed()
         # Tracked in handler._tasks (not coordinator._tasks): `run` is one of
         # this handler's own start/fade/reapply methods, so handler.cancel()
         # (cancel_all_handlers(), or _run()'s own self.cancel() prefix on the
@@ -254,10 +362,9 @@ class SlotCoordinator:
         derives its `transition` seconds from the remaining time to T_ziel,
         so the transition itself is expected to be done by the time Stage 2
         runs. What must not happen is re-dispatching the activation anyway —
-        a Dynamic Scene (Hue dynamic palette or a HA dynamic scene) keeps
-        rotating colors on its own once activated, and a second
-        hue.activate_scene/scene.turn_on call would restart that rotation
-        from scratch rather than let it continue.
+        a Hue dynamic palette keeps rotating colors on its own once
+        activated, and a second hue.activate_scene call would restart that
+        rotation from scratch rather than let it continue.
 
         For a static scene or individual lights, re-dispatching at slot
         change stays unconditional — it's a harmless resend, even a bit of
@@ -299,7 +406,10 @@ class SlotCoordinator:
         )
 
     def turn_off_channel(
-        self, channel_id: str, transition_off: int | None = None
+        self,
+        channel_id: str,
+        transition_off: int | None = None,
+        extra_entities: Iterable[str] = (),
     ) -> None:
         """Turn off a single channel's active-slot entities via TurnOffCallHandler."""
         channel = self.coordinator.engine.config.channel(channel_id)
@@ -312,11 +422,8 @@ class SlotCoordinator:
             return
 
         entities = list(
-            channel_entities(
-                self.coordinator.engine.scene_map,
-                channel_id,
-                self.coordinator.engine.config.manual_only,
-            )
+            set(channel_entities(self.coordinator.engine.scene_map, channel_id))
+            | set(extra_entities)
         )
         if entities:
             handler = TurnOffCallHandler(
@@ -325,9 +432,7 @@ class SlotCoordinator:
             self.swap_channel_handler(
                 channel_id,
                 handler,
-                lambda grace_elapsed: handler.execute(
-                    entities, grace_elapsed=grace_elapsed
-                ),
+                lambda grace_elapsed: handler.execute(entities),
             )
 
     def apply_channel_slot(
@@ -364,20 +469,43 @@ class SlotCoordinator:
         else:
             self.turn_off_channel(channel_id)
 
-    def apply_all_channels_slots(self, direct: bool = False) -> None:
-        """Re-apply every channel into its current active slot (scene or off)."""
-        for channel_id in self.channel_ids:
-            channel = self.coordinator.engine.config.channel(channel_id)
-            if channel is not None and not channel.enabled:
-                continue
-            slot_id = self.coordinator.run_state.active_slots.get(channel_id)
-            if slot_id:
-                self.apply_channel_slot(channel_id, slot_id, direct=direct)
+    def turn_off_all_channels(
+        self, transition_off: int | None = None, extra_entities: Iterable[str] = ()
+    ) -> None:
+        """Turn off every channel's active-slot entities via TurnOffCallHandler.
 
-    def turn_off_all_channels(self, transition_off: int | None = None) -> None:
-        """Turn off every channel's active-slot entities via TurnOffCallHandler."""
-        for channel_id in self.channel_ids:
-            channel = self.coordinator.engine.config.channel(channel_id)
-            if channel is not None and not channel.enabled:
-                continue
-            self.turn_off_channel(channel_id, transition_off=transition_off)
+        `extra_entities` join the Primary channel's call: a second handler on the
+        same channel would cancel the first one along with its retries. What an
+        enabled custom channel turns off itself stays out of it, or the lamp would
+        get the calls and retries of both.
+        """
+        enabled_channels = [
+            channel_id
+            for channel_id in self.channel_ids
+            if (channel := self.coordinator.engine.config.channel(channel_id)) is None
+            or channel.enabled
+        ]
+        primary_extras = set(extra_entities)
+        for channel_id in enabled_channels:
+            if channel_id != PRIMARY_CHANNEL_ID:
+                primary_extras -= channel_entities(
+                    self.coordinator.engine.scene_map, channel_id
+                )
+        for channel_id in enabled_channels:
+            self.turn_off_channel(
+                channel_id,
+                transition_off=transition_off,
+                extra_entities=primary_extras if channel_id == PRIMARY_CHANNEL_ID else (),
+            )
+
+    def turn_off_entities(self, entities: Iterable[str]) -> None:
+        """Turn off only these entities, on the Primary channel's handler."""
+        targets = list(entities)
+        if not targets:
+            return
+        handler = TurnOffCallHandler(self.coordinator.engine, PRIMARY_CHANNEL_ID)
+        self.swap_channel_handler(
+            PRIMARY_CHANNEL_ID,
+            handler,
+            lambda grace_elapsed: handler.execute(targets),
+        )

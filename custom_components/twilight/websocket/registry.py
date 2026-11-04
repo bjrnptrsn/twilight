@@ -11,6 +11,9 @@ from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
+from ..const import DOMAIN
+from ..helpers import channel_entities
+from ..hue_manager import scene_dynamic_light_ids
 from ..scene_manager import palette_is_dynamic
 
 _LAB_ENTITY_DOMAINS = {"light", "switch", "scene", "script"}
@@ -57,6 +60,14 @@ def _ws_lab_area_entities() -> websocket_api.WebSocketCommandHandler:
             dev.id for dev in dr.async_entries_for_area(dev_reg, area_id)
         }
 
+        # A channel can steer lamps that HA assigns to another area.
+        channel_lights: set[str] = set()
+        engine = hass.data[DOMAIN].get("engines", {}).get(area_id)
+        if engine:
+            for channel_id, channel in engine.config.channels.items():
+                if channel.enabled:
+                    channel_lights |= channel_entities(engine.scene_map, channel_id)
+
         entities = []
         for entry in ent_reg.entities.values():
             domain = entry.entity_id.split(".")[0]
@@ -77,6 +88,7 @@ def _ws_lab_area_entities() -> websocket_api.WebSocketCommandHandler:
 
             scene_type = None
             supports_dynamic = False
+            auto_dynamic = False
             scene_speed = None
             if domain == "script":
                 scene_type = "SCRIPT"
@@ -107,8 +119,13 @@ def _ws_lab_area_entities() -> websocket_api.WebSocketCommandHandler:
                                 else:
                                     supports_dynamic = palette_is_dynamic(
                                         getattr(scene_obj, "palette", None)
-                                    )
+                                    ) and bool(scene_dynamic_light_ids(api, scene_obj))
                                     if supports_dynamic:
+                                        # The scene's own Hue-app setting — the
+                                        # slot's default when it doesn't override it.
+                                        auto_dynamic = bool(
+                                            getattr(scene_obj, "auto_dynamic", False)
+                                        )
                                         # aiohue reports speed as 0.0-1.0, the
                                         # hue.activate_scene service takes 0-100.
                                         raw_speed = getattr(scene_obj, "speed", None)
@@ -126,8 +143,10 @@ def _ws_lab_area_entities() -> websocket_api.WebSocketCommandHandler:
                     "name": friendly_name,
                     "domain": domain,
                     "in_area": in_area,
+                    "in_channel": entry.entity_id in channel_lights,
                     "scene_type": scene_type,
                     "supports_dynamic": supports_dynamic,
+                    "auto_dynamic": auto_dynamic,
                     "scene_speed": scene_speed,
                 }
             )

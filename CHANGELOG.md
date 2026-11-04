@@ -1,5 +1,69 @@
 # Changelog
 
+## 0.7.0 - 2026-11-04
+
+### ⚠️ Breaking Changes
+
+*   **Home Assistant 2026.3 Required**: Twilight now needs Home Assistant 2026.3 or newer.
+
+*   **Dynamic Hue Scenes follow the Hue app by default**: Slots now start a dynamic scene the way it is set up in the Hue app, so a scene with dynamic playback enabled there may now rotate colors where it stayed static before — choose "Off" in the slot editor to keep it static.
+
+*   **Direct Lights Removed**: Activities can no longer set lights directly, so affected activities do nothing until you choose a scene or script instead.
+
+*   **Restore Slot Replaced**: The new release action "Switch to Activity" hands over to another activity with its own timer; activities that used "Restore Slot" now show "No Light Action".
+
+*   **"Additional Entities Only" Removed**: Turn Off now always switches off everything the activity controls.
+
+*   **Reset Turns Off the Whole Area**: A Reset now also turns off lights in the area that no slot uses — choose "Turn-Off Entities only" to name exactly what goes off instead.
+
+*   **A Dark Room Follows the Next Slot**: When every light of a channel is off while an activity runs, the next slot with light now switches them back on — turn on "Respect Manual Off" to keep a room you switched off by hand dark, dynamic Hue scenes included.
+
+*   **No downgrade to 0.6.x**: This version updates the stored configuration and the backup format; neither can be read by an older Twilight release.
+
+### ✨ Features
+
+*   **Dynamic Setting per Slot**: The Dynamic column in the slot editor now offers "Hue", "On" and "Off" and the Hue app's speed levels 1–12, only for scenes whose lights can actually play a dynamic palette; an existing custom speed moves to the nearest level the next time you save the slot editor.
+
+*   **Mixed Rooms in Dynamic Scenes**: Lights that cannot rotate colors keep their fixed scene color while the others play the dynamic palette, without ending it.
+
+*   **Earliest Start for Evening Slots**: The evening slots can be given an earliest start time, so dark scenes no longer begin in the late afternoon in winter while summer evenings keep following the sun.
+
+*   **Edited Scenes Apply Automatically**: Changes to a scene in the Hue app or in Home Assistant are picked up on their own, and lights that are currently on follow them right away.
+
+### 🎨 Improvements
+
+*   **Turn-Off Entities at the Scene or Script**: Scripts, scenes without readable lights and Scene / Script actions now set what goes off with them right next to the picker; lists on scenes with readable lights no longer apply.
+
+*   **Extracted Lights View**: The Lights & Devices menu now shows per channel and slot which lights were read from each scene.
+
+*   **One "No Light Action"**: "None (Not Set)" and "Nothing" are now a single release option.
+
+*   **Tabs Keep Their View**: The Timeline and Analytics tabs now keep the selected area, date and chart settings when you switch to another tab and back.
+
+*   **Names Instead of Entity IDs**: The inputs list, Lights & Devices and the Live Monitor now show friendly names, with the entity ID as a fallback and on hover.
+
+*   **Steadier Slot Timetable**: The slot list now keeps its fixed order with the active slot highlighted, and times have a leading zero in 24-hour format.
+
+*   **Fade Badge**: Lights & Devices now marks a light while it fades to the next slot, so values in between are recognizable as a transition.
+
+*   **Clearer Timeline View**: Selecting an area in the Timeline tab now shows its slots right away while "Sun" (replacing "Fields") switches to the real solar course, and Location and demo locations always show the sun.
+
+### 🔧 Fixes
+
+*   **Reliable Hue Scenes**: Lights of a Hue scene are now switched one by one and re-sent if they miss a command, so lights that occasionally stayed off or showed the wrong color now follow the scene.
+
+*   **Deviation Badges in Dynamic Scenes**: The area view no longer reports rotating lights as deviating while a dynamic scene is playing.
+
+*   **Manually Switched-Off Lights**: Lights marked "Manual Off" no longer also show their scene's "on" target as a deviation in the area view.
+
+*   **Night in the Day Bar**: The night slot in the area tiles' day bar is shown in a single color again instead of a gradient.
+
+*   **Lights Shown On After a Soft Turn-Off**: Home Assistant no longer shows some lights as on for hours after Twilight switched them off with a fade, including lights that had already been switched off another way, for example by voice assistant.
+
+*   **Lights Back After an Unchecked Slot**: A channel turned off for an unchecked slot now comes back on when the next checked slot begins, instead of waiting for the next trigger.
+
+*   **Lights That Miss a Command**: Slot lights switched on or off without a fade now receive the command several times, so a light that missed it without Home Assistant noticing no longer stays too dark or on.
+
 ## 0.6.2 - 2026-10-24
 
 ### 🎨 Improvements

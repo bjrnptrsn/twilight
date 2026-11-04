@@ -9,6 +9,10 @@ import '../components/heatmap-card'
 @customElement('twilight-analytics-view')
 export class AnalyticsView extends TwilightLocalizeMixin(LitElement) {
   @property({ attribute: false }) hass: HomeAssistant | null = null
+  // True while the view's tab is active. panel-base keeps the view mounted
+  // across tab switches and toggles this instead of unmounting: while hidden
+  // the view does not render, and on reactivation it reloads the area list.
+  @property({ type: Boolean }) active = true
 
   @state() private _areaConfigs: AreaConfig[] = []
   @state() private _activeAreaId: string | null = null
@@ -22,16 +26,29 @@ export class AnalyticsView extends TwilightLocalizeMixin(LitElement) {
   // (the "hass arrived late" case) instead of re-firing _loadAreas() on every
   // subsequent hass tick forever.
   private _loadAttempts = 0
+  private _refreshing = false
 
   protected firstUpdated(_changedProperties: PropertyValues): void {
     super.firstUpdated(_changedProperties)
     this._loadAreas()
   }
 
+  // A hidden view would otherwise re-render on every hass update (every state
+  // change in HA). The `active` change itself always gets through.
+  protected shouldUpdate(changedProperties: PropertyValues): boolean {
+    return this.active || changedProperties.has('active')
+  }
+
   protected updated(changedProperties: PropertyValues): void {
     super.updated(changedProperties)
+    const reactivated = changedProperties.has('active') &&
+      changedProperties.get('active') !== undefined && this.active
+    if (reactivated) this._refreshAreas()
+    // Updates skipped while hidden never saw a hass change — reactivation
+    // stands in for one.
+    const hassChanged = changedProperties.has('hass') || reactivated
     if (
-      changedProperties.has('hass') && this.hass && !this._hasLoadedOnce && !this._loading &&
+      hassChanged && this.hass && !this._hasLoadedOnce && !this._loading &&
       this._loadAttempts < 2
     ) {
       this._loadAreas()
@@ -43,17 +60,36 @@ export class AnalyticsView extends TwilightLocalizeMixin(LitElement) {
     this._loadAttempts++
     this._loading = true
     try {
-      const areaConfigs = await api.areasList(this.hass)
-      this._areaConfigs = areaConfigs
-      const areaExists = areaConfigs.some(a => a.area_id === this._activeAreaId)
-      if (areaConfigs.length > 0 && (!this._activeAreaId || !areaExists)) {
-        this._activeAreaId = areaConfigs[0].area_id
-      }
+      this._applyAreaConfigs(await api.areasList(this.hass))
       this._hasLoadedOnce = true
     } catch (e) {
       console.error("Failed to load areaConfigs for analytics", e)
     } finally {
       this._loading = false
+    }
+  }
+
+  // Reload after the view was hidden — without _loading, whose loading state
+  // would unmount the heatmap card and lose its range, source and resolution.
+  // Does not count against _loadAttempts, which only caps the late-hass retry.
+  private async _refreshAreas() {
+    if (!this.hass || !this._hasLoadedOnce || this._loading || this._refreshing) return
+    this._refreshing = true
+    try {
+      this._applyAreaConfigs(await api.areasList(this.hass))
+    } catch (e) {
+      console.error("Failed to reload areaConfigs for analytics", e)
+    } finally {
+      this._refreshing = false
+    }
+  }
+
+  // Keeps the selected area while it exists, else falls back to the first.
+  private _applyAreaConfigs(areaConfigs: AreaConfig[]) {
+    this._areaConfigs = areaConfigs
+    const areaExists = areaConfigs.some(a => a.area_id === this._activeAreaId)
+    if (areaConfigs.length > 0 && (!this._activeAreaId || !areaExists)) {
+      this._activeAreaId = areaConfigs[0].area_id
     }
   }
 

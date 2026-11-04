@@ -19,13 +19,27 @@ from typing import Any, Literal, cast, overload
 from .const import (
     PRIMARY_CHANNEL_ID,
     ActionType,
+    HueDynamicMode,
     InputType,
+    ReleaseActionType,
+    ResetScope,
     RuleAutoExpireMode,
     SensorType,
     StartType,
-    _safe_bool,
-    materialize_primary_slots,
 )
+from .primary_slots import materialize_primary_slots
+from .slot_calc import slot_not_before
+
+
+def _safe_bool(val: Any, default: bool = False) -> bool:
+    """Safely parse a boolean from boolean, string ("true"/"false"), or int/float."""
+    if isinstance(val, bool):
+        return val
+    if isinstance(val, str):
+        return val.strip().lower() in ("true", "1", "yes", "on")
+    if isinstance(val, (int, float)):
+        return bool(val)
+    return default
 
 
 def _safe_int(val: Any, default: int = 0) -> int:
@@ -114,8 +128,9 @@ class SlotConfig(BaseConfig):
     offset_minutes: int
     scene_entity_id: str | None
     configured_entities: tuple[str, ...]
-    hue_activate_dynamic: bool = False
+    hue_activate_dynamic: HueDynamicMode = HueDynamicMode.HUE
     hue_dynamic_speed: int | None = None
+    not_before: str | None = None
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> SlotConfig:
@@ -132,9 +147,23 @@ class SlotConfig(BaseConfig):
             configured_entities=tuple(raw_entities)
             if isinstance(raw_entities, list | tuple)
             else (),
-            hue_activate_dynamic=_safe_bool(raw.get("hue_activate_dynamic"), False),
+            hue_activate_dynamic=HueDynamicMode(
+                raw.get("hue_activate_dynamic", HueDynamicMode.HUE)
+            ),
             hue_dynamic_speed=_safe_optional_int(raw.get("hue_dynamic_speed")),
+            not_before=slot_not_before(raw),
         )
+
+    def to_resolver_dict(self) -> dict[str, Any]:
+        """The slot dict resolve_slot_times() reads its start time from."""
+        return {
+            "id": self.id,
+            "start_type": self.start_type,
+            "zone": self.zone,
+            "fixed_time": self.fixed_time,
+            "offset_minutes": self.offset_minutes,
+            "not_before": self.not_before,
+        }
 
 
 @dataclass(frozen=True)
@@ -439,47 +468,27 @@ class ActionConfig(BaseConfig):
 
 @dataclass(frozen=True)
 class EntityActionConfig(ActionConfig):
-    """Action to activate a specific entity (scene or script)."""
+    """Action to activate a specific entity (scene or script).
+
+    `configured_entities` lists what a turn-off release switches off on top of
+    the slot entities: an entity action runs outside the scene_map, so nothing
+    is extracted from its scene or script.
+    """
 
     entity_id: str | None = None
+    configured_entities: tuple[str, ...] = ()
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any] | None) -> EntityActionConfig:
         if not raw:
             raw = {}
-        return cls(**ActionConfig._base_kwargs(raw), entity_id=raw.get("entity_id"))
-
-
-@dataclass(frozen=True)
-class LightActionConfig(ActionConfig):
-    """Action to set light parameters directly."""
-
-    targets: tuple[str, ...] = ()
-    state: str | None = None
-    brightness: int | None = None
-    color_temp: int | None = None
-    rgb_color: tuple[int, int, int] | None = None
-    transition: int | None = None
-
-    @classmethod
-    def from_dict(cls, raw: dict[str, Any] | None) -> LightActionConfig:
-        if not raw:
-            raw = {}
-        raw_rgb = raw.get("rgb_color")
-        parsed_rgb: tuple[int, int, int] | None = None
-        if isinstance(raw_rgb, (list, tuple)) and len(raw_rgb) == 3:
-            r, g, b = (_safe_optional_int(c) for c in raw_rgb)
-            if r is not None and g is not None and b is not None:
-                parsed_rgb = (r, g, b)
-        raw_targets = raw.get("targets")
+        raw_entities = raw.get("configured_entities")
         return cls(
             **ActionConfig._base_kwargs(raw),
-            targets=tuple(raw_targets) if isinstance(raw_targets, list | tuple) else (),
-            state=raw.get("state"),
-            brightness=_safe_optional_int(raw.get("brightness")),
-            color_temp=_safe_optional_int(raw.get("color_temp")),
-            rgb_color=parsed_rgb,
-            transition=_safe_optional_int(raw.get("transition")),
+            entity_id=raw.get("entity_id"),
+            configured_entities=tuple(raw_entities)
+            if isinstance(raw_entities, list | tuple)
+            else (),
         )
 
 
@@ -562,14 +571,21 @@ class EntityTargetConfig(BaseConfig):
 
 @dataclass(frozen=True)
 class ResetActionConfig(ActionConfig):
-    """Reset coordinator state."""
+    """Reset coordinator state.
+
+    `scope` picks what turns off: the area, or only `configured_entities`.
+    """
 
     entity_targets: tuple[EntityTargetConfig, ...] = ()
+    scope: str = ResetScope.AREA
+    configured_entities: tuple[str, ...] = ()
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any] | None) -> ResetActionConfig:
         if not raw:
             raw = {}
+        raw_scope = raw.get("scope")
+        raw_entities = raw.get("configured_entities")
         return cls(
             **ActionConfig._base_kwargs(raw),
             entity_targets=tuple(
@@ -577,17 +593,34 @@ class ResetActionConfig(ActionConfig):
                 for t in raw.get("entity_targets") or ()
                 if isinstance(t, dict)
             ),
+            scope=raw_scope if raw_scope in tuple(ResetScope) else ResetScope.AREA,
+            configured_entities=tuple(raw_entities)
+            if isinstance(raw_entities, list | tuple)
+            else (),
         )
+
+
+@dataclass(frozen=True)
+class ActivityReleaseConfig(ActionConfig):
+    """Release action handing the area over to another activity."""
+
+    activity: str | None = None
+
+    @classmethod
+    def from_dict(cls, raw: dict[str, Any] | None) -> ActivityReleaseConfig:
+        if not raw:
+            raw = {}
+        return cls(**ActionConfig._base_kwargs(raw), activity=raw.get("activity"))
 
 
 _ACTION_CONFIG_TYPES: dict[str, type[ActionConfig]] = {
     ActionType.SLOT: SlotActionConfig,
     ActionType.ENTITY: EntityActionConfig,
-    ActionType.LIGHT: LightActionConfig,
     ActionType.BLOCK: BlockActionConfig,
     ActionType.TURN_OFF: TurnOffActionConfig,
     ActionType.SIMULATION: SimulationActionConfig,
     ActionType.RESET: ResetActionConfig,
+    ReleaseActionType.ACTIVITY: ActivityReleaseConfig,
 }
 
 
@@ -784,7 +817,6 @@ class AreaConfig(BaseConfig):
     area_id: str | None
     name: str | None
     enabled: bool
-    manual_only: bool
     sensors: tuple[SensorConfig, ...]
     channels: dict[str, ChannelConfig]
     inputs: tuple[InputConfig, ...]
@@ -925,7 +957,6 @@ class AreaConfig(BaseConfig):
             area_id=raw.get("area_id"),
             name=raw.get("name"),
             enabled=_safe_bool(raw.get("enabled"), True),
-            manual_only=_safe_bool(raw.get("manual_only"), False),
             lux_threshold=_safe_optional_float(raw.get("lux_threshold")),
             lux_watch_window=_safe_optional_int(raw.get("lux_watch_window")),
             transition_on_seconds=_safe_optional_int(raw.get("transition_on_seconds")),

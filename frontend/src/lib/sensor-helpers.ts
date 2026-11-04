@@ -13,11 +13,11 @@ export function getSensorDisplayName(sensor: SensorConfig, hass?: HomeAssistant 
     const names = entityIds.map(ent => hass.states[ent]?.attributes?.friendly_name ?? ent)
     let friendlyName = names.join(', ')
     if (friendlyName.length > 35 && names.length > 1) {
-      friendlyName = `${names[0]} + ${names.length - 1} more`
+      friendlyName = t(hass.locale?.language, 'common.more_items', { first: names[0], count: names.length - 1 })
     }
     return friendlyName
   }
-  if (sensor.type === 'illuminance') return 'Illuminance Sensor'
+  if (sensor.type === 'illuminance') return t(hass?.locale?.language, 'sensors_dialog.type_illuminance')
   return sensor.id
 }
 

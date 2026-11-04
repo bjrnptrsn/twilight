@@ -6,12 +6,13 @@ import { isDarkMode } from '../lib/theme-utils'
 import { renderLightAttrCell } from '../lib/light-cells'
 import { cardDotStyles } from '../lib/shared-styles'
 import { TwilightLocalizeMixin } from '../lib/i18n'
-import './area-lights-dialog'
 
 interface TableRow {
   entity_id: string
   name: string
   actual_on: boolean | null
+  dynamic: boolean
+  fading: boolean
   on: AttrEntry | null
   brightness: AttrEntry | null
   color: AttrEntry | null
@@ -23,8 +24,7 @@ export class TwilightAreaLightsCard extends TwilightLocalizeMixin(LitElement) {
   @property({ type: String }) activeSceneName = 'No Scene Active'
   @property({ type: Boolean }) noHeader = false
   @property({ attribute: false }) runState: RunState | null = null
-  @property({ type: Array }) entities: (LabEntity & { isExtracted?: boolean; isManual?: boolean })[] = []
-  @property({ type: Boolean }) manualOnly = false
+  @property({ type: Array }) entities: (LabEntity & { isExtracted?: boolean; isControlled?: boolean })[] = []
 
   @state() private _isDark = false
 
@@ -186,9 +186,6 @@ export class TwilightAreaLightsCard extends TwilightLocalizeMixin(LitElement) {
       .lights-table-name {
         font-size: 11px;
       }
-      .lights-table-id {
-        font-size: 9px;
-      }
       .mismatch-badge {
         font-size: 8px;
         padding: 1px 4px;
@@ -201,18 +198,8 @@ export class TwilightAreaLightsCard extends TwilightLocalizeMixin(LitElement) {
       min-width: 0;
     }
     .lights-table-name {
-      font-weight: 600;
-      font-size: 12px;
+      font-size: 13px;
       color: var(--primary-text-color);
-      text-overflow: ellipsis;
-      overflow: hidden;
-      white-space: nowrap;
-    }
-    .lights-table-id {
-      font-size: 10px;
-      font-weight: 200;
-      color: var(--secondary-text-color);
-      font-family: monospace;
       text-overflow: ellipsis;
       overflow: hidden;
       white-space: nowrap;
@@ -250,6 +237,30 @@ export class TwilightAreaLightsCard extends TwilightLocalizeMixin(LitElement) {
       color: #b25e00;
     }
 
+    .dynamic-badge {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 4px;
+      white-space: nowrap;
+      display: inline-block;
+      flex-shrink: 0;
+      background: color-mix(in srgb, #ab47bc 30%, transparent);
+      color: var(--primary-text-color);
+    }
+
+    .fading-badge {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 4px;
+      white-space: nowrap;
+      display: inline-block;
+      flex-shrink: 0;
+      background: color-mix(in srgb, var(--primary-color, #03a9f4) 30%, transparent);
+      color: var(--primary-text-color);
+    }
+
     .manual-off-badge {
       font-size: 9px;
       font-weight: 700;
@@ -284,75 +295,56 @@ export class TwilightAreaLightsCard extends TwilightLocalizeMixin(LitElement) {
     }
   `]
 
-  private _toggleManualOnly(e: CustomEvent) {
-    this.manualOnly = e.detail.manualOnly
-    this.dispatchEvent(new CustomEvent('mode-changed', {
-      detail: { manualOnly: this.manualOnly },
-      bubbles: true,
-      composed: true
-    }))
-  }
-
-  private _onLightsChanged(e: CustomEvent) {
-    this.entities = e.detail.entities
-    this.dispatchEvent(new CustomEvent('lights-changed', {
-      detail: { entities: this.entities },
-      bubbles: true,
-      composed: true
-    }))
-  }
-
   render() {
     const lightStates = this.runState?.light_states ?? {}
     const badge = this._isDark ? 'dark' : 'light'
     const manualOff = new Set(this.runState?.manual_off_entities ?? [])
 
-    // Separate entities list into extracted & manual for rendering
+    // Separate entities list into scene lights & turn-off entities for rendering
     // Fallback: If no engine running (no runState.light_states), build table items directly from entities list
     const hasLiveState = Object.keys(lightStates).length > 0
 
     let sceneRows: TableRow[] = []
-    let manualRows: TableRow[] = []
+    let controlledRows: TableRow[] = []
 
     if (hasLiveState) {
       // Group the active engine entities
       Object.keys(lightStates).forEach(entityId => {
         const stateEntry = lightStates[entityId]
         const matchingEntity = this.entities.find(e => e.entity_id === entityId)
-        const isExtracted = matchingEntity ? !!matchingEntity.isExtracted : true // assume scene if not found
-        const isManual = matchingEntity ? !!matchingEntity.isManual : false
 
         const rowItem = {
           entity_id: entityId,
           name: stateEntry.name || matchingEntity?.name || entityId,
           actual_on: stateEntry.actual_on,
+          dynamic: stateEntry.dynamic,
+          fading: stateEntry.fading,
           on: stateEntry.on,
           brightness: stateEntry.brightness,
           color: stateEntry.color
         }
 
-        if (isExtracted) {
-          sceneRows.push(rowItem)
-        } else if (isManual) {
-          manualRows.push(rowItem)
+        if (stateEntry.source === 'controlled') {
+          controlledRows.push(rowItem)
         } else {
-          // If neither flag matches explicitly, default to scene
           sceneRows.push(rowItem)
         }
       })
     } else {
       // Fallback Draft Mode: map configured frontend entities
       this.entities.forEach(e => {
-        const isManual = !!e.isManual
+        const isControlled = !!e.isControlled
         const isExtracted = !!e.isExtracted
 
-        // Skip non-checked entities if they're not extracted (we only want scene or manual list)
-        if (!isManual && !isExtracted) return
+        // Skip entities on neither list
+        if (!isControlled && !isExtracted) return
 
         const rowItem = {
           entity_id: e.entity_id,
           name: e.name || e.entity_id,
           actual_on: null,
+          dynamic: false,
+          fading: false,
           on: null,
           brightness: null,
           color: null
@@ -361,12 +353,12 @@ export class TwilightAreaLightsCard extends TwilightLocalizeMixin(LitElement) {
         if (isExtracted) {
           sceneRows.push(rowItem)
         } else {
-          manualRows.push(rowItem)
+          controlledRows.push(rowItem)
         }
       })
     }
 
-    const totalRows = sceneRows.length + manualRows.length
+    const totalRows = sceneRows.length + controlledRows.length
 
     return html`
       <div class="devices-card">
@@ -378,7 +370,7 @@ export class TwilightAreaLightsCard extends TwilightLocalizeMixin(LitElement) {
               <span class="active-scene-label">${this.t('area_lights_card.active_scene')}</span>
               <span class="active-scene-value">${this.activeSceneName}</span>
             </div>
-            <button class="edit-btn" @click=${() => { this.dispatchEvent(new CustomEvent('open-edit', { bubbles: true, composed: true })) }} title=${this.t('area_lights_card.configure_lights')}>⋮</button>
+            <button class="edit-btn" @click=${() => { this.dispatchEvent(new CustomEvent('open-edit', { bubbles: true, composed: true })) }} title=${this.t('area_lights_card.show_extracted_lights')}>⋮</button>
           </div>
         ` : ''}
 
@@ -403,11 +395,11 @@ export class TwilightAreaLightsCard extends TwilightLocalizeMixin(LitElement) {
                       ${sceneRows.map(row => this._renderTableRow(row, badge, manualOff))}
                     ` : ''}
 
-                    ${manualRows.length > 0 ? html`
+                    ${controlledRows.length > 0 ? html`
                       <tr class="section-row">
-                        <td colspan="4">${this.t('area_lights_card.additional_entities_manual')}</td>
+                        <td colspan="4">${this.t('area_lights_card.turn_off_entities')}</td>
                       </tr>
-                      ${manualRows.map(row => this._renderTableRow(row, badge, manualOff))}
+                      ${controlledRows.map(row => this._renderTableRow(row, badge, manualOff))}
                     ` : ''}
                   </tbody>
                 </table>
@@ -423,19 +415,23 @@ export class TwilightAreaLightsCard extends TwilightLocalizeMixin(LitElement) {
       ? 'var(--success-color, #4caf50)'
       : 'color-mix(in srgb, var(--primary-text-color) 15%, transparent)'
 
+    // The name already falls back to the entity id, so the id is only shown on hover.
+    const nameTitle = row.name === row.entity_id ? row.entity_id : `${row.name}\n${row.entity_id}`
+
     return html`
       <tr>
-        <td>
+        <td style="vertical-align: top;">
           <div style="display: flex; align-items: center; gap: 8px;">
             <div class="entity-indicator"
               style="background:${dotColor}; margin:0; --dot-glow:${row.actual_on ? 'rgba(76,175,80,0.5)' : 'transparent'}"
               title="${row.entity_id}"></div>
             <div class="lights-table-entity">
               <div style="display: flex; align-items: center; gap: 6px;">
-                <span class="lights-table-name" title="${row.name}">${row.name}</span>
+                <span class="lights-table-name" title="${nameTitle}">${row.name}</span>
                 ${manualOff.has(row.entity_id) ? html`<span class="manual-off-badge ${badge}">${this.t('area_lights_card.manual_off')}</span>` : ''}
+                ${row.dynamic ? html`<span class="dynamic-badge">${this.t('area_lights_dialog.dynamic')}</span>` : ''}
+                ${row.fading ? html`<span class="fading-badge">${this.t('area_lights_card.fading')}</span>` : ''}
               </div>
-              <span class="lights-table-id" title="${row.entity_id}">${row.entity_id}</span>
             </div>
           </div>
         </td>

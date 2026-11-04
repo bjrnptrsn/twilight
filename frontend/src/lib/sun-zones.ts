@@ -83,7 +83,8 @@ export function buildSlots(d: DayData): Slot[] {
       isCustom: false,
       startType: 'astral',
       startEvent: z.startEvent,
-      startOffset: 0
+      startOffset: 0,
+      not_before: null
     }))
 }
 

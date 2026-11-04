@@ -2,6 +2,7 @@ import { LitElement, html, css } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import { type ChannelConfig, type HomeAssistant } from '../lib/types'
 import { sortChannelIds } from '../lib/channel-helpers'
+import { channelDisplayName, slotDisplayName } from '../lib/utils'
 import { TwilightLocalizeMixin } from '../lib/i18n'
 
 interface TreeNode {
@@ -24,13 +25,14 @@ export class TwilightSlotActionTree extends TwilightLocalizeMixin(LitElement) {
   @state() private _expandedNodes: Record<string, boolean> = {}
 
   private get _nodes(): TreeNode[] {
+    const lang = this.hass?.locale?.language
     const channelIds = sortChannelIds(this.channels)
     return channelIds.map(channelId => ({
       id: channelId,
-      label: this.channels[channelId]?.name || channelId,
+      label: channelDisplayName(channelId, this.channels[channelId]?.name, lang),
       children: (this.channels[channelId]?.slots ?? []).map(slot => ({
         id: slot.id,
-        label: slot.name || slot.id,
+        label: slotDisplayName(slot, lang),
       })),
     }))
   }

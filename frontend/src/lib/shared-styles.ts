@@ -175,6 +175,21 @@ export const detailFooterStyles = css`
 `
 
 export const dialogChromeStyles = css`
+  .turn-off-list-btn {
+    align-self: flex-start;
+    white-space: nowrap;
+    background: color-mix(in srgb, var(--primary-text-color) 4%, transparent);
+    border: 1px solid var(--divider-color, color-mix(in srgb, var(--primary-text-color) 15%, transparent));
+    border-radius: 4px;
+    color: var(--primary-text-color);
+    padding: 6px 10px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .turn-off-list-btn:hover {
+    border-color: var(--accent-color, #e91e8c);
+  }
   .overlay {
     position: fixed;
     inset: 0;

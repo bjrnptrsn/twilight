@@ -11,7 +11,7 @@ import {
   drawSun, drawMoon, drawHalfHalf,
   type DayData, type SunDayResult, type ColEv,
 } from '../lib/sun-zones'
-import { setupCanvasCtx, slotSpanMinutes, localDateString, haLocalMinutesOfDay } from '../lib/utils'
+import { channelDisplayName, setupCanvasCtx, slotSpanMinutes, localDateString, haLocalMinutesOfDay } from '../lib/utils'
 import { cardDotStyles } from '../lib/shared-styles'
 import { StaleGuard } from '../lib/stale-guard'
 import { TwilightLocalizeMixin } from '../lib/i18n'
@@ -51,6 +51,8 @@ const CHANNEL_LABEL_LEFT_MARGIN = 2
 // then the plot); padRight = CARD_CONTENT_PAD.
 const CARD_CONTENT_PAD = 20
 
+// A touch that travels further than this is a scrub, not a tap.
+const TAP_MOVE_TOLERANCE_PX = 10
 const USE_CLAMPED_LINES = true // If true, reference lines represent clamped slot times. If false, natural solar times.
 
 @customElement('twilight-sun-path-card')
@@ -91,6 +93,7 @@ export class SunPathCard extends TwilightLocalizeMixin(LitElement) {
   // because `this.days` stays permanently empty.
   private _loadedForDate: string | null = null
   @state() private _w = 0
+  private _tapStart: { x: number; y: number } | null = null
 
   // Cached stripe geometry from the last _draw(), used to resolve the channel
   // under the pointer from its Y position (each stripe is totalPlotH / N tall).
@@ -376,7 +379,7 @@ export class SunPathCard extends TwilightLocalizeMixin(LitElement) {
     const prevDay = selIdx > 0 ? days[selIdx - 1] : null
 
     const primarySlots = this.channelSlotsMap?.[PRIMARY_CHANNEL_ID] ?? (this.slots?.length ? this.slots : null)
-    if (primarySlots && primarySlots.length > 0) {
+    if (this.clamped && primarySlots && primarySlots.length > 0) {
       const norm = (m: number) => ((m % 1440) + 1440) % 1440
       const sorted = [...primarySlots].sort((a, b) => norm(a.from) - norm(b.from))
       const evs: ColEv[] = sorted.map(s => ({ t: norm(s.from), c: s.color }))
@@ -699,7 +702,7 @@ export class SunPathCard extends TwilightLocalizeMixin(LitElement) {
 
     stripeChannelIds.forEach((channelId, i) => {
       const isEnabled = this.channels?.[channelId]?.enabled !== false
-      const name = (this.channels?.[channelId]?.name || channelId).toUpperCase()
+      const name = channelDisplayName(channelId, this.channels?.[channelId]?.name, this.hass?.locale?.language).toUpperCase()
       const stripeTop = plotT + i * stripeH
 
       const maxLines = Math.max(1, Math.floor((stripeH - 8) / lineH))
@@ -796,10 +799,14 @@ export class SunPathCard extends TwilightLocalizeMixin(LitElement) {
   }
 
   private _onCanvasClick(e: MouseEvent) {
+    this._selectSlotAt(e.clientX, e.clientY, e.currentTarget as HTMLElement)
+  }
+
+  private _selectSlotAt(clientX: number, clientY: number, canvas: HTMLElement) {
     if (!this._w) return
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    const mins = this._timeAtX(e.clientX, rect.left)
-    const channelId = this._channelAtY(e.clientY, rect.top)
+    const rect = canvas.getBoundingClientRect()
+    const mins = this._timeAtX(clientX, rect.left)
+    const channelId = this._channelAtY(clientY, rect.top)
     const slot = this._getSlotAtTimeIn(this._slotsForChannel(channelId), mins)
     if (slot) {
       this.dispatchEvent(new CustomEvent('slot-selected', {
@@ -832,11 +839,21 @@ export class SunPathCard extends TwilightLocalizeMixin(LitElement) {
     this._draw()
   }
 
+  private _onTouchStart(e: TouchEvent) {
+    const touch = e.touches[0]
+    this._tapStart = { x: touch.clientX, y: touch.clientY }
+    this._onTouchMove(e)
+  }
+
   private _onTouchMove(e: TouchEvent) {
     if (!this._w) return
     // Keep the page from scrolling while scrubbing the chart on touch devices.
+    // This also suppresses the click a tap would produce, see _onTouchEnd().
     e.preventDefault()
     const touch = e.touches[0]
+    if (this._tapStart && Math.hypot(touch.clientX - this._tapStart.x, touch.clientY - this._tapStart.y) > TAP_MOVE_TOLERANCE_PX) {
+      this._tapStart = null
+    }
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
     this.hoverTime = this._timeAtX(touch.clientX, rect.left)
     const channelId = this._channelAtY(touch.clientY, rect.top)
@@ -848,7 +865,10 @@ export class SunPathCard extends TwilightLocalizeMixin(LitElement) {
     this._draw()
   }
 
-  private _onTouchEnd() {
+  private _onTouchEnd(e: TouchEvent) {
+    const touch = e.changedTouches[0]
+    if (this._tapStart && touch) this._selectSlotAt(touch.clientX, touch.clientY, e.currentTarget as HTMLElement)
+    this._tapStart = null
     this.hoverTime = null
     this.dispatchEvent(new CustomEvent('time-hover-changed', {
       detail: { hoverTime: null, scrubbing: false },
@@ -931,7 +951,7 @@ export class SunPathCard extends TwilightLocalizeMixin(LitElement) {
               @click=${this._onCanvasClick}
               @mousemove=${this._onMouseMove}
               @mouseleave=${this._onMouseLeave}
-              @touchstart=${this._onTouchMove}
+              @touchstart=${this._onTouchStart}
               @touchmove=${this._onTouchMove}
               @touchend=${this._onTouchEnd}
             ></canvas>`}

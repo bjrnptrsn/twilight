@@ -10,8 +10,8 @@ import '../components/timetable-card'
 import '../components/slot-editor'
 import '../components/backup-restore-dialog'
 import { type Slot, type SlotConfig, type ChannelConfig, type SensorConfig, type ActivityConfig, type RuleConfig, type CalculatedSlotTime, PRIMARY_CHANNEL_ID, STANDARD_ZONE_IDS, STANDARD_NAMES } from '../lib/types'
-import { slotToZone, convertCalculatedTimesToSlots, zoneColor } from '../lib/utils'
-import { slugifyChannelId } from '../lib/channel-helpers'
+import { slotDisplayName, slotToZone, convertCalculatedTimesToSlots, zoneColor } from '../lib/utils'
+import { newChannelId } from '../lib/channel-helpers'
 import { DraftController } from '../lib/draft-controller'
 import { DialogController } from '../lib/dialog-controller'
 import { hostResetStyles, viewHeaderStyles, detailFooterStyles } from '../lib/shared-styles'
@@ -44,12 +44,15 @@ export class SettingsView extends TwilightLocalizeMixin(LitElement) {
   private _draftController = new DraftController<GlobalConfig>(this, {
     onSave: async (value) => {
       if (!this.hass) return
-      await api.globalSave(this.hass, value)
+      // The backend normalizes the config on save (e.g. stable slot ids) — use
+      // its response as the new source of truth, as the area draft does.
+      const saved = await api.globalSave(this.hass, value)
       this.dispatchEvent(new CustomEvent('global-changed', {
-        detail: value,
+        detail: saved,
         bubbles: true,
         composed: true
       }))
+      return saved
     }
   })
 
@@ -385,8 +388,7 @@ export class SettingsView extends TwilightLocalizeMixin(LitElement) {
     if (!draft) return
     const name = e.detail.name.trim()
     if (!name) return
-    const id = slugifyChannelId(name)
-    if (!id) return
+    const id = newChannelId(name)
 
     const customChannels = { ...(draft.area_template?.custom_channels || {}) }
     if (customChannels[id]) {
@@ -467,9 +469,7 @@ export class SettingsView extends TwilightLocalizeMixin(LitElement) {
     const existing = customChannels[channelId]
     if (!existing) return
 
-    const existingSlots = existing.slots || []
     const newSlots: SlotConfig[] = e.detail.slots.map(s => {
-      const orig = existingSlots.find(ds => ds.id === s.id)
       const isFixed = s.startType === 'fixed'
       return {
         id: s.id,
@@ -479,9 +479,10 @@ export class SettingsView extends TwilightLocalizeMixin(LitElement) {
         fixed_time: isFixed ? (s.fixedStartTime || '00:00') : null,
         offset_minutes: s.startOffset || 0,
         scene_entity_id: s.scene,
-        configured_entities: orig?.configured_entities || [],
-        hue_activate_dynamic: s.hue_activate_dynamic || false,
+        configured_entities: s.configured_entities ?? [],
+        hue_activate_dynamic: s.hue_activate_dynamic ?? 'hue',
         hue_dynamic_speed: s.hue_dynamic_speed ?? null,
+        not_before: isFixed ? null : (s.not_before || null),
       }
     })
 
@@ -505,11 +506,16 @@ export class SettingsView extends TwilightLocalizeMixin(LitElement) {
       const override: Partial<SlotConfig> = {}
       if (slot.startOffset) override.offset_minutes = slot.startOffset
       if (slot.scene) override.scene_entity_id = slot.scene
-      if (slot.hue_activate_dynamic) override.hue_activate_dynamic = slot.hue_activate_dynamic
-      if (slot.hue_dynamic_speed != null) override.hue_dynamic_speed = slot.hue_dynamic_speed
       if (slot.configured_entities && slot.configured_entities.length > 0) override.configured_entities = slot.configured_entities
+      if (slot.not_before) override.not_before = slot.not_before
+      // Mirrors the backend's sparse store: only Twilight's own fields decide
+      // whether a slot is stored; a stored slot always states the Hue fields.
       if (Object.keys(override).length > 0) {
-        primarySlots[zoneId] = override
+        primarySlots[zoneId] = {
+          ...override,
+          hue_activate_dynamic: slot.hue_activate_dynamic ?? 'hue',
+          hue_dynamic_speed: slot.hue_dynamic_speed ?? null,
+        }
       }
     }
     this._draftController.update(d => {
@@ -545,7 +551,7 @@ export class SettingsView extends TwilightLocalizeMixin(LitElement) {
       const override = primaryOverrides[zoneId] || {}
       return {
         id: zoneId,
-        label: STANDARD_NAMES[zoneId] || zoneId,
+        label: slotDisplayName({ id: zoneId }, this.hass?.locale?.language),
         color: zoneColor(zoneId),
         from: 0,
         to: 0,
@@ -557,10 +563,12 @@ export class SettingsView extends TwilightLocalizeMixin(LitElement) {
         // Reconstructed from the sparse overrides like the fields above —
         // _onTemplatePrimarySlotsChanged rebuilds primary_slots wholesale on
         // save, so any override field missing here would silently drop out of
-        // the template on the next save (configured_entities, dynamic-Hue).
+        // the template on the next save (configured_entities, dynamic-Hue,
+        // not_before).
         configured_entities: override.configured_entities ?? [],
-        hue_activate_dynamic: override.hue_activate_dynamic ?? false,
+        hue_activate_dynamic: override.hue_activate_dynamic ?? 'hue',
         hue_dynamic_speed: override.hue_dynamic_speed ?? null,
+        not_before: override.not_before || null,
       }
     })
   }
@@ -577,7 +585,7 @@ export class SettingsView extends TwilightLocalizeMixin(LitElement) {
     const slots: Slot[] = isPrimarySelected
       ? this._primaryDisplaySlots()
       : (this._calculatedSlotTimes.length > 0
-        ? convertCalculatedTimesToSlots(this._calculatedSlotTimes, rawSlots).map(s => ({ ...s, color: '#8e44ad', isCustom: true }))
+        ? convertCalculatedTimesToSlots(this._calculatedSlotTimes, rawSlots, this.hass?.locale?.language).map(s => ({ ...s, color: '#8e44ad', isCustom: true }))
         : rawSlots.map((s: SlotConfig) => {
           const isFixed = s.start_type === 'fixed'
           return {
@@ -591,7 +599,13 @@ export class SettingsView extends TwilightLocalizeMixin(LitElement) {
             startType: isFixed ? ('fixed' as const) : ('astral' as const),
             startEvent: isFixed ? undefined : (s.zone || 'civil_dawn'),
             fixedStartTime: isFixed ? (s.fixed_time || '12:00') : undefined,
-            startOffset: s.offset_minutes || 0
+            startOffset: s.offset_minutes || 0,
+            // Carried like in convertCalculatedTimesToSlots(): saving from this
+            // fallback rebuilds the slots from these fields.
+            configured_entities: s.configured_entities ?? [],
+            hue_activate_dynamic: s.hue_activate_dynamic ?? 'hue',
+            hue_dynamic_speed: s.hue_dynamic_speed ?? null,
+            not_before: isFixed ? null : (s.not_before || null),
           }
         }))
 

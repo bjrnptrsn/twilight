@@ -4,7 +4,7 @@ import { type DayData, type SunDayResult } from '../lib/sun-zones'
 import { type RunState, type HomeAssistant, type Area, type AreaConfig, type GlobalConfig, type PlaceholderDefaults, type AreaSlotTimesResult, PRIMARY_CHANNEL_ID } from '../lib/types'
 import * as api from '../lib/api'
 import './area-detail-view'
-import { convertCalculatedTimesToSlots, generateGradient, haLocalDateString, isSlotActiveAt } from '../lib/utils'
+import { channelDisplayName, convertCalculatedTimesToSlots, generateGradient, haLocalDateString, isSlotActiveAt } from '../lib/utils'
 import { hostResetStyles, viewHeaderStyles } from '../lib/shared-styles'
 import { getChannels, getChannelIds, getChannelSlots } from '../lib/channel-helpers'
 import { LiveClockController } from '../lib/live-clock-controller'
@@ -670,11 +670,12 @@ export class AreasView extends TwilightLocalizeMixin(LitElement) {
 
     const activeAct = runState.active_activity
     if (activeAct) {
-      const label = activeAct.charAt(0).toUpperCase() + activeAct.slice(1)
+      const actObj = (cfg.activities || []).find(a => a.id === activeAct)
+      const label = actObj?.name || (activeAct.charAt(0).toUpperCase() + activeAct.slice(1))
       return {
         label,
         color: '#9c27b0',
-        sub: this.t('areas_view.engine_activity_sub', { activity: activeAct })
+        sub: this.t('areas_view.engine_activity_sub', { activity: label })
       }
     }
 
@@ -727,6 +728,7 @@ export class AreasView extends TwilightLocalizeMixin(LitElement) {
     const todayData = this._todayData
     this._clock.setHass(this.hass)
     const liveMins = this._clock.liveMins
+    const lang = this.hass?.locale?.language
 
     const todayStr = haLocalDateString(this.hass)
     const slotTimes = this._areaSlotTimesMap[cfg.area_id]
@@ -736,12 +738,12 @@ export class AreasView extends TwilightLocalizeMixin(LitElement) {
       const ch = getChannels(cfg)[chId]
       const datesObj = slotTimes?.channels?.[chId]
       const calcList = datesObj?.[todayStr] || (datesObj ? Object.values(datesObj)[0] : []) || []
-      const chSlots = convertCalculatedTimesToSlots(calcList, getChannelSlots(cfg, chId))
+      const chSlots = convertCalculatedTimesToSlots(calcList, getChannelSlots(cfg, chId), lang, todayData)
       const gradient = generateGradient(chSlots)
       const isChannelEnabled = cfg.enabled && (ch?.enabled !== false)
       rows.push({
         id: chId,
-        name: ch?.name || (chId === PRIMARY_CHANNEL_ID ? this.t('common.primary_channel') : chId),
+        name: channelDisplayName(chId, ch?.name, lang),
         slots: chSlots,
         gradient,
         enabled: isChannelEnabled
@@ -749,7 +751,7 @@ export class AreasView extends TwilightLocalizeMixin(LitElement) {
     }
 
     const primaryCalcList = slotTimes?.channels?.[PRIMARY_CHANNEL_ID]?.[todayStr] || []
-    const primarySlots = convertCalculatedTimesToSlots(primaryCalcList, getChannelSlots(cfg, PRIMARY_CHANNEL_ID))
+    const primarySlots = convertCalculatedTimesToSlots(primaryCalcList, getChannelSlots(cfg, PRIMARY_CHANNEL_ID), lang, todayData)
     const activeSlot = resolveOverviewActiveSlot(primarySlots, runState, liveMins)
 
     const slotLabel = cfg.enabled ? (activeSlot?.label ?? this.t('common.none')) : this.t('areas_view.engine_disabled')
@@ -775,7 +777,7 @@ export class AreasView extends TwilightLocalizeMixin(LitElement) {
         const sceneName = activeSceneNames[chId]
         if (sceneName) {
           const ch = getChannels(cfg)[chId]
-          const chLabel = ch?.name || (chId === PRIMARY_CHANNEL_ID ? this.t('common.primary_channel') : chId)
+          const chLabel = channelDisplayName(chId, ch?.name, lang)
           activeSceneItems.push({
             channelName: chLabel,
             sceneName: sceneName

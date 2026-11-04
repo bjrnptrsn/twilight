@@ -1,6 +1,6 @@
 import { html, css } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
-import { type ActivityConfig, type InputConfig, ActivitiesChangedEvent, type HomeAssistant, type PlaceholderDefaults, type ChannelConfig } from '../lib/types'
+import { type ActivityConfig, type LabEntity, type InputConfig, ActivitiesChangedEvent, type HomeAssistant, type PlaceholderDefaults, type ChannelConfig } from '../lib/types'
 import { activityBadgeStyles, dialogChromeStyles } from '../lib/shared-styles'
 import { DialogDraftController } from '../lib/dialog-draft-controller'
 import { DialogController } from '../lib/dialog-controller'
@@ -25,6 +25,9 @@ export class TwilightActivitiesDialog extends PortalDialog {
   @property({ type: Boolean }) templateMode = false
   @property({ attribute: false }) channels: Record<string, ChannelConfig> = {}
   @property({ attribute: false }) heatmapProfiles: { id: string; name: string }[] = []
+  @property({ attribute: false }) entities: LabEntity[] = []
+  @property({ type: String }) areaId = ''
+  @property({ type: String }) areaName = ''
 
   @state() private _subEditOpen = false
   @state() private _subEditingIndex: number | null = null // null = Add, number = Edit index
@@ -439,7 +442,7 @@ export class TwilightActivitiesDialog extends PortalDialog {
                           ${formatActionCell(act.action, this.hass?.locale?.language)}
                         </td>
                         <td style="color: var(--primary-text-color);">
-                          ${isReset ? '—' : formatReleaseCell(act.release_action, this.hass?.locale?.language)}
+                          ${isReset ? '—' : formatReleaseCell(act.release_action, this.hass?.locale?.language, this._draftController.draft ?? [])}
                         </td>
                         <td style="color: var(--primary-text-color);">
                           ${act.suppress_inputs?.length
@@ -495,11 +498,15 @@ export class TwilightActivitiesDialog extends PortalDialog {
         .existingIds=${(this._draftController.draft ?? []).map(a => a.id)}
         .allActivities=${this._draftController.draft ?? []}
         .heatmapProfiles=${this.heatmapProfiles}
+        .entities=${this.entities}
+        .areaId=${this.areaId}
+        .areaName=${this.areaName}
         @save=${this._onSubEditSave}
         @cancel=${this._onSubEditCancel}
       ></twilight-activity-row-editor>
 
       <twilight-alert-dialog
+        .hass=${this.hass}
         .open=${this._dialog.alertOpen}
         .dialogTitle=${this._dialog.alertTitle}
         .message=${this._dialog.alertMessage}
