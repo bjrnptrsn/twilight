@@ -3,7 +3,7 @@ import { customElement, property } from 'lit/decorators.js'
 import type { HomeAssistant } from '../lib/types'
 import { TwilightLocalizeMixin, type TranslationKey } from '../lib/i18n'
 
-export type TabId = 'areas' | 'analytics' | 'timeline' | 'settings' | 'lab' | 'lab-two'
+export type TabId = 'areas' | 'analytics' | 'timeline' | 'settings'
 
 export interface TabConfig {
   id: TabId
@@ -11,8 +11,7 @@ export interface TabConfig {
 }
 
 // Literal keys, not a `nav.${id}` template: a key built at runtime is
-// invisible to a search for unused translation keys. The dev-only lab tabs
-// have no translation and show their English label.
+// invisible to a search for unused translation keys.
 const NAV_LABEL_KEYS: Partial<Record<TabId, TranslationKey>> = {
   areas: 'nav.areas',
   analytics: 'nav.analytics',

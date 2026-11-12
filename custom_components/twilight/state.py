@@ -8,6 +8,8 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime
 from typing import Any, Literal
 
+from homeassistant.util import dt as dt_util
+
 from .const import SceneType
 
 _LOGGER = logging.getLogger(__name__)
@@ -21,6 +23,45 @@ class ActivityTrigger:
     input_type: str | None
     entity_id: str | None
     triggered_at: datetime
+
+    def to_dict(self) -> dict[str, Any]:
+        """The trigger as stored in the area's `_state`."""
+        return {
+            "input_id": self.input_id,
+            "input_type": self.input_type,
+            "entity_id": self.entity_id,
+            "triggered_at": self.triggered_at.isoformat(),
+        }
+
+    @classmethod
+    def from_dict(cls, raw: object) -> ActivityTrigger | None:
+        """A stored trigger, or None if it is missing or unreadable."""
+        if not isinstance(raw, dict):
+            return None
+        triggered_raw = raw.get("triggered_at")
+        triggered_at = (
+            dt_util.parse_datetime(triggered_raw)
+            if isinstance(triggered_raw, str)
+            else None
+        )
+        if triggered_at is None:
+            return None
+
+        def text(key: str) -> str | None:
+            value = raw.get(key)
+            return value if isinstance(value, str) else None
+
+        return cls(text("input_id"), text("input_type"), text("entity_id"), triggered_at)
+
+
+@dataclass(frozen=True)
+class RestoredScene:
+    """The scene state an activity had when HA stopped, read back at boot."""
+
+    activity: str
+    activated_at: datetime
+    manual_off_entities: frozenset[str]
+    manual_off_channels: frozenset[str]
 
 
 @dataclass(frozen=True)

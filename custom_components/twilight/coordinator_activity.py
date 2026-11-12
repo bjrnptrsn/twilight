@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import logging
 from collections.abc import Callable
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Literal
 
-from homeassistant.core import callback
+from homeassistant.const import STATE_ON
+from homeassistant.core import State, callback
 from homeassistant.helpers.event import async_call_later
 from homeassistant.util import dt as dt_util
 
@@ -19,11 +21,13 @@ from .action_handler import (
     PresenceSimulationActionHandler,
     SlotActionHandler,
     TurnOffActionHandler,
+    apply_release_over_channels,
     entity_turn_off_list,
 )
 from .config_model import (
     ActionConfig,
     ActivityConfig,
+    EntityActionConfig,
     ResetActionConfig,
     SimulationActionConfig,
     SlotActionConfig,
@@ -39,9 +43,11 @@ from .const import (
 )
 from .helpers import (
     area_light_entities,
+    channel_entities,
     coerce_action,
     create_tracked_task,
     dispatch_entity_target,
+    entities_all_off,
     parse_hms,
     release_handover_target,
 )
@@ -51,6 +57,31 @@ if TYPE_CHECKING:
     from .coordinator import Coordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+
+# Action fields a rebuild does not re-dispatch for: a slot action's excluded
+# slots go through the per-channel exclusion delta, "Respect Off" and an entity
+# action's turn-off list are read live where they are used. Re-dispatching would
+# override manual dimming on every lit channel or run a script a second time.
+_NOT_REDISPATCHED: dict[type[ActionConfig], dict[str, Any]] = {
+    SlotActionConfig: {"excluded_slots": None, "respect_manual_off": False},
+    EntityActionConfig: {"configured_entities": ()},
+}
+
+
+def _is_on(ha_state: State | None) -> bool:
+    """True if HA reports the entity on; unavailable and unknown are not."""
+    return ha_state is not None and ha_state.state == STATE_ON
+
+
+def _needs_redispatch(old: ActionConfig | None, new: ActionConfig | None) -> bool:
+    """Whether a rebuild must start the running activity's action again."""
+    if old is None or new is None or type(old) is not type(new):
+        return old != new
+    ignored = _NOT_REDISPATCHED.get(type(old))
+    if ignored is None:
+        return old != new
+    return dataclasses.replace(old, **ignored) != dataclasses.replace(new, **ignored)
 
 
 class ActivityCoordinator:
@@ -77,7 +108,20 @@ class ActivityCoordinator:
 
     @property
     def pauses_slots(self) -> bool:
-        """True if current active handler pauses slot fades/changes."""
+        """True if the active activity pauses slot fades/changes.
+
+        Read from the active activity's configured action, not from
+        ``_active_handler``. During an engine rebuild the handler is restored
+        after ``TwilightManager.async_setup()``, so an ``_active_handler``-based
+        check would let a slot change through behind a pausing activity.
+        """
+        active_activity = self.coordinator.run_state.active_activity
+        if active_activity:
+            activity = self.coordinator.engine.config.activity_by_id(active_activity)
+            if activity is not None:
+                handler = self._action_handlers.get(coerce_action(activity.action).type or "")
+                if handler is not None:
+                    return handler.pauses_slots
         return bool(self._active_handler and self._active_handler.pauses_slots)
 
     def is_respect_manual_off_active(self) -> bool:
@@ -129,6 +173,18 @@ class ActivityCoordinator:
             name,
             input_id,
         )
+
+        if self.coordinator.engine.config.activity_by_id(name) is None:
+            # A removed activity can still be referenced by an input or a
+            # hand-edited store. Treating it as a real request would displace
+            # the running activity with a state that has no action and no
+            # owning configuration.
+            _LOGGER.warning(
+                "[%s] Ignoring request for unknown activity '%s'",
+                self.coordinator.engine.area_id,
+                name,
+            )
+            return
 
         if input_id:
             disablers = self.coordinator.run_state.inputs_disabled_by.get(input_id, [])
@@ -293,7 +349,14 @@ class ActivityCoordinator:
             activity_expire_source=source if not is_frozen else None,
         )
 
-        self._apply_action(action, name)
+        # A restored activity has not sent anything in this HA run yet
+        # (scene_activated_at None): its first re-trigger starts it.
+        self._apply_action(
+            action,
+            name,
+            reapply=is_same_activity
+            and self.coordinator.run_state.scene_activated_at is not None,
+        )
 
         if is_frozen:
             self._cancel_auto_expire_timer()
@@ -639,9 +702,18 @@ class ActivityCoordinator:
         )
 
     def _apply_action(
-        self, action: dict[str, Any] | ActionConfig | None, name: str | None = None
+        self,
+        action: dict[str, Any] | ActionConfig | None,
+        name: str | None = None,
+        *,
+        reapply: bool = False,
     ) -> None:
-        """Apply the configured start action for the activity via ActionHandlers."""
+        """Apply the configured start action for the activity via ActionHandlers.
+
+        ``reapply`` is captured by ``activity_requested()`` before it writes the
+        new active_activity. It tells an Entity-Action to correct its already
+        running action instead of starting a second time.
+        """
         action = coerce_action(action)
 
         old_handler = self._active_handler
@@ -700,11 +772,14 @@ class ActivityCoordinator:
             # wait, e.g. a Recorder-backed cancel()/start() crossing a fixed-slot
             # boundary. Starting with a stale snapshot would apply the superseded slot
             # and leave it applied until the next transition.
-            await new_handler.start(
-                action,
-                self.coordinator.run_state.active_slots,
-                transition_off=transition_off,
-            )
+            if isinstance(new_handler, EntityActionHandler) and reapply:
+                new_handler.reapply(action)
+            else:
+                await new_handler.start(
+                    action,
+                    self.coordinator.run_state.active_slots,
+                    transition_off=transition_off,
+                )
 
         self._pending_handler_start = self.coordinator._create_task(_cancel_then_start())
 
@@ -756,6 +831,18 @@ class ActivityCoordinator:
             self._pending_handler_start = self.coordinator._create_task(
                 _stop_after_pending()
             )
+        elif (
+            name is not None
+            and self.resolve_action(name).type in self._action_handlers
+        ):
+            # The handler is only missing because the release ran during engine
+            # setup, before Coordinator.async_setup() restored it. Apply the part
+            # of stop() that does not need a handler. An activity without a start
+            # action keeps its documented no-op release.
+            self.coordinator.cancel_all_handlers()
+            apply_release_over_channels(
+                self.coordinator, release, transition_off, extra_entities
+            )
 
     def _release_turn_off_list(self, name: str | None) -> tuple[str, ...]:
         """The turn-off list of an activity's entity action or simulation template."""
@@ -786,6 +873,134 @@ class ActivityCoordinator:
         """Resolve the release action for an activity."""
         cfg = self.get_activity_config(name)
         return coerce_action(cfg.release_action if cfg else None)
+
+    def validate_active_activity(self) -> None:
+        """Drop a persisted active activity that no longer exists in the config.
+
+        Called before the components are set up: a removed activity must not
+        keep its state, timer or slot control alive in the replacement engine.
+        """
+        name = self.coordinator.run_state.active_activity
+        if not name:
+            return
+        if self.coordinator.engine.config.activity_by_id(name) is not None:
+            return
+
+        _LOGGER.warning(
+            "[%s] Active activity '%s' no longer exists — clearing its state",
+            self.coordinator.engine.area_id,
+            name,
+        )
+        self._cancel_auto_expire_timer()
+        self._active_handler = None
+        self.coordinator.update_state(
+            active_activity=None,
+            activity_trigger=None,
+            activity_expires_at=None,
+            activity_expire_frozen_seconds=None,
+            activity_expire_source=None,
+            scene_activated_at=None,
+            manual_off_entities=frozenset(),
+            manual_off_channels=frozenset(),
+        )
+
+    def reconcile_active_activity(self, old_activity: ActivityConfig | None) -> bool:
+        """Apply config changes to an activity that keeps running across a rebuild.
+
+        ``old_activity`` is the activity as the replaced engine knew it. A
+        changed start action is re-dispatched; a changed auto-expire duration
+        restarts the restored timer with the new duration. Returns whether the
+        action was re-dispatched — its start already reads the new config.
+        """
+        name = self.coordinator.run_state.active_activity
+        if not name:
+            return False
+        new_activity = self.coordinator.engine.config.activity_by_id(name)
+        if new_activity is None:
+            return False
+
+        action_changed = old_activity is None or _needs_redispatch(
+            old_activity.action, new_activity.action
+        )
+        timer_changed = (
+            old_activity is None
+            or old_activity.auto_expire_enabled != new_activity.auto_expire_enabled
+            or old_activity.auto_expire != new_activity.auto_expire
+        )
+
+        if action_changed:
+            action = coerce_action(new_activity.action)
+            if action.type == ActionType.RESET:
+                # Reset has no handler; its special branch belongs to
+                # activity_requested().
+                self.activity_requested(name)
+                return True
+            self._apply_action(action, name)
+
+        if timer_changed:
+            self._reconcile_auto_expire_timer(name)
+        return action_changed
+
+    def _reconcile_auto_expire_timer(self, name: str) -> None:
+        """Restart the auto-expire timer with the activity's new duration."""
+        if self.coordinator.run_state.activity_expire_frozen_seconds is not None:
+            # A rule controls the timer; the new duration applies when it resumes.
+            return
+
+        expire_secs = self.get_effective_expire_seconds(name)
+        native_secs = self.get_activity_auto_expire_seconds(name)
+        source: Literal["activity", "rule"] | None = (
+            "activity" if native_secs is not None else ("rule" if expire_secs is not None else None)
+        )
+        if expire_secs is None:
+            self._cancel_auto_expire_timer()
+            self.coordinator.update_state(
+                activity_expires_at=None, activity_expire_source=None
+            )
+            return
+
+        self.coordinator.update_state(
+            activity_expires_at=dt_util.utcnow()
+            + timedelta(seconds=expire_secs),
+            activity_expire_source=source,
+        )
+        self.start_auto_expire_timer(name, expire_secs)
+
+    def restore_scene_state(self) -> None:
+        """Give the activity restored at boot back the scene it had running.
+
+        Runs last in the coordinator setup: after the boot paths that end the
+        activity or let an input start another one, and after the slot catch-up,
+        which must still see a boot. A manual-off marker comes back only where
+        the lamp or channel is still off; the input handler clears markers on
+        state changes only, so one switched on meanwhile would stay marked.
+        """
+        restored = self.coordinator.engine.restored_scene
+        self.coordinator.engine.restored_scene = None
+        run_state = self.coordinator.run_state
+        if (
+            restored is None
+            or run_state.active_activity != restored.activity
+            or run_state.scene_activated_at is not None
+        ):
+            return
+        hass = self.coordinator.engine.hass
+        scene_map = self.coordinator.engine.scene_map
+        entities = frozenset(
+            entity_id
+            for entity_id in restored.manual_off_entities
+            if not _is_on(hass.states.get(entity_id))
+        )
+        channels = frozenset(
+            channel_id
+            for channel_id in restored.manual_off_channels
+            if entities_all_off(hass, channel_entities(scene_map, channel_id))
+        )
+        self.coordinator.update_state(
+            scene_activated_at=restored.activated_at,
+            manual_off_entities=entities,
+            manual_off_channels=channels,
+        )
 
     def restore_active_handler(self, name: str) -> None:
         """Restore _active_handler after a restart based on the activity's resolved action."""

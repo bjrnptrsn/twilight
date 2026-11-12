@@ -721,10 +721,10 @@ export class TwilightSlotEditor extends PortalDialog {
                           // Keep the already-configured scene visible even if it is
                           // unknown to the backend list (e.g. a stale entity_id).
                           if (currentSceneIds.has(e.entity_id)) return true
-                          // No classification available: only scene entities the backend
-                          // never listed reach this branch — hide them rather than risk
-                          // showing an unfiltered Smart Scene.
-                          if (!entry) return e.entity_id?.startsWith('script.') ?? false
+                          // Without backend classification (e.g. the area-template
+                          // editor has no area entities yet), keep scenes visible.
+                          // In normal mode an unclassified scene is hidden.
+                          if (!entry) return !useFilter || (e.entity_id?.startsWith('script.') ?? false)
                           return useFilter ? areaScenes.has(e.entity_id) : true
                         }}
                         allow-custom-entity

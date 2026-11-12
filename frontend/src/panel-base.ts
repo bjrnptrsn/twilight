@@ -77,7 +77,7 @@ export class TwilightPanelBase extends TwilightLocalizeMixin(LitElement) {
   render() {
     return html`
       <style>
-        twilight-panel, twilight-dev-panel {
+        twilight-panel {
           display: flex;
           flex-direction: column;
           height: 100vh;
@@ -92,7 +92,7 @@ export class TwilightPanelBase extends TwilightLocalizeMixin(LitElement) {
           --tp-border: var(--divider-color, rgba(255,255,255,0.1));
         }
 
-        twilight-panel *, twilight-dev-panel * { box-sizing: border-box; }
+        twilight-panel * { box-sizing: border-box; }
 
         .tp-header {
           background: var(--secondary-background-color);
@@ -191,7 +191,7 @@ export class TwilightPanelBase extends TwilightLocalizeMixin(LitElement) {
           <div class="tp-title">
             <img class="tp-title-icon" src="/twilight/logo.png" alt="Twilight">
             <span>Twilight</span>
-            ${this.panel?.url_path === 'twilight_dev' ? html`<span class="tp-badge tp-badge-dev">dev</span>` : html`<span class="tp-badge tp-badge-version">${__TWILIGHT_VERSION__}</span>`}
+            <span class="tp-badge tp-badge-version">${__TWILIGHT_VERSION__}</span>
           </div>`}
           <div class="tp-tabs">
             <twilight-tab-bar
@@ -260,24 +260,6 @@ export class TwilightPanelBase extends TwilightLocalizeMixin(LitElement) {
           .hass=${this.hass}
           @global-changed=${this._onGlobalChanged}
         ></twilight-settings-view>
-      ` : ''}
-      ${active === 'lab' && this._isTabAvailable('lab') ? html`
-        <twilight-lab-view
-          id="tabpanel-lab"
-          role="tabpanel"
-          aria-labelledby="tab-lab"
-          class="view-container active"
-          .hass=${this.hass}
-        ></twilight-lab-view>
-      ` : ''}
-      ${active === 'lab-two' && this._isTabAvailable('lab-two') ? html`
-        <twilight-lab-two-view
-          id="tabpanel-lab-two"
-          role="tabpanel"
-          aria-labelledby="tab-lab-two"
-          class="view-container active"
-          .hass=${this.hass}
-        ></twilight-lab-two-view>
       ` : ''}
     `
   }

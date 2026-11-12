@@ -17,6 +17,7 @@ from .call_handler import (
 from .config_model import (
     ActionConfig,
     ActivityConfig,
+    AreaConfig,
 )
 from .coordinator_activity import ActivityCoordinator
 from .coordinator_slot import SlotCoordinator
@@ -103,6 +104,10 @@ class Coordinator:
             or old_state.active_activity != new_state.active_activity
             or old_state.activity_expire_frozen_seconds != new_state.activity_expire_frozen_seconds
             or old_state.activity_expire_source != new_state.activity_expire_source
+            or old_state.activity_trigger != new_state.activity_trigger
+            or old_state.scene_activated_at != new_state.scene_activated_at
+            or old_state.manual_off_entities != new_state.manual_off_entities
+            or old_state.manual_off_channels != new_state.manual_off_channels
         ):
             store = get_store(self.engine.hass)
             if not store:
@@ -121,6 +126,14 @@ class Coordinator:
                     new_state.activity_expire_frozen_seconds
                 ),
                 "activity_expire_source": new_state.activity_expire_source,
+                "activity_trigger": new_state.activity_trigger.to_dict()
+                if new_state.activity_trigger
+                else None,
+                "scene_activated_at": new_state.scene_activated_at.isoformat()
+                if new_state.scene_activated_at
+                else None,
+                "manual_off_entities": sorted(new_state.manual_off_entities),
+                "manual_off_channels": sorted(new_state.manual_off_channels),
                 "last_seen": datetime.now(UTC).timestamp(),
             }
             store.save_area_state(self.engine.area_id, state_dict)
@@ -193,6 +206,36 @@ class Coordinator:
         """Update auto_expire timer state based on active rules for current activity."""
         self.activity.update_rule_auto_expire_timer()
 
+    def validate_active_activity(self) -> None:
+        """Clear a persisted active activity that no longer exists in the config."""
+        self.activity.validate_active_activity()
+
+    def reconcile_after_rebuild(
+        self, old_config: AreaConfig, old_run_state: RunState
+    ) -> None:
+        """Apply what a save changed for the running state, once setup is complete.
+
+        Order: activity, then replaced slot scenes, then rules. The slot step
+        already checks exclusions against the new rules, and the rule step skips
+        the channels it handled so no channel gets a second start.
+        """
+        if self.run_state.active_activity != old_run_state.active_activity:
+            # A binary edge during setup started or ended an activity; its
+            # start already used the new config.
+            return
+
+        active_activity = self.run_state.active_activity
+        action_changed = self.activity.reconcile_active_activity(
+            old_config.activity_by_id(active_activity) if active_activity else None
+        )
+        handled_channels = self.slot.reconcile_after_rebuild(old_config, old_run_state)
+        self.rule_manager.reconcile_active_rules(
+            old_config,
+            old_run_state,
+            action_changed=action_changed,
+            skip_channels=handled_channels,
+        )
+
     def get_activity_config(self, name: str) -> ActivityConfig | None:
         """Get the typed config for an activity, or None if not configured."""
         return self.activity.get_activity_config(name)
@@ -215,6 +258,18 @@ class Coordinator:
     def slot_scenes_replaced(self, channel_ids: set[str]) -> None:
         """Apply the active slot of channels whose scene a save replaced."""
         self.slot.slot_scenes_replaced(channel_ids)
+
+    def apply_exclusion_delta(
+        self,
+        changed_channels: dict[str, str],
+        new_excluded: dict[str, tuple[str, ...]],
+        transition_off: int | None,
+        skip_channels: set[str],
+    ) -> None:
+        """Bring channels whose running slot changed its exclusion status into line."""
+        self.slot.apply_exclusion_delta(
+            changed_channels, new_excluded, transition_off, skip_channels
+        )
 
     async def async_start_slot_fade(
         self, channel_id: str, target_slot_id: str, target_slot_start: datetime
@@ -358,9 +413,16 @@ class Coordinator:
             )
             self.activity.restore_active_handler(self.run_state.active_activity)
 
+        if self.engine.inherited_inputs_active is None:
+            # Boot: initialize_inputs() only wrote the rule states. Their timer
+            # effect needs the restored timer and the motion handler. A
+            # reconfigure applies it in reconcile_after_rebuild() instead.
+            self.activity.update_rule_auto_expire_timer()
+
         self.update_state(
             motion_active=motion_active,
         )
+        self.activity.restore_scene_state()
 
     async def async_teardown(self) -> None:
         """Tear down the coordinator and clean up all sub-coordinators & tasks."""

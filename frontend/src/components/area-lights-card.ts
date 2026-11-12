@@ -1,7 +1,8 @@
 import { LitElement, html, css, type PropertyValues } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import type { HomeAssistant } from '../lib/types'
-import { type RunState, type LabEntity, type AttrEntry } from '../lib/types'
+import { type RunState, type LabEntity, type AttrEntry, type ChannelConfig } from '../lib/types'
+import { channelDisplayName } from '../lib/utils'
 import { isDarkMode } from '../lib/theme-utils'
 import { renderLightAttrCell } from '../lib/light-cells'
 import { cardDotStyles } from '../lib/shared-styles'
@@ -25,6 +26,7 @@ export class TwilightAreaLightsCard extends TwilightLocalizeMixin(LitElement) {
   @property({ type: Boolean }) noHeader = false
   @property({ attribute: false }) runState: RunState | null = null
   @property({ type: Array }) entities: (LabEntity & { isExtracted?: boolean; isControlled?: boolean })[] = []
+  @property({ attribute: false }) channels: Record<string, ChannelConfig> = {}
 
   @state() private _isDark = false
 
@@ -293,7 +295,69 @@ export class TwilightAreaLightsCard extends TwilightLocalizeMixin(LitElement) {
       background: color-mix(in srgb, var(--primary-text-color, #fff) 8%, transparent);
       margin: 8px 0;
     }
+
+    .collision-hint {
+      margin: 0 20px 12px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      white-space: normal;
+      background: rgba(255, 152, 0, 0.08);
+      border: 1px solid rgba(255, 152, 0, 0.3);
+      color: #b25e00;
+    }
+    .collision-hint.dark {
+      background: rgba(255, 152, 0, 0.22);
+      border: 1px solid rgba(255, 152, 0, 0.7);
+      color: var(--warning-color, #ff9800);
+    }
+    @media (prefers-color-scheme: dark) {
+      .collision-hint:not(.light) {
+        background: rgba(255, 152, 0, 0.22);
+        border: 1px solid rgba(255, 152, 0, 0.7);
+        color: var(--warning-color, #ff9800);
+      }
+    }
+    .collision-hint-title {
+      font-weight: 700;
+    }
+    .collision-hint ul {
+      margin: 4px 0 0;
+      padding-left: 18px;
+    }
   `]
+
+  /** Lamps several channels steer — across all slots, so also lamps the
+   *  table (active slots only) does not show. */
+  private _renderCollisions(badge: string) {
+    const collisions = this.runState?.channel_collisions ?? {}
+    const lang = this.hass?.locale?.language
+    const lines = Object.entries(collisions)
+      .map(([entityId, channelIds]) => ({
+        entityId,
+        name: this._entityName(entityId),
+        channels: channelIds
+          .map(id => channelDisplayName(id, this.channels[id]?.name, lang))
+          .join(', '),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, lang))
+    if (lines.length === 0) return ''
+    return html`
+      <div class="collision-hint ${badge}" role="note">
+        <div class="collision-hint-title">${this.t('area_lights_card.channel_collision_title')}</div>
+        <ul>
+          ${lines.map(l => html`<li title=${l.entityId}>${l.name} — ${l.channels}</li>`)}
+        </ul>
+      </div>
+    `
+  }
+
+  private _entityName(entityId: string): string {
+    return this.runState?.light_states?.[entityId]?.name
+      || this.entities.find(e => e.entity_id === entityId)?.name
+      || this.hass?.states[entityId]?.attributes?.friendly_name
+      || entityId
+  }
 
   render() {
     const lightStates = this.runState?.light_states ?? {}
@@ -373,6 +437,8 @@ export class TwilightAreaLightsCard extends TwilightLocalizeMixin(LitElement) {
             <button class="edit-btn" @click=${() => { this.dispatchEvent(new CustomEvent('open-edit', { bubbles: true, composed: true })) }} title=${this.t('area_lights_card.show_extracted_lights')}>⋮</button>
           </div>
         ` : ''}
+
+        ${this._renderCollisions(badge)}
 
         <div class="table-container">
           ${totalRows === 0

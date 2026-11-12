@@ -87,7 +87,9 @@ class BaseInputHandler:
         does not fit this shape (Binary's ordered initial sync, Timer's
         time-change scheduling) override ``async_setup`` directly.
         """
-        entities = self._tracked_entities()
+        # Several inputs can share an entity (one per event type); HA would
+        # run the callback once per listing, handling each change twice.
+        entities = list(dict.fromkeys(self._tracked_entities()))
         if not entities:
             _LOGGER.debug(
                 "[%s] %s: nothing configured",
@@ -271,9 +273,11 @@ class BinaryInputHandler(BaseInputHandler):
     async def async_setup(self) -> None:
         """Set up binary sensor listeners."""
         binary_inputs = self.engine.config.inputs_of_type(InputType.BINARY)
-        binary_entities = [
-            ent for inp in binary_inputs for ent in inp.entity_ids if ent
-        ]
+        binary_entities = list(
+            dict.fromkeys(
+                ent for inp in binary_inputs for ent in inp.entity_ids if ent
+            )
+        )
 
         if not binary_entities:
             _LOGGER.debug(
@@ -296,6 +300,8 @@ class BinaryInputHandler(BaseInputHandler):
                 else:
                     self.entity_active[ent] = False
 
+        previous_inputs_active = self.engine.inherited_inputs_active
+
         for inp in binary_inputs:
             if not inp.entity_ids or not inp.activity:
                 continue
@@ -317,6 +323,29 @@ class BinaryInputHandler(BaseInputHandler):
                     inp.id,
                 )
                 continue
+
+            # During a config rebuild, only a real level change may request or
+            # release: an unchanged on input must not re-apply the activity
+            # (manual dimming), and an unchanged off input must not cut a
+            # restored auto-expire timer short. A cold start has no previous
+            # level and keeps the existing state-snapshot behaviour.
+            if previous_inputs_active is not None:
+                if inp.id not in previous_inputs_active:
+                    _LOGGER.debug(
+                        "[%s] Initial sync for new binary input %s does not "
+                        "trigger an activity",
+                        self.engine.area_id,
+                        inp.id,
+                    )
+                    continue
+                if previous_inputs_active[inp.id] == active:
+                    _LOGGER.debug(
+                        "[%s] Initial sync for binary input %s unchanged (%s)",
+                        self.engine.area_id,
+                        inp.id,
+                        active,
+                    )
+                    continue
 
             if active:
                 trigger_entity = next(
@@ -1027,11 +1056,11 @@ class ButtonInputHandler(BaseInputHandler):
     async def async_setup(self) -> None:
         pass
 
-    def _resolve_button_activity(self, input_id: str, kind: str) -> str | None:
-        """Shared guard for trigger/toggle: return the activity, or None to skip.
+    def _resolve_button_input(self, input_id: str, kind: str) -> InputConfig | None:
+        """Shared guard for trigger/toggle: return the input, or None to skip.
 
-        Returns None (and logs) when the input is disabled or has no activity
-        configured. `kind` ("trigger"/"toggle") only labels the debug log.
+        Returns None (and logs) when the input is disabled or targets neither an
+        activity nor a rule. `kind` ("trigger"/"toggle") only labels the debug log.
         """
         if self._is_disabled(input_id):
             _LOGGER.debug(
@@ -1043,41 +1072,55 @@ class ButtonInputHandler(BaseInputHandler):
             return None
 
         inp = self.engine.config.input_by_id(input_id)
-        activity = inp.activity if inp else None
-        if not activity:
+        if inp is None or (not inp.activity and not inp.rule):
             _LOGGER.warning(
-                "[%s] Button %s has no activity configured",
+                "[%s] Button %s has no activity or rule configured",
                 self.engine.area_id,
                 input_id,
             )
             return None
-        return activity
+        return inp
 
     def trigger(self, input_id: str) -> None:
         """Fire a click-mode button — activity_requested, no state change."""
-        activity = self._resolve_button_activity(input_id, "trigger")
-        if not activity:
+        inp = self._resolve_button_input(input_id, "trigger")
+        if inp is None:
+            return
+        if not inp.activity:
+            _LOGGER.warning(
+                "[%s] Button trigger %s targets a rule; use toggle mode",
+                self.engine.area_id,
+                input_id,
+            )
             return
 
         self.engine.coordinator.activity_requested(
-            name=activity,
+            name=inp.activity,
             input_id=input_id,
             input_type="button",
         )
 
     def toggle(self, input_id: str, active: bool) -> None:
-        """Set toggle-mode button state — activity_requested or activity_released."""
-        activity = self._resolve_button_activity(input_id, "toggle")
-        if not activity:
+        """Set toggle-mode button state — activity_requested or activity_released.
+
+        The state is written even when the input targets a Rule instead of an
+        activity: RuleManager derives active rules from inputs_active, so a
+        rule-targeting toggle has no activity to request or release.
+        """
+        inp = self._resolve_button_input(input_id, "toggle")
+        if inp is None:
             return
 
         self.engine.coordinator.update_input_active(input_id, active)
 
+        if not inp.activity:
+            return
+
         if active:
             self.engine.coordinator.activity_requested(
-                name=activity,
+                name=inp.activity,
                 input_id=input_id,
                 input_type="button",
             )
         else:
-            self.engine.coordinator.activity_released(activity)
+            self.engine.coordinator.activity_released(inp.activity)

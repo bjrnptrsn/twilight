@@ -155,7 +155,7 @@ Twilight bemerkt Änderungen über einen Wandschalter, eine App oder einen Sprac
 
 - Der aktuelle Slot wird neu berechnet und passt damit immer zur Tageszeit. Der Start spielt keine Scene ab.
 - Eine laufende Activity kommt mit ihrer Restzeit zurück. Ist ihr Timer abgelaufen, während Home Assistant aus war, endet sie sofort, und ihre Freigabeaktion läuft, **Ausschalten** macht die Lichter also aus.
-- Eingeschaltete Lichter bleiben, wie sie sind. Slot-Wechsel wirken erst wieder auf sie, wenn etwas die Activity neu ausgelöst hat.
+- Eingeschaltete Lichter bleiben, wie sie sind, und folgen dem nächsten Slot-Wechsel. Lichter, die schon vor dem Neustart von Hand ausgeschaltet waren, bleiben aus, wenn **Manuelles Aus respektieren** an ist.
 - Eine laufende Anwesenheitssimulation setzt sich von selbst fort und schaltet Lichter wie gewohnt.
 
 Was Twilight gerade tut und warum, zeigen der [Live-Monitor und die anderen Karten](LIESMICH.md#die-area-ansicht-lesen). Für die Entscheidungen hinter einem einzelnen Ereignis schalte das [Debug-Logging](LIESMICH.md#debug-logging) ein.

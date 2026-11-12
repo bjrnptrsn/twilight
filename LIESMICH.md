@@ -195,6 +195,10 @@ Jeder Custom-Slot startet entweder zu einem **Sonnenereignis** (beliebige
 astronomische Zone, mit Offset) oder zu einer **festen Uhrzeit** (`HH:MM`) und
 hat eine eigene Scene-/Script-Zuweisung.
 
+Jedes Licht sollte nur zu einem Channel gehören: Steuern mehrere Channels
+dasselbe Licht, konkurrieren ihre Befehle, und **Leuchten & Geräte** nennt
+dieses Licht mit seinen Channels.
+
 | Channel-Typ | Slots | Anwendungsfall |
 |--------------|-------|----------|
 | **Primary** | 10 fixe astronomische Zonen | Haupt-Innenbeleuchtung — folgt der Sonne |
@@ -248,7 +252,8 @@ Die Spalte erscheint nur bei Scenes, deren Lichter wirklich eine dynamische
 Palette abspielen können. In einem gemischten Raum behalten Lichter, die keine
 Farben rotieren können, ihre feste Scene-Farbe, während die anderen die Palette
 abspielen. Rotierende Lichter werden nicht als Abweichung gemeldet, weil sich
-ihre Farbe absichtlich ändert.
+ihre Farbe absichtlich ändert; die anderen werden wie in einer statischen Scene
+geprüft und korrigiert.
 
 ### Welche Lichter Twilight steuert
 
@@ -269,6 +274,7 @@ denselben Button. Diese Liste schaltet nie etwas ein.
 - **Befehle werden geprüft.** Twilight sendet einen Befehl erneut an Lichter, die ihr Ziel nicht erreicht haben, und schickt Befehle ohne Überblendung mehrfach, weil manche Lichter sie verpassen, ohne dass Home Assistant es merkt.
 - **Änderungen von außen** — ein Wandschalter, eine App, ein Sprachassistent — werden nicht rückgängig gemacht. Ein gedimmtes Licht erscheint als Abweichung und folgt beim nächsten Slot-Wechsel oder Auslöser wieder Twilight; ein ausgeschaltetes Licht bleibt bis zum nächsten Auslöser aus. Schaltest du alle Lichter eines Channels aus, holt der nächste Slot mit Licht sie zurück, außer **Manuelles Aus respektieren** ist an. Details stehen in [So funktioniert Twilight](SO_FUNKTIONIERT_ES.md#wenn-jemand-ein-licht-direkt-schaltet).
 - **Wenn du eine Scene änderst,** in der Hue-App oder in Home Assistant, übernimmt Twilight das von selbst. Lichter einer laufenden Scene folgen sofort; sind alle aus, bleiben sie aus.
+- **Wenn du im Panel speicherst,** wirkt eine Änderung an dem, was gerade läuft, sofort — eine neue Scene für den aktuellen Slot, eine andere Aktion, ein geänderter Timer oder eine geänderte Regel. Die betroffenen Lichter gehen zurück auf ihr Ziel, auch ein von Hand gedimmtes; ein Speichern, das nichts Laufendes ändert, lässt die Lichter in Ruhe.
 
 ---
 
@@ -380,7 +386,7 @@ Bewegungsdichte-Wahrscheinlichkeit über den Tagesverlauf aus:
   Zeitraum von 1 Woche bis 6 Monaten und die Auflösung).
 - **Lux-Modus**: legt fest, wann simuliertes Licht angehen darf —
   Nur Dämmerung (Standard), Lux-Schwellenwert oder Immer.
-- **Vorlagen-Aktivität**: jede Activity, die Lichter steuert (Slot oder Szene / Skript) und an ihrem Ende nicht zu einer anderen wechselt.
+- **Vorlagen-Aktivität**: jede Activity, die Lichter steuert (Slot oder Szene / Skript) und an ihrem Ende nicht zu einer anderen wechselt. Wird sie gelöscht oder so geändert, dass sie nicht mehr passt, markiert die Karte **Aktivitäten** die Simulation, die dann nichts tut.
 - **Simulationsintensität**: steuert, wie oft simulierte Auslöser feuern, von sehr dezent bis
   sehr aktiv, relativ zur gemessenen Bewegungsdichte.
 
@@ -520,7 +526,7 @@ Heatmap-Profilen**) sowie eine Live-Status-Karte, die die aktuell aktive Activit
 
 - **Live-Monitor** — der aktive Slot pro Channel mit Scene und Uhrzeiten sowie der Engine-Zustand: welche Activity läuft, welcher Input sie ausgelöst hat und wann sie endet.
 - **Slot-Zeitplan** — alle Slots eines Channels in ihrer festen Reihenfolge, der aktive ist hervorgehoben.
-- **Leuchten & Geräte** — Status, Helligkeit und Farbe jedes Lichts. Weicht ein Licht von den Vorgaben des Slots ab, erscheint der Zielwert als Badge unter dem Wert. **Dynamisch** markiert ein Licht, dessen Farben gerade rotieren, und **Manuell aus** ein Licht, das von Hand ausgeschaltet wurde; es zeigt keinen Zielwert, weil das Badge schon sagt, warum es aus ist. **Überblenden** markiert ein Licht, das gerade zum nächsten Slot überblendet; Zwischenwerte können bis zum Ende der Überblendung als Abweichung erscheinen.
+- **Leuchten & Geräte** — Status, Helligkeit und Farbe jedes Lichts. Weicht ein Licht von den Vorgaben des Slots ab, erscheint der Zielwert als Badge unter dem Wert. **Dynamisch** markiert ein Licht, dessen Farben gerade rotieren, und **Manuell aus** ein Licht, das von Hand ausgeschaltet wurde; es zeigt keinen Zielwert, weil das Badge schon sagt, warum es aus ist. **Überblenden** markiert ein Licht, das gerade zum nächsten Slot überblendet; Zwischenwerte können bis zum Ende der Überblendung als Abweichung erscheinen. Ein Licht, das mehrere Channels steuern, steht mit seinen Channels über der Tabelle.
 - **Auslöser & Eingänge** — jeder Input und die Activity, die er anfordert. Ein Input, der gerade nicht auslösen kann, ist abgedunkelt und nennt den Grund, z. B. **Deaktiviert durch Aktivität: Manual**.
 
 Entities und Scenes erscheinen mit ihrem Anzeigenamen; fährst du mit der Maus über den Namen, siehst du die Entity-ID. Ohne Anzeigenamen steht dort die Entity-ID.

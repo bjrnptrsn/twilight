@@ -12,7 +12,12 @@ from homeassistant.core import Context, HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
-from .config_model import ActionConfig, ActivityReleaseConfig, SlotActionConfig
+from .config_model import (
+    ActionConfig,
+    ActivityReleaseConfig,
+    SimulationActionConfig,
+    SlotActionConfig,
+)
 from .const import (
     CONTEXT_PREFIX,
     DEFAULT_BINARY_AGGREGATION,
@@ -23,7 +28,7 @@ from .const import (
     DEFAULT_MOTION_RETRIGGER,
     DEFAULT_TRANSITION_ON_SECONDS,
     DOMAIN,
-    DYNAMIC_SAFE_STATE_KEYS,
+    PRIMARY_CHANNEL_ID,
     ActionType,
     AggregationMode,
     HueDynamicMode,
@@ -146,14 +151,15 @@ def enforced_scene_states(
     """Expected states Twilight may check and re-drive for a slot's scene.
 
     A static slot enforces the scene's full expected states. A dynamic slot
-    leaves the lamps that rotate the palette to the Bridge, and enforces only
-    on/off and brightness on the other lamps — a color retry on any lamp of
-    the scene would end the dynamic playback.
+    leaves the lamps that rotate the palette to the Bridge — the palette sets
+    their brightness, and a colour on them ends their rotation — and enforces
+    the other lamps in full: a colour on a lamp that can't rotate leaves the
+    rotation running.
     """
     if not dynamic:
         return scene_info.expected_states
     return {
-        entity_id: {k: v for k, v in expected.items() if k in DYNAMIC_SAFE_STATE_KEYS}
+        entity_id: expected
         for entity_id, expected in scene_info.expected_states.items()
         if entity_id not in scene_info.dynamic_entities
     }
@@ -222,15 +228,25 @@ def area_light_entities(hass: HomeAssistant, area_id: str) -> list[str]:
     ]
 
 
-def detect_channel_collisions(scene_map: SceneMap) -> dict[str, list[str]]:
-    """Find entities controlled by more than one channel.
+def detect_channel_collisions(
+    scene_map: SceneMap, channel_ids: Iterable[str]
+) -> dict[str, list[str]]:
+    """Find entities controlled by more than one of the given channels.
 
     Builds, per channel, the union of its slots' extracted+configured entities
     (the already-resolved sets, so Hue scenes are covered too) and
-    returns {entity_id: [channel_id, ...]} for every entity in >1 channel.
+    returns {entity_id: [channel_id, ...]} for every entity in >1 channel,
+    the channels in the panel's order: Primary first, then as given.
+    Only the given channels count: a disabled channel still has its slots in
+    the scene_map but no call handler, so it competes with nothing.
     """
+    ordered = sorted(dict.fromkeys(channel_ids), key=lambda ch: ch != PRIMARY_CHANNEL_ID)
+    rank = {ch: i for i, ch in enumerate(ordered)}
+    counted = rank.keys()
     by_channel: dict[str, set[str]] = {}
     for (ch_id, _slot_id), info in scene_map.items():
+        if ch_id not in counted:
+            continue
         by_channel.setdefault(ch_id, set())
         by_channel[ch_id] |= set(info.extracted_entities) | set(
             info.configured_entities
@@ -241,7 +257,11 @@ def detect_channel_collisions(scene_map: SceneMap) -> dict[str, list[str]]:
         for eid in entities:
             entity_channels.setdefault(eid, set()).add(ch_id)
 
-    return {eid: sorted(chs) for eid, chs in entity_channels.items() if len(chs) > 1}
+    return {
+        eid: sorted(chs, key=rank.__getitem__)
+        for eid, chs in entity_channels.items()
+        if len(chs) > 1
+    }
 
 
 def get_store(hass: HomeAssistant) -> Any | None:
@@ -590,6 +610,19 @@ def simulation_template_eligible(config: AreaConfig, template: str | None) -> bo
     action = activity.action
     action_type = action.type if action else None
     return action_type in SIM_TEMPLATE_ELIGIBLE_TYPES and not _hands_over(activity)
+
+
+def simulation_template_issues(config: AreaConfig) -> list[str]:
+    """The IDs of the simulation activities whose template is missing or ineligible.
+
+    Such a simulation does nothing when it starts; the handler start rejects it.
+    """
+    return [
+        activity.id
+        for activity in config.activities
+        if isinstance(activity.action, SimulationActionConfig)
+        and not simulation_template_eligible(config, activity.action.template_activity)
+    ]
 
 
 def _hands_over(activity: ActivityConfig) -> bool:

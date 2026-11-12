@@ -1,6 +1,6 @@
 import { LitElement, html, css, PropertyValues } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
-import { type RuleConfig, type InputConfig, type ActivityConfig, type ChannelConfig, type RuleAutoExpireMode, type HomeAssistant } from '../lib/types'
+import { type RuleConfig, type InputConfig, type ActivityConfig, type ChannelConfig, type RuleAutoExpireMode, type HomeAssistant, type PlaceholderDefaults } from '../lib/types'
 import { activityBadgeStyles, dialogChromeStyles } from '../lib/shared-styles'
 import { getInputDisplayName } from '../lib/input-helpers'
 import {
@@ -9,6 +9,9 @@ import {
   getActivitySupportsBorrowedAutoExpire,
   getActivitySupportsInputSuppression,
   getActivityHasRuleSupport,
+  getFallbackActivityInfo,
+  isValidDurationInput,
+  normalizeDuration,
 } from '../lib/activity-helpers'
 import './slot-action-tree'
 
@@ -31,6 +34,7 @@ export class TwilightRuleRowEditor extends TwilightLocalizeMixin(LitElement) {
   @property({ attribute: false }) activitiesConfig: ActivityConfig[] = []
   @property({ attribute: false }) channels: Record<string, ChannelConfig> = {}
   @property({ attribute: false }) siblings: RuleConfig[] = []
+  @property({ attribute: false }) placeholderDefaults: PlaceholderDefaults | null = null
 
   @state() private _editDraft: RuleConfig | null = null
 
@@ -98,6 +102,9 @@ export class TwilightRuleRowEditor extends TwilightLocalizeMixin(LitElement) {
       .activity-input:focus {
         border-color: var(--tp-accent, var(--accent-color, #e91e8c));
       }
+      .activity-input.invalid {
+        border-color: var(--error-color, #db4437);
+      }
 
       .option-select {
         background: rgba(255, 255, 255, 0.03);
@@ -144,7 +151,7 @@ export class TwilightRuleRowEditor extends TwilightLocalizeMixin(LitElement) {
         const eligibleActivities = (this.activitiesConfig || []).filter(getActivityHasRuleSupport)
         const fallbackActivities = (this.activitiesConfig || []).map(a => a.id)
         const defaultAct = eligibleActivities[0]?.id || fallbackActivities[0] || 'motion'
-        if (!this._editDraft.applied_activities || this._editDraft.applied_activities.length === 0) {
+        if (!this._editDraft.id && (!this._editDraft.applied_activities || this._editDraft.applied_activities.length === 0)) {
           this._editDraft.applied_activities = [defaultAct]
         }
         if (!this._editDraft.suppressed_inputs_override) {
@@ -176,16 +183,24 @@ export class TwilightRuleRowEditor extends TwilightLocalizeMixin(LitElement) {
   private _save() {
     if (!this._editDraft) return
 
-    const eligibleActivities = (this.activitiesConfig || []).filter(getActivityHasRuleSupport)
-    const fallbackActivities = (this.activitiesConfig || []).map(a => a.id)
     const selectedActivity = (this._editDraft.applied_activities && this._editDraft.applied_activities.length > 0)
       ? this._editDraft.applied_activities[0]
-      : (eligibleActivities[0]?.id || fallbackActivities[0] || 'motion')
+      : ''
+    if (!selectedActivity) return
 
     const selectedActivityObj = (this.activitiesConfig || []).find(a => a.id === selectedActivity)
     const supportsAutoExpire = getActivitySupportsAutoExpire(selectedActivityObj)
     const supportsBorrowedAutoExpire = getActivitySupportsBorrowedAutoExpire(selectedActivityObj)
     const supportsExcludedSlots = getActivitySupportsExcludedSlots(selectedActivityObj)
+    const supportsInputSuppression = getActivitySupportsInputSuppression(selectedActivityObj)
+    if (
+      supportsBorrowedAutoExpire &&
+      this._editDraft.auto_expire_enabled === true &&
+      typeof this._editDraft.auto_expire === 'string' &&
+      !isValidDurationInput(this._editDraft.auto_expire)
+    ) {
+      return
+    }
 
     let ruleToSave: RuleConfig = {
       ...this._editDraft,
@@ -197,7 +212,23 @@ export class TwilightRuleRowEditor extends TwilightLocalizeMixin(LitElement) {
     }
 
     if (!supportsExcludedSlots) {
+      ruleToSave.excluded_slots_override = {}
       ruleToSave.respect_manual_off_override = null
+    } else if (ruleToSave.excluded_slots_override) {
+      // A retarget from one slot activity to another must not keep the old
+      // activity's override behind; the backend would see a capability
+      // mismatch and auto-disable the rule.
+      ruleToSave.excluded_slots_override = {
+        [selectedActivity]: ruleToSave.excluded_slots_override[selectedActivity] || {},
+      }
+    }
+    if (!supportsInputSuppression) {
+      ruleToSave.suppressed_inputs_override = []
+    }
+    if (supportsBorrowedAutoExpire && ruleToSave.auto_expire_enabled === true) {
+      ruleToSave.auto_expire = normalizeDuration(ruleToSave.auto_expire ?? '')
+    } else if (!ruleToSave.auto_expire_enabled) {
+      ruleToSave.auto_expire = null
     }
 
     if (supportsAutoExpire) {
@@ -234,13 +265,11 @@ export class TwilightRuleRowEditor extends TwilightLocalizeMixin(LitElement) {
 
     const draft = this._editDraft
     const isEditMode = this.editIndex !== null
-    const isSaveDisabled = !draft.name?.trim()
     
     const eligibleActivities = (this.activitiesConfig || []).filter(getActivityHasRuleSupport)
-    const fallbackActivities = (this.activitiesConfig || []).map(a => a.id)
     const selectedActivity = (draft.applied_activities && draft.applied_activities.length > 0)
       ? draft.applied_activities[0]
-      : (eligibleActivities[0]?.id || fallbackActivities[0] || 'motion')
+      : ''
 
     const selectedActivityObj = (this.activitiesConfig || []).find(a => a.id === selectedActivity)
     const supportsAutoExpire = getActivitySupportsAutoExpire(selectedActivityObj)
@@ -249,6 +278,13 @@ export class TwilightRuleRowEditor extends TwilightLocalizeMixin(LitElement) {
     // Same capability as excluded slots — part of the SlotAction (also gates
     // the "Manual Off" section below).
     const supportsExcludedSlots = getActivitySupportsExcludedSlots(selectedActivityObj)
+    const autoExpireInvalid =
+      supportsBorrowedAutoExpire &&
+      draft.auto_expire_enabled === true &&
+      typeof draft.auto_expire === 'string' &&
+      !isValidDurationInput(draft.auto_expire)
+    const isSaveDisabled = !draft.name?.trim() || !selectedActivity || autoExpireInvalid
+    const fallbackAutoExpire = getFallbackActivityInfo(this.placeholderDefaults).auto_expire
 
     const dropdownOptions = [...eligibleActivities]
     if (selectedActivityObj && !dropdownOptions.some(a => a.id === selectedActivity)) {
@@ -301,9 +337,12 @@ export class TwilightRuleRowEditor extends TwilightLocalizeMixin(LitElement) {
                 const actId = (e.target as HTMLSelectElement).value
                 this._editDraft = {
                   ...this._editDraft!,
-                  applied_activities: [actId],
+                  applied_activities: actId ? [actId] : [],
                 }
               }}>
+                ${!selectedActivity ? html`
+                  <option value="" selected disabled>— ${this.t('common.none')} —</option>
+                ` : ''}
                 ${dropdownOptions.map(act => {
                   return html`<option value="${act.id}" ?selected=${act.id === selectedActivity}>${act.name || act.id}</option>`
                 })}
@@ -373,8 +412,8 @@ export class TwilightRuleRowEditor extends TwilightLocalizeMixin(LitElement) {
                 <span class="form-label">${this.t('rule_row_editor.auto_expire_duration')}</span>
                 <input
                   type="text"
-                  class="activity-input"
-                  placeholder="00:05:00"
+                  class="activity-input ${autoExpireInvalid ? 'invalid' : ''}"
+                  placeholder=${fallbackAutoExpire}
                   ?disabled=${draft.auto_expire_enabled !== true}
                   .value=${draft.auto_expire || ''}
                   @input=${(e: Event) => {
@@ -384,6 +423,10 @@ export class TwilightRuleRowEditor extends TwilightLocalizeMixin(LitElement) {
                     }
                   }}
                 />
+                <span class="form-hint">${this.t('activity_row_editor.duration_hint', { sec: '90', ms: '5:30' })}</span>
+                ${autoExpireInvalid ? html`
+                  <span class="form-hint" style="color:var(--error-color)">${this.t('activity_row_editor.duration_error')}</span>
+                ` : ''}
               </div>
             ` : ''}
 

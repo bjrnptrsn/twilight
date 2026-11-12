@@ -16,6 +16,8 @@ import logging
 from typing import Any
 
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 
 from . import button as twilight_button
 from . import switch as twilight_switch
@@ -54,6 +56,38 @@ async def async_sync_area_entities(
     """Reconcile the button/switch entities Twilight owns for one area."""
     await twilight_button.async_sync_button_entities(hass, area_id, config)
     await twilight_switch.async_sync_switch_entities(hass, area_id, config)
+    await _async_sync_area_device(hass, area_id, config)
+
+
+async def _async_sync_area_device(
+    hass: HomeAssistant, area_id: str, config: AreaConfig
+) -> None:
+    """Keep the per-area device in step with its entities and configured name."""
+    device_registry = dr.async_get(hass)
+    device = next(
+        (
+            device_entry
+            for entry in hass.config_entries.async_entries(DOMAIN)
+            for device_entry in dr.async_entries_for_config_entry(
+                device_registry, entry.entry_id
+            )
+            if (DOMAIN, area_id) in device_entry.identifiers
+        ),
+        None,
+    )
+    if device is None:
+        return
+
+    entity_registry = er.async_get(hass)
+    if not er.async_entries_for_device(
+        entity_registry, device.id, include_disabled_entities=True
+    ):
+        device_registry.async_remove_device(device.id)
+        return
+
+    desired_name = config.name or area_id
+    if device.name != desired_name:
+        device_registry.async_update_device(device.id, name=desired_name)
 
 
 async def async_clear_area_entities(hass: HomeAssistant, area_id: str) -> None:

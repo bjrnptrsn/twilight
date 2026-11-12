@@ -37,7 +37,6 @@ from ..engine_registry import (
 )
 from ..helpers import (
     channel_entities,
-    detect_channel_collisions,
     get_activity_supports_auto_expire,
     get_activity_supports_borrowed_auto_expire,
     get_activity_supports_excluded_slots,
@@ -46,7 +45,6 @@ from ..helpers import (
     get_setup_lock,
     partition_by_domain,
     remove_area_lock,
-    simulation_template_eligible,
 )
 from ..slot_calc import normalize_not_before_str, resolve_slot_times
 from ..sun_calc import compute_sun_day_data
@@ -152,78 +150,6 @@ def _ws_area_extracted() -> websocket_api.WebSocketCommandHandler:
     return handle
 
 
-def _ws_area_validate() -> websocket_api.WebSocketCommandHandler:
-    @websocket_api.websocket_command(
-        {
-            vol.Required("type"): "twilight/area/validate",
-            vol.Required("area_id"): str,
-        }
-    )
-    @callback
-    def handle(
-        hass: HomeAssistant,
-        connection: websocket_api.ActiveConnection,
-        msg: dict[str, Any],
-    ) -> None:
-        # Simulation-template issues come from the saved config and don't need a
-        # running engine; channel collisions need the resolved scene_map.
-        store = hass.data[DOMAIN].get("store")
-        raw_area = store.get_area(msg["area_id"]) if store else None
-        sim_issues = (
-            _simulation_template_issues(AreaConfig.from_dict(raw_area))
-            if raw_area
-            else []
-        )
-
-        engine = hass.data[DOMAIN].get("engines", {}).get(msg["area_id"])
-        if not engine:
-            connection.send_result(
-                msg["id"], {"collisions": {}, "sim_template_issues": sim_issues}
-            )
-            return
-
-        # Detect entities controlled by more than one channel of a running engine.
-        # Built from the resolved scene_map (covers Hue scenes too) — a soft warning,
-        # not a hard block.
-        channels = engine.config.channels
-        collisions = detect_channel_collisions(engine.scene_map)
-        result = {
-            entity_id: {
-                "channels": channel_ids,
-                "names": [
-                    (
-                        ch_cfg.name
-                        if (ch_cfg := channels.get(ch)) and ch_cfg.name
-                        else ch
-                    )
-                    for ch in channel_ids
-                ],
-            }
-            for entity_id, channel_ids in collisions.items()
-        }
-        connection.send_result(
-            msg["id"], {"collisions": result, "sim_template_issues": sim_issues}
-        )
-
-    return handle
-
-
-def _simulation_template_issues(config: AreaConfig) -> list[dict[str, Any]]:
-    """Report simulation activities whose template_activity is missing or ineligible.
-
-    Soft validation companion to the hard handler-start guard.
-    """
-    issues: list[dict[str, Any]] = []
-    for activity in config.activities:
-        action = activity.action
-        if action is None or action.type != ActionType.SIMULATION:
-            continue
-        template = getattr(action, "template_activity", None)
-        if not simulation_template_eligible(config, template):
-            issues.append({"activity": activity.id, "template_activity": template})
-    return issues
-
-
 async def _async_turn_off_entities(
     hass: HomeAssistant, area_id: str, entities: set[str]
 ) -> None:
@@ -247,28 +173,6 @@ async def _async_turn_off_entities(
 def _channel_has_scene(channel: dict[str, Any]) -> bool:
     """True if a slot of the stored channel still has a scene or script."""
     return any(slot.get("scene_entity_id") for slot in channel.get("slots", []))
-
-
-def _channels_with_replaced_scene(
-    old_config: AreaConfig, old_active_slots: dict[str, str], engine: TwilightEngine
-) -> set[str]:
-    """Channels that stayed in their active slot, but whose scene the save replaced.
-
-    A channel that moved to another slot is left out: setup has applied it already.
-    """
-    replaced: set[str] = set()
-    for channel_id, slot_id in engine.run_state.active_slots.items():
-        if old_active_slots.get(channel_id) != slot_id:
-            continue
-        old_slot = old_config.slot(channel_id, slot_id)
-        new_slot = engine.config.slot(channel_id, slot_id)
-        if (
-            old_slot
-            and new_slot
-            and old_slot.scene_entity_id != new_slot.scene_entity_id
-        ):
-            replaced.add(channel_id)
-    return replaced
 
 
 def _disable_mismatched_rules(config: dict[str, Any]) -> list[str]:
@@ -665,10 +569,8 @@ def _ws_area_save() -> websocket_api.WebSocketCommandHandler:
                     )
                     return
                 if old_config is not None and initial_state is not None:
-                    engine.coordinator.slot_scenes_replaced(
-                        _channels_with_replaced_scene(
-                            old_config, initial_state.active_slots, engine
-                        )
+                    engine.coordinator.reconcile_after_rebuild(
+                        old_config, initial_state
                     )
             else:
                 if existing_engine:

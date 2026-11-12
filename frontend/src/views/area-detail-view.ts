@@ -4,6 +4,7 @@ import { type DayData } from '../lib/sun-zones'
 import { type Slot, type LabEntity, type SensorConfig, type RunState, type InputConfig, type ActivityConfig, type RuleConfig, type HomeAssistant, type Area, type AreaConfig, type GlobalConfig, type PlaceholderDefaults, type AreaSlotTimesResult, PRIMARY_CHANNEL_ID, type SlotConfig, type ChannelConfig } from '../lib/types'
 import * as api from '../lib/api'
 import { DraftController } from '../lib/draft-controller'
+import { withActivitiesReplaced, withInputsReplaced, withRulesReplaced } from '../lib/config-references'
 import { StaleGuard, type StaleToken } from '../lib/stale-guard'
 import '../components/status-card'
 import '../components/timetable-card'
@@ -223,6 +224,7 @@ export class AreaDetailView extends TwilightLocalizeMixin(LitElement) {
   @state() private _areaTemplateSnapshot: AreaConfig | null = null
   @state() private _resetNodes: ResetTreeNode[] = []
   @state() private _slotTimes: AreaSlotTimesResult | null = null
+  @state() private _loadError: string | null = null
 
   private _dialog = new DialogController(this)
   private _clock = new LiveClockController(this)
@@ -289,6 +291,12 @@ export class AreaDetailView extends TwilightLocalizeMixin(LitElement) {
     this._fetchExtracted(this.areaId)
   }
 
+  private _retryLoadArea() {
+    this._lastLoadedKey = ''
+    this._loadError = null
+    this._loadAreaDetails()
+  }
+
   private async _saveOrUpdateDraft() {
     if (this._draftController.saving) return
     await this._draftController.save()
@@ -331,6 +339,7 @@ export class AreaDetailView extends TwilightLocalizeMixin(LitElement) {
     // token.isCurrent() checks against a load that supersedes this one.
     const token = this._loadGuard.begin()
 
+    this._loadError = null
     this._draftController.loading = true
     this.requestUpdate()
 
@@ -394,7 +403,7 @@ export class AreaDetailView extends TwilightLocalizeMixin(LitElement) {
       }
       // Clear the previous area's entities/slot times before the awaits below —
       // if labAreaEntities fails, stale data from the old area must not stay
-      // visible (or writable, e.g. via the lights-card toggle path) under the
+      // visible (or writable, e.g. via a card's toggle path) under the
       // new area's draft.
       this._areaEntities = []
       this._extractedEntities = {}
@@ -413,11 +422,13 @@ export class AreaDetailView extends TwilightLocalizeMixin(LitElement) {
       await this._fetchSlotTimes(token)
     } catch (err) {
       console.error('Error fetching area entities', err)
+      // A superseded load must not put its error over the newer load.
+      if (!token.isCurrent()) return
+      this._loadError = (err as Error).message || String(err)
       // _lastLoadedKey is deliberately NOT reset here — a persistent backend
       // error must not re-fire the request on every hass tick (hass is a new
       // object reference on nearly every tick, so updated() would otherwise
-      // call this again immediately). Switching areas (a new key) or the
-      // footer Save button remain the retry paths.
+      // call this again immediately). The visible retry button resets it.
     } finally {
       // A superseded load must not clear the loading flag of the newer one.
       if (token.isCurrent()) {
@@ -545,23 +556,23 @@ export class AreaDetailView extends TwilightLocalizeMixin(LitElement) {
   }
 
   private async _onInputsChanged(e: CustomEvent<{ inputs: InputConfig[] }>) {
-    this._draftController.update({
-      inputs: e.detail.inputs
-    })
+    const draft = this._draftController.draft
+    if (!draft) return
+    this._draftController.update(withInputsReplaced(draft, e.detail.inputs))
     await this._saveOrUpdateDraft()
   }
 
   private async _onActivitiesChanged(e: CustomEvent<{ activities: ActivityConfig[] }>) {
-    this._draftController.update({
-      activities: e.detail.activities
-    })
+    const draft = this._draftController.draft
+    if (!draft) return
+    this._draftController.update(withActivitiesReplaced(draft, e.detail.activities))
     await this._saveOrUpdateDraft()
   }
 
   private async _onRulesChanged(e: CustomEvent<RuleConfig[]>) {
-    this._draftController.update({
-      rules: e.detail,
-    })
+    const draft = this._draftController.draft
+    if (!draft) return
+    this._draftController.update(withRulesReplaced(draft, e.detail))
     await this._saveOrUpdateDraft()
   }
 
@@ -880,7 +891,23 @@ export class AreaDetailView extends TwilightLocalizeMixin(LitElement) {
       return html`<div style="padding:24px;color:var(--secondary-text-color)">Loading Area Details…</div>`
     }
     const draft = this._draftController.draft
-    if (!draft) return html``
+    // After a failed load the draft is the previous area's or half loaded;
+    // it must not be shown — or saved — as this area.
+    if (!draft || this._loadError) {
+      if (!this._loadError) {
+        return html`<div style="padding:24px;color:var(--secondary-text-color)">Loading Area Details…</div>`
+      }
+      return html`
+        <div style="padding:24px; display:flex; flex-direction:column; gap:12px; max-width:640px;">
+          <h2 style="margin:0;">${this.t('status_card.system_error')}</h2>
+          <p style="margin:0; color:var(--secondary-text-color);">${this.t('area_detail.load_error', { error: this._loadError })}</p>
+          <div style="display:flex; gap:8px;">
+            <button class="btn-retry-load" @click=${this._retryLoadArea}>${this.t('areas_view.retry')}</button>
+            <button class="btn-back-load" @click=${this._backToOverview}>${this.t('area_detail.back_to_areas')}</button>
+          </div>
+        </div>
+      `
+    }
 
     const area = this.areas.find(a => a.area_id === draft.area_id)
     const areaName = draft.name || area?.name || draft.area_id
@@ -968,6 +995,7 @@ export class AreaDetailView extends TwilightLocalizeMixin(LitElement) {
               .entities=${this._areaEntities}
               .activeSceneName=${activeSceneName}
               .runState=${runState}
+              .channels=${getChannels(draft)}
               @open-edit=${this._openLightsDialog}
             ></twilight-area-lights-card>
           </div>
@@ -994,6 +1022,7 @@ export class AreaDetailView extends TwilightLocalizeMixin(LitElement) {
               .placeholderDefaults=${this.placeholderDefaults}
               .channels=${getChannels(draft)}
               .heatmapProfiles=${draft.heatmap_profiles ?? []}
+              .simTemplateIssues=${runState?.sim_template_issues ?? []}
               @activities-changed=${this._onActivitiesChanged}
               @open-edit=${() => { this._activitiesEditOpen = true }}
             ></twilight-activities-card>
@@ -1139,6 +1168,7 @@ export class AreaDetailView extends TwilightLocalizeMixin(LitElement) {
         .inputsConfig=${draft.inputs ?? []}
         .activitiesConfig=${draft.activities ?? []}
         .channels=${getChannels(draft)}
+        .placeholderDefaults=${this._effectivePlaceholderDefaults}
         .runState=${runState}
         @rules-changed=${this._onRulesChanged}
         @close=${() => { this._rulesEditOpen = false }}

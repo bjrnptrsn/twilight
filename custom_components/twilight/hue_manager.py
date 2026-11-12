@@ -7,7 +7,13 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.helpers import entity_registry as er
-from homeassistant.util.color import color_xy_to_RGB
+from homeassistant.util.color import (
+    GamutType,
+    XYPoint,
+    check_point_in_lamps_reach,
+    color_xy_to_RGB,
+    get_closest_point_to_point,
+)
 
 from .const import HUE_DYNAMIC_PALETTE
 
@@ -15,6 +21,21 @@ if TYPE_CHECKING:
     from .engine import TwilightEngine
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def light_gamuts(api: Any | None) -> dict[str, GamutType]:
+    """The colour gamut of each Hue light that reports one, by light ID."""
+    gamuts: dict[str, GamutType] = {}
+    for light in getattr(api, "lights", None) or []:
+        color = getattr(light, "color", None)
+        gamut = getattr(color, "gamut", None) if color else None
+        if gamut is not None:
+            gamuts[light.id] = GamutType(
+                XYPoint(gamut.red.x, gamut.red.y),
+                XYPoint(gamut.green.x, gamut.green.y),
+                XYPoint(gamut.blue.x, gamut.blue.y),
+            )
+    return gamuts
 
 
 def scene_dynamic_light_ids(api: Any, scene_data: Any) -> set[str]:
@@ -150,8 +171,12 @@ class HueManager:
             if scene_info:
                 lights = self._resolve_lights_from_group(entity_id, scene_data)
                 if lights:
-                    mapping = self.get_entity_mapping(scene_info["config_entry_id"])
-                    states = self._states_from_actions(scene_data, mapping)
+                    config_entry_id = scene_info["config_entry_id"]
+                    states = self._states_from_actions(
+                        scene_data,
+                        self.get_entity_mapping(config_entry_id),
+                        light_gamuts(self.get_bridge_api(config_entry_id)),
+                    )
                     return lights, states
 
         return self._lights_from_ha_state(entity_id), {}
@@ -285,7 +310,7 @@ class HueManager:
 
     @staticmethod
     def _states_from_actions(
-        scene_data: Any, mapping: dict[str, str]
+        scene_data: Any, mapping: dict[str, str], gamuts: dict[str, GamutType]
     ) -> dict[str, dict[str, Any]]:
         """Build expected-state dicts from a Hue scene's actions.
 
@@ -293,6 +318,9 @@ class HueManager:
         on/off, brightness (Hue 0-100 → HA 0-255), color (xy) and color
         temperature (mirek == mireds). Targets are mapped to HA entity_ids via
         the light unique_id mapping. Targets absent from the mapping are skipped.
+        A colour outside the light's gamut becomes the closest one it can show:
+        the Bridge sets and reports that, so the scene's own colour would read
+        as a deviation for good.
         """
         states: dict[str, dict[str, Any]] = {}
         for action in getattr(scene_data, "actions", []) or []:
@@ -323,6 +351,9 @@ class HueManager:
             xy = getattr(color, "xy", None) if color else None
             if xy is not None:
                 x, y = getattr(xy, "x", 0.0), getattr(xy, "y", 0.0)
+                gamut = gamuts.get(rid)
+                if gamut and not check_point_in_lamps_reach((x, y), gamut):
+                    x, y = get_closest_point_to_point((x, y), gamut)
                 # Keep xy for deviation comparison (avoids RGB round-trip drift).
                 state["xy_color"] = [x, y]
                 # Use HA's own xy→RGB (brightness fixed at 255, like HA does for

@@ -26,10 +26,40 @@ from .input_handler import (
     TimerInputHandler,
 )
 from .scene_manager import SceneManager
-from .state import RunState, StateManager
+from .state import ActivityTrigger, RestoredScene, RunState, StateManager
 from .twilight_manager import TwilightManager
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _restored_scene(saved_state: dict[str, Any]) -> RestoredScene | None:
+    """The stored scene state, if the stored activity had a scene running.
+
+    A release clears active_activity before its stop() clears the scene, so HA
+    stopping in between stores a scene without an activity; that is no scene.
+    """
+    activity = saved_state.get("active_activity")
+    activated_raw = saved_state.get("scene_activated_at")
+    if not isinstance(activity, str) or not activity:
+        return None
+    if not isinstance(activated_raw, str):
+        return None
+    activated_at = dt_util.parse_datetime(activated_raw)
+    if activated_at is None:
+        return None
+
+    def ids(key: str) -> frozenset[str]:
+        raw = saved_state.get(key)
+        if not isinstance(raw, list):
+            return frozenset()
+        return frozenset(item for item in raw if isinstance(item, str))
+
+    return RestoredScene(
+        activity,
+        activated_at,
+        ids("manual_off_entities"),
+        ids("manual_off_channels"),
+    )
 
 
 class TwilightEngine:
@@ -75,6 +105,21 @@ class TwilightEngine:
         # avoid confusing the two.
         self.channel_id_set: frozenset[str] = frozenset(self.config.channels.keys())
 
+        # A replaced engine (area/save) receives the previous RunState. Its
+        # inputs_active is the only baseline for telling a real binary edge from
+        # a state snapshot during setup. A boot reconstructs only a partial
+        # RunState from the store, so None keeps the old cold-start behaviour.
+        self.inherited_inputs_active: dict[str, bool] | None = (
+            dict(initial_state.inputs_active)
+            if isinstance(initial_state, RunState)
+            else None
+        )
+
+        # Consumed by ActivityCoordinator.restore_scene_state() at the end of
+        # the coordinator setup, not put into the initial RunState: the slot
+        # catch-up tells a boot by scene_activated_at being None.
+        self.restored_scene: RestoredScene | None = None
+
         if initial_state is None:
             # Retrieve and restore previously persisted state if available in the store
             store = get_store(hass)
@@ -100,12 +145,19 @@ class TwilightEngine:
                 source = (
                     source_raw if source_raw in ("activity", "rule") else None
                 )
+                active_activity = saved_state.get("active_activity")
                 initial_state = RunState(
                     activity_expires_at=expires_at,
-                    active_activity=saved_state.get("active_activity"),
+                    active_activity=active_activity,
+                    activity_trigger=(
+                        ActivityTrigger.from_dict(saved_state.get("activity_trigger"))
+                        if active_activity
+                        else None
+                    ),
                     activity_expire_frozen_seconds=frozen_secs,
                     activity_expire_source=source,
                 )
+                self.restored_scene = _restored_scene(saved_state)
 
         # Initialize StateManager and core Coordinator
         self.state_manager = StateManager(initial_state=initial_state)
@@ -169,12 +221,14 @@ class TwilightEngine:
         """Set up and start all sub-components of the engine.
 
         The setup order is critical:
-          1. Initialize inputs disablers and active states.
-          2. SceneManager must run first to discover scenes and build scene_map.
-          3. Other logical managers (Twilight, Activity, Heatmap) initialize.
-          4. Sensory input handlers register listeners and start tracking.
-          5. Coordinator initializes last, once every manager/handler is ready.
+          1. Clear a persisted active activity that no longer exists.
+          2. Initialize inputs disablers and active states.
+          3. SceneManager must run first to discover scenes and build scene_map.
+          4. Other logical managers (Twilight, Activity, Heatmap) initialize.
+          5. Sensory input handlers register listeners and start tracking.
+          6. Coordinator initializes last, once every manager/handler is ready.
         """
+        self.coordinator.validate_active_activity()
         self.coordinator.initialize_inputs()
         try:
             for component in self._components:

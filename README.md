@@ -190,6 +190,10 @@ as your indoor lighting). Each custom slot starts either at a **sun event**
 (any astral zone, with an offset) or a **fixed clock time** (`HH:MM`), and has
 its own scene/script assignment.
 
+Each light should belong to one channel only: if several channels control the
+same light, their commands compete, and **Lights & Devices** lists that light
+with its channels.
+
 | Channel Type | Slots | Use Case |
 |--------------|-------|----------|
 | **Primary** | 10 fixed astral zones | Main indoor lighting — follows the sun |
@@ -237,7 +241,8 @@ using this scene on **Hue** run at it as well.
 The column is only offered for scenes whose lights can actually play a dynamic
 palette. In a mixed room, lights that cannot rotate colors keep their fixed
 scene color while the others play the palette. Rotating lights are not reported
-as deviating, since their color changes on purpose.
+as deviating, since their color changes on purpose; the others are checked and
+corrected like in a static scene.
 
 ### Which Lights Twilight Controls
 
@@ -258,6 +263,7 @@ list never turns anything on.
 - **Commands are checked.** Twilight re-sends a command to lights that did not reach their target, and sends commands without a fade several times, because some lights miss them without Home Assistant noticing.
 - **Changes from outside** — a wall switch, an app, a voice assistant — are not undone. A light you dimmed shows up as a deviation and follows Twilight again at the next slot change or trigger; a light you switched off stays off until the next trigger. If you switch off all lights of a channel, the next slot with light brings them back unless **Respect Manual Off** is on. [How Twilight Works](HOW_IT_WORKS.md#when-someone-switches-a-light-directly) has the details.
 - **When you edit a scene** in the Hue app or in Home Assistant, Twilight picks up the change on its own. Lights of a scene that is playing follow right away; lights that are all off stay off.
+- **When you save in the panel,** a change to what is running takes effect right away — a new scene for the current slot, another action, a changed timer or rule. The lights it affects go back to their target, a light you dimmed by hand included; a save that changes nothing that is running leaves the lights alone.
 
 ---
 
@@ -364,7 +370,7 @@ and Twilight triggers it based on motion density probabilities throughout the da
 
 - **Data source**: evaluate live recorder history (a rolling 30-day window) or pick one of up to **5 saved heatmap profiles** per area (saved from the Heatmap card, where you choose a range from 1 week to 6 months and the resolution).
 - **Lux Mode**: choose when simulated motion may turn lights on (Only dusk–dawn [default], Lux threshold, or Always).
-- **Template Activity**: any activity that controls lights (Slot or Scene / Script) and does not switch to another activity when it ends.
+- **Template Activity**: any activity that controls lights (Slot or Scene / Script) and does not switch to another activity when it ends. If it is deleted or changed so it no longer qualifies, the **Activities** card marks the simulation, which then does nothing.
 - **Simulation Intensity**: scale how often simulated triggers fire, from very subtle to very active, relative to the measured motion density.
 
 Trigger probabilities are based on how many days actually saw activity at a
@@ -498,7 +504,7 @@ showing the currently active activity and what triggered it.
 
 - **Live Monitor** — the active slot per channel with its scene and times, and the engine state: which activity is running, which input triggered it, and when it ends.
 - **Slot Timetable** — all slots of a channel in their fixed order, with the active one highlighted.
-- **Lights & Devices** — status, brightness and color of every light. If a light differs from what the slot asks for, the target appears as a badge below the value. **Dynamic** marks a light that is rotating colors right now, and **Manual Off** a light that was switched off by hand; it shows no target, because the badge already says why it is off. **Fade** marks a light that is fading to the next slot right now; values in between can show as a difference until the fade is done.
+- **Lights & Devices** — status, brightness and color of every light. If a light differs from what the slot asks for, the target appears as a badge below the value. **Dynamic** marks a light that is rotating colors right now, and **Manual Off** a light that was switched off by hand; it shows no target, because the badge already says why it is off. **Fade** marks a light that is fading to the next slot right now; values in between can show as a difference until the fade is done. A light that several channels control is listed above the table with its channels.
 - **Triggers & Inputs** — every input and the activity it requests. An input that cannot fire right now is dimmed and names the reason, e.g. **Disabled by Activity: Manual**.
 
 Entities and scenes are shown by their friendly name; hover over a name to see the entity ID. Without a friendly name, the entity ID is shown instead.

@@ -19,9 +19,8 @@ export default defineConfig({
       fileName: () => 'twilight-panel.js',
     },
     outDir: '../custom_components/twilight/frontend',
-    // false so this build doesn't delete a twilight-dev-panel.js already
-    // sitting in the shared outDir from vite.config.dev.ts (which is itself
-    // emptyOutDir: false for the same reason, symmetrically).
+    // false: the outDir is the integration's frontend folder, which also
+    // holds logo.png.
     emptyOutDir: false,
     rollupOptions: {
       output: { inlineDynamicImports: true },

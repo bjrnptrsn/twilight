@@ -22,8 +22,9 @@ An attr-entry is None (→ card shows "—") or:
 Comparison (exact by default; tolerances in const.py, 0 = exact):
   - state (on/off): string equality
   - brightness: integer equality on HA 0–255 scale; label rendered as % via
-    _pct() — a nonzero raw value never rounds down to a "0%" label, which
-    would misleadingly read as off for a light that is on but very dim.
+    _pct() — a light that is on never reads "0%", which would misleadingly
+    read as off for a light that is on but very dim (also not when the Hue
+    Bridge reports its lowest step as 0).
   - color: compare in xy whenever both sides have xy, else color_temp (mireds),
     else hs. RGB is display-only, never the comparison basis.
 """
@@ -215,8 +216,11 @@ def _compare_brightness(
             "target_swatch": None,
             "deviates": True,
         }
+    # The Hue Bridge reports a lamp on its lowest step as 0; it is lit, and the
+    # Hue app shows it at 1 %. The comparison keeps the raw value.
+    shown = max(int(actual_brightness), 1) if actual_state == STATE_ON else actual_brightness
     return {
-        "actual": _pct(actual_brightness),
+        "actual": _pct(shown),
         "target": _pct(target_brightness),
         "actual_swatch": None,
         "target_swatch": None,

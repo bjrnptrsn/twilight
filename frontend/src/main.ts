@@ -3,7 +3,6 @@ import { customElement } from 'lit/decorators.js'
 import { TwilightPanelBase } from './panel-base'
 import type { TabConfig } from './components/tab-bar'
 
-// Import only production views to ensure dev views are tree-shaken
 import './views/areas-view'
 import './views/analytics-view'
 import './views/timeline-view'

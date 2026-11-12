@@ -289,9 +289,9 @@ export class SunPathCard extends TwilightLocalizeMixin(LitElement) {
 
 
   private _getLiveTime(): number {
-    // Fallback for standalone use (no parent-supplied `liveTime`, e.g. the
-    // Lab views) — must use HA's timezone, not the browser's, or the live
-    // marker drifts from the chart data whenever they differ.
+    // Fallback for standalone use (no parent-supplied `liveTime`) — must use
+    // HA's timezone, not the browser's, or the live marker drifts from the
+    // chart data whenever they differ.
     return haLocalMinutesOfDay(this.hass)
   }
 

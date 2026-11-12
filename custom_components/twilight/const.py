@@ -214,12 +214,6 @@ DEFAULT_RETRY_DELAYS = (1.2, 2.4, 3.6, 4.8, 6.0)
 HARD_CALL_RESENDS = 2
 ECHO_SETTLE_WINDOW_SECONDS = 1.0
 
-# Expected-state keys Twilight may still enforce on a lamp of a running Hue
-# dynamic scene. Live-verified on the Bridge: a color or color-temperature
-# command to ANY lamp of the scene — even one that cannot play dynamics itself —
-# ends the scene's dynamic playback, while on/off and brightness leave it running.
-DYNAMIC_SAFE_STATE_KEYS = frozenset({"state", "brightness"})
-
 # How long the remaining calls wait for lead calls (static values for lamps that
 # can't rotate, sent before a dynamic scene recall). A Bridge answers in ~0.1 s;
 # the cap only matters when it is overloaded and the Hue integration keeps

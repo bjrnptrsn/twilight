@@ -52,7 +52,6 @@ htmlcov/
 frontend/node_modules/
 frontend/dist/
 custom_components/twilight/frontend/twilight-panel.js
-custom_components/twilight/frontend/twilight-dev-panel.js
 
 # Temporary scratch files
 data/blueprints/.temp/

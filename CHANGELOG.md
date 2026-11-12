@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.8.0 - 2026-11-12
+
+### 🎨 Improvements
+
+*   **Warnings for Conflicting Setups**: Lights & Devices now lists lights that several channels control, and Activities marks a Presence Simulation whose Template Activity is missing or unusable.
+
+### 🔧 Fixes
+
+*   **Changes Apply on Save**: Changes to the running activity, its slot scenes or a rule now take effect as soon as you save, not at the next slot change or trigger.
+
+*   **Slots Continue After a Restart**: A running activity now follows slot changes again after a Home Assistant restart, instead of waiting for the next trigger.
+
+*   **Toggle Buttons for Rules**: A button in Toggle (on/off) mode assigned to a rule now switches the rule on and off.
+
+*   **One Press, One Action**: A switch used by several inputs (for example a short and a long press) no longer handles each press twice.
+
+*   **Scripts Run on Every Switch**: An activity's script now also runs when the activity takes over directly from another one.
+
+*   **Brightness Together With Color**: Lights behind a Hue Bridge that kept their old brightness when the color changed at the same time, such as some IKEA bulbs, now reach both.
+
+*   **Colors in Mixed Dynamic Scenes**: Lights that do not rotate colors in a dynamic Hue scene now have their color checked and corrected too.
+
+*   **Colors Older Hue Lights Cannot Show**: A scene color outside an older Hue light's range no longer shows as a lasting deviation.
+
+*   **Lowest Brightness Shows 1%**: A light on its lowest brightness step now shows 1% instead of 0%, as in the Hue app.
+
 ## 0.7.0 - 2026-11-04
 
 ### ⚠️ Breaking Changes

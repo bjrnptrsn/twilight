@@ -328,7 +328,6 @@ async def async_remove_entry(hass: HomeAssistant, _entry: ConfigEntry) -> None:
         await store.store.async_remove()
 
     async_remove_panel(hass, "twilight", warn_if_unknown=False)
-    async_remove_panel(hass, "twilight_dev", warn_if_unknown=False)
 
     hass.data.pop(DOMAIN, None)
 
@@ -338,12 +337,11 @@ async def _async_register_panel(hass: HomeAssistant) -> None:
 
     This registers the static HTTP endpoints for the Twilight frontend resources:
       - Main bundle: /twilight/twilight-panel.js
-      - Optional dev bundle: /twilight/twilight-dev-panel.js
       - Logo image: /twilight/logo.png
 
-    It also registers the corresponding sidebar panel(s) using Home Assistant's
-    built-in panel registration, including cache-busting version queries based on
-    file modification times.
+    It also registers the sidebar panel using Home Assistant's built-in panel
+    registration, with a cache-busting version query based on the bundle's
+    modification time.
     """
     # Check for the compiled Vite production bundle
     panel_js = Path(__file__).parent / "frontend" / "twilight-panel.js"
@@ -351,33 +349,23 @@ async def _async_register_panel(hass: HomeAssistant) -> None:
         _LOGGER.warning("Twilight panel JS not found at %s", panel_js)
         return
 
-    # Optional development build files and assets
-    dev_panel_js = Path(__file__).parent / "frontend" / "twilight-dev-panel.js"
     logo_png = Path(__file__).parent / "frontend" / "logo.png"
 
     # Generate version query parameter for cache busting based on modification time
     mtime = int(os.path.getmtime(panel_js))
-    dev_mtime = int(os.path.getmtime(dev_panel_js)) if dev_panel_js.exists() else None
 
-    # Registered once per mtime pair — a reload after a fresh frontend build
-    # (mtime changed) removes and re-registers the panel(s) so the new
-    # cache-busted js_url actually takes effect without a full HA restart.
-    registered_mtimes = hass.data[DOMAIN].get("panel_registered_mtimes")
-    if registered_mtimes == (mtime, dev_mtime):
+    # Registered once per mtime — a reload after a fresh frontend build (mtime
+    # changed) removes and re-registers the panel so the new cache-busted
+    # js_url actually takes effect without a full HA restart.
+    registered_mtime = hass.data[DOMAIN].get("panel_registered_mtime")
+    if registered_mtime == mtime:
         return
-    if registered_mtimes is not None:
+    if registered_mtime is not None:
         async_remove_panel(hass, "twilight", warn_if_unknown=False)
-        async_remove_panel(hass, "twilight_dev", warn_if_unknown=False)
 
     # Register static paths with HA's HTTP server
     try:
         paths = [StaticPathConfig("/twilight/twilight-panel.js", str(panel_js), False)]
-        if dev_panel_js.exists():
-            paths.append(
-                StaticPathConfig(
-                    "/twilight/twilight-dev-panel.js", str(dev_panel_js), False
-                )
-            )
         if logo_png.exists():
             paths.append(StaticPathConfig("/twilight/logo.png", str(logo_png), True))
         await hass.http.async_register_static_paths(paths)
@@ -404,27 +392,5 @@ async def _async_register_panel(hass: HomeAssistant) -> None:
     except ValueError:
         _LOGGER.debug("Twilight panel already registered")
 
-    # Register the Dev Panel in the sidebar if the dev file exists
-    if dev_panel_js.exists():
-        try:
-            async_register_built_in_panel(
-                hass,
-                component_name="custom",
-                sidebar_title="Twilight Dev",
-                sidebar_icon="mdi:flask-outline",
-                frontend_url_path="twilight_dev",
-                config={
-                    "_panel_custom": {
-                        "name": "twilight-dev-panel",
-                        "embed_iframe": False,
-                        "trust_external": False,
-                        "js_url": f"/twilight/twilight-dev-panel.js?v={dev_mtime}",
-                    }
-                },
-            )
-            _LOGGER.info("Twilight Dev panel registered in sidebar")
-        except ValueError:
-            _LOGGER.debug("Twilight Dev panel already registered")
-
-    hass.data[DOMAIN]["panel_registered_mtimes"] = (mtime, dev_mtime)
+    hass.data[DOMAIN]["panel_registered_mtime"] = mtime
     _LOGGER.info("Twilight panel registered in sidebar")

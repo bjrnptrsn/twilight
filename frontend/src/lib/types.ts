@@ -128,6 +128,12 @@ export interface RunState {
   // stays that way until the scene itself is fixed/replaced, so the panel
   // surfaces it instead of silently doing nothing on activation.
   scene_extraction_failed?: { channel_id: string; slot_id: string }[]
+  // entity_id -> the enabled channels steering it, across all slots — their
+  // commands compete. Channel IDs only; names come from the config.
+  channel_collisions?: Record<string, string[]>
+  // Simulation activities whose template activity is missing or not usable
+  // in the saved config — such a simulation does nothing.
+  sim_template_issues?: string[]
 }
 
 // 'hue' = follow the Hue scene's own "start dynamic" setting (auto_dynamic).
@@ -464,13 +470,6 @@ export class SlotsChangedEvent extends CustomEvent<{
       composed: true,
     })
   }
-}
-
-export interface SimFlags {
-  simCritical: boolean
-  simError: boolean
-  simSensorOffline: boolean
-  simWarning: boolean
 }
 
 export interface EngineStateInfo {

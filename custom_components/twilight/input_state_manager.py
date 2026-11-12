@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 
+from .config_model import ButtonInputConfig
 from .const import ACTIVE_STATES, MOTION_ACTIVE_STATES, InputType
 from .helpers import aggregate_active, resolve_aggregation
 
@@ -24,9 +25,15 @@ class InputStateManager:
         self._c = coordinator
 
     def initialize_inputs(self) -> None:
-        """Initialize inputs disablers and active states before handlers setup."""
+        """Compute input levels, disablers and rule states before handlers setup.
+
+        State only: no handler, timer or motion state exists yet, so a reaction
+        here would act on half-built state. Timers and lights follow once the
+        coordinator has restored them.
+        """
         inputs_disabled_by = {}
         inputs_active = {}
+        previous_active = dict(self._c.run_state.inputs_active)
 
         for inp in self._c.engine.config.inputs:
             if not inp.id:
@@ -45,6 +52,19 @@ class InputStateManager:
 
             active = False
             if (
+                isinstance(inp, ButtonInputConfig)
+                and (inp.button_mode or "click") == "toggle"
+            ):
+                # Toggle buttons have no HA state to re-read. A config rebuild
+                # inherits the replaced engine's state; a cold start has none
+                # and keeps the previous default (off). Dropping it would release
+                # the activity — and deactivate its Rule — on every save. A
+                # button left without a target starts off: toggle() ignores it,
+                # so an inherited on level could never be switched off again.
+                active = bool(inp.activity or inp.rule) and previous_active.get(
+                    inp.id, False
+                )
+            elif (
                 inp.entity_ids
                 and self._c.engine.hass
                 and inp.type
@@ -82,7 +102,12 @@ class InputStateManager:
             inputs_disabled_by=inputs_disabled_by,
             inputs_active=inputs_active,
         )
-        self._c.rule_manager.reevaluate()
+        # The binary initial sync runs before the coordinator restores the
+        # activity; it must already see the running activity's suppressions.
+        self.recalculate_disablers(
+            self._c.run_state.active_activity, self._c.run_state.active_rules
+        )
+        self._c.rule_manager.reevaluate(apply=False)
 
     def compute_disablers(
         self, active_activity: str | None, active_rules: dict[str, bool] | None = None

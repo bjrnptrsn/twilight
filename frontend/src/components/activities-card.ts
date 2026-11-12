@@ -23,6 +23,9 @@ export class TwilightActivitiesCard extends TwilightLocalizeMixin(LitElement) {
   @property({ type: Boolean }) templateMode = false
   @property({ attribute: false }) channels: Record<string, ChannelConfig> = {}
   @property({ attribute: false }) heatmapProfiles: { id: string; name: string }[] = []
+  // Simulations whose template is missing or not usable, from the backend for
+  // the saved config — not re-checked against the draft.
+  @property({ attribute: false }) simTemplateIssues: string[] = []
 
   static styles = [
     activityBadgeStyles,
@@ -108,6 +111,13 @@ export class TwilightActivitiesCard extends TwilightLocalizeMixin(LitElement) {
         background: color-mix(in srgb, var(--primary-text-color, #fff) 8%, transparent);
         margin: 4px 20px;
       }
+
+      .sim-template-hint {
+        font-size: 11px;
+        color: var(--warning-color, #f59e0b);
+        margin-top: 2px;
+        white-space: normal;
+      }
     `
   ]
 
@@ -160,6 +170,9 @@ export class TwilightActivitiesCard extends TwilightLocalizeMixin(LitElement) {
                   <div style="font-size: 11px; color: var(--secondary-text-color); margin-top: 2px;">
                     ${detailText}
                   </div>
+                  ${this.simTemplateIssues.includes(act.id) ? html`
+                    <div class="sim-template-hint">${this.t('activities_card.sim_template_hint')}</div>
+                  ` : ''}
                 </div>
               </div>
               ${index < this.config.length - 1 ? html`<div class="divider"></div>` : ''}

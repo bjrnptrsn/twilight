@@ -17,7 +17,6 @@ from .areas import (
     _ws_area_new_draft,
     _ws_area_save,
     _ws_area_slot_times,
-    _ws_area_validate,
     _ws_areas_list,
     _ws_slot_times_preview,
 )
@@ -51,7 +50,6 @@ def async_register_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, _ws_lab_area_entities())
     websocket_api.async_register_command(hass, _ws_areas_list())
     websocket_api.async_register_command(hass, _ws_area_extracted())
-    websocket_api.async_register_command(hass, _ws_area_validate())
     websocket_api.async_register_command(hass, _ws_area_save())
     websocket_api.async_register_command(hass, _ws_area_delete())
     websocket_api.async_register_command(hass, _ws_area_new_draft())

@@ -2,7 +2,7 @@ import { LitElement, html, css } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
 import type { HomeAssistant } from '../lib/types'
 import { type Slot, type SensorConfig, type RunState, type EngineStateInfo, type InputConfig, type ActivityConfig, type ChannelConfig, PRIMARY_CHANNEL_ID } from '../lib/types'
-import { resolveEngineState } from '../lib/status-helpers'
+import { notRunningEngineState } from '../lib/status-helpers'
 import { sortChannelIds } from '../lib/channel-helpers'
 import { channelDisplayName, formatSlotTime, isSlotActiveAt, sceneDisplayName } from '../lib/utils'
 import { LiveClockController } from '../lib/live-clock-controller'
@@ -52,12 +52,6 @@ export class TwilightStatusCard extends TwilightLocalizeMixin(LitElement) {
   @property({ type: Boolean }) areaEnabled = true
   @property({ attribute: false }) channels: Record<string, ChannelConfig> = {}
   @property({ attribute: false }) channelSlotsMap: Record<string, Slot[]> = {}
-
-  // Simulation states
-  @property({ type: Boolean }) simCritical = false
-  @property({ type: Boolean }) simError = false
-  @property({ type: Boolean }) simSensorOffline = false
-  @property({ type: Boolean }) simWarning = false
 
   static styles = [
     cardDotStyles,
@@ -261,42 +255,6 @@ export class TwilightStatusCard extends TwilightLocalizeMixin(LitElement) {
         visibility: hidden;
       }
     }
-
-    .fast-pulse-glow {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
-      background: var(--dot-color, #ff5722);
-      animation: glow-fast-pulse-anim 0.75s infinite ease-in-out;
-    }
-
-    @keyframes glow-fast-pulse-anim {
-      0%, 100% {
-        box-shadow: 0 0 2px var(--dot-color, #ff5722);
-        transform: scale(0.92);
-      }
-      50% {
-        box-shadow: 0 0 14px var(--dot-color, #ff5722), 0 0 20px var(--dot-color, #ff5722);
-        transform: scale(1.15);
-      }
-    }
-
-    .fast-blink-glow {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
-      background: var(--dot-color, #d32f2f);
-      box-shadow: 0 0 8px var(--dot-color, #d32f2f);
-      animation: glow-fast-blink-anim 0.4s infinite steps(2, start);
-    }
-
-    @keyframes glow-fast-blink-anim {
-      to {
-        visibility: hidden;
-      }
-    }
   `]
 
   // Formats the remaining time until activity_expires_at (backend-pushed ISO
@@ -381,12 +339,6 @@ export class TwilightStatusCard extends TwilightLocalizeMixin(LitElement) {
     const channelIds = orderedChannelIds.length > 0 ? orderedChannelIds : [PRIMARY_CHANNEL_ID]
 
     // Engine State Widget
-    const simFlags = {
-      simCritical: this.simCritical,
-      simError: this.simError,
-      simSensorOffline: this.simSensorOffline,
-      simWarning: this.simWarning,
-    };
     const engineState = !this.areaEnabled
       ? {
           label: this.t('status_card.disabled'),
@@ -396,7 +348,7 @@ export class TwilightStatusCard extends TwilightLocalizeMixin(LitElement) {
         }
       : (rs
           ? this._runStateEngineInfo(rs)
-          : resolveEngineState(this.runState, simFlags, this.hass?.locale?.language))
+          : notRunningEngineState(this.hass?.locale?.language))
 
     return html`
       <div class="status-card">

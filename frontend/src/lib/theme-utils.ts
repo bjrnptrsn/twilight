@@ -14,7 +14,7 @@ export function isDarkMode(hass: HomeAssistant | null | undefined, element?: HTM
     return !!hass.themes.darkMode
   }
 
-  // 2. No hass (e.g. Lab/Storybook context): check computed CSS color
+  // 2. No hass (e.g. a standalone context): check computed CSS color
   // directly on element or document.body.
   try {
     const target = element || document.body

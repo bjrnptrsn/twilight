@@ -1,6 +1,6 @@
 import { html, css } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
-import { type RuleConfig, type InputConfig, type ActivityConfig, type ChannelConfig, type HomeAssistant, RulesChangedEvent } from '../lib/types'
+import { type RuleConfig, type InputConfig, type ActivityConfig, type ChannelConfig, type HomeAssistant, type PlaceholderDefaults, RulesChangedEvent } from '../lib/types'
 import { activityBadgeStyles, dialogChromeStyles } from '../lib/shared-styles'
 import { DialogDraftController } from '../lib/dialog-draft-controller'
 import { getInputDisplayName } from '../lib/input-helpers'
@@ -18,6 +18,7 @@ export class TwilightRulesDialog extends PortalDialog {
   @property({ attribute: false }) inputsConfig: InputConfig[] = []
   @property({ attribute: false }) activitiesConfig: ActivityConfig[] = []
   @property({ attribute: false }) channels: Record<string, ChannelConfig> = {}
+  @property({ attribute: false }) placeholderDefaults: PlaceholderDefaults | null = null
 
   @state() private _subEditOpen = false
   @state() private _subEditingIndex: number | null = null
@@ -291,7 +292,7 @@ export class TwilightRulesDialog extends PortalDialog {
                               const found = (this.activitiesConfig || []).find(a => a.id === actId)
                               return found?.name || found?.id || actId
                             }).map(name => html`<span class="pill">${name}</span>`)
-                          : html`<span class="pill" style="opacity: 0.8;">${this.t('rules_card.all')}</span>`}
+                          : html`<span class="pill" style="opacity: 0.8;">${this.t('common.none')}</span>`}
                       </td>
                       <td>
                         <span class="status-badge ${rule.enabled ? 'enabled' : ''}">
@@ -339,6 +340,7 @@ export class TwilightRulesDialog extends PortalDialog {
         .activitiesConfig=${this.activitiesConfig}
         .channels=${this.channels}
         .siblings=${draft}
+        .placeholderDefaults=${this.placeholderDefaults}
         @save=${this._handleSubEditSave}
         @cancel=${this._closeSubEdit}
       ></twilight-rule-row-editor>

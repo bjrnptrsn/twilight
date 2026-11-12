@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
-from .action_handler import channel_already_off
+from .action_handler import apply_slot_action_to_channel, channel_already_off
 from .call_handler import (
     BaseCallHandler,
     SceneCallHandler,
@@ -24,9 +24,36 @@ from .helpers import (
 )
 
 if TYPE_CHECKING:
+    from .config_model import AreaConfig
     from .coordinator import Coordinator
+    from .state import RunState
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _channels_with_replaced_scene(
+    old_config: AreaConfig,
+    old_active_slots: dict[str, str],
+    new_config: AreaConfig,
+    new_active_slots: dict[str, str],
+) -> set[str]:
+    """Channels that stayed in their active slot, but whose scene the save replaced.
+
+    A channel that moved to another slot is left out: setup has applied it already.
+    """
+    replaced: set[str] = set()
+    for channel_id, slot_id in new_active_slots.items():
+        if old_active_slots.get(channel_id) != slot_id:
+            continue
+        old_slot = old_config.slot(channel_id, slot_id)
+        new_slot = new_config.slot(channel_id, slot_id)
+        if (
+            old_slot
+            and new_slot
+            and old_slot.scene_entity_id != new_slot.scene_entity_id
+        ):
+            replaced.add(channel_id)
+    return replaced
 
 
 class SlotCoordinator:
@@ -147,8 +174,8 @@ class SlotCoordinator:
             and self.coordinator.is_respect_manual_off_active()
         )
 
-    def _apply_changed_slot(self, channel_id: str, slot_id: str) -> None:
-        """Bring a channel into its new slot on a slot change.
+    def _apply_changed_slot(self, channel_id: str, slot_id: str) -> bool:
+        """Bring a channel into its new slot on a slot change; False if left alone.
 
         A slot change is no command: a channel switched off by hand stays dark.
         A channel that is dark otherwise (Twilight turned it off for an excluded
@@ -156,11 +183,33 @@ class SlotCoordinator:
         are on.
         """
         if self._is_held_dark(channel_id):
-            return
+            return False
         if channel_already_off(self.coordinator, channel_id):
             self._resume_channel_slot(channel_id, slot_id)
+        elif self._is_dynamic_fade_still_active(channel_id, slot_id):
+            self._complete_dynamic_fade(channel_id, slot_id)
         else:
             self.apply_channel_slot(channel_id, slot_id)
+        return True
+
+    def _complete_dynamic_fade(self, channel_id: str, slot_id: str) -> None:
+        """Take the channel over from its dynamic fade at T_target, without a recall.
+
+        No fade_target_slot: the swap drops the fade's entry, the fade is over.
+        """
+        handler = self.scene_handler(channel_id)
+        if handler is None:
+            return
+        _LOGGER.debug(
+            "[%s] Dynamic scene fade for channel %s reached slot %s; resending the "
+            "non-rotating lamps hard, no second recall (it would restart the rotation)",
+            self.coordinator.engine.area_id,
+            channel_id,
+            slot_id,
+        )
+        self.swap_channel_handler(
+            channel_id, handler, lambda _grace_elapsed: handler.complete_fade(slot_id)
+        )
 
     def _resume_channel_slot(self, channel_id: str, slot_id: str) -> None:
         """Switch a dark channel back on into its slot.
@@ -182,16 +231,57 @@ class SlotCoordinator:
         else:
             self.apply_channel_slot(channel_id, slot_id, direct=True)
 
-    def slot_scenes_replaced(self, channel_ids: set[str]) -> None:
-        """Apply the active slot of channels whose scene was replaced or edited."""
+    def slot_scenes_replaced(self, channel_ids: set[str]) -> set[str]:
+        """Apply the active slot of channels whose scene was replaced or edited.
+
+        Returns the channels that were applied or turned off.
+        """
         active_slots = self.coordinator.run_state.active_slots
-        self._apply_slots(
+        return self._apply_slots(
             {ch: active_slots[ch] for ch in channel_ids if ch in active_slots},
             self._apply_replaced_scene,
         )
 
-    def _apply_replaced_scene(self, channel_id: str, slot_id: str) -> None:
-        """Bring a lit channel onto its new scene; a dark channel stays dark.
+    def reconcile_after_rebuild(
+        self, old_config: AreaConfig, old_run_state: RunState
+    ) -> set[str]:
+        """Apply the running slots whose scene a save replaced; return the channels."""
+        return self.slot_scenes_replaced(
+            _channels_with_replaced_scene(
+                old_config,
+                old_run_state.active_slots,
+                self.coordinator.engine.config,
+                self.coordinator.run_state.active_slots,
+            )
+        )
+
+    def apply_exclusion_delta(
+        self,
+        changed_channels: dict[str, str],
+        new_excluded: dict[str, tuple[str, ...]],
+        transition_off: int | None,
+        skip_channels: set[str],
+    ) -> None:
+        """Bring channels whose running slot changed its exclusion status into line.
+
+        Same per-channel logic as a slot action's start, for these channels only.
+        """
+        if self.coordinator.run_state.scene_activated_at is None:
+            return
+        for channel_id, slot_id in changed_channels.items():
+            if channel_id in skip_channels:
+                continue
+            apply_slot_action_to_channel(
+                self.coordinator,
+                channel_id,
+                slot_id,
+                new_excluded,
+                was_activated=True,
+                transition_off=transition_off,
+            )
+
+    def _apply_replaced_scene(self, channel_id: str, slot_id: str) -> bool:
+        """Bring a lit channel onto its new scene; a dark channel stays dark (False).
 
         Unlike a slot change this also reaches lamps that are off: the new scene
         may want a lamp on that the old one kept off. reapply() sends exactly
@@ -199,7 +289,18 @@ class SlotCoordinator:
         and has nothing to compare without per-lamp states, so those two take
         the slot-change path. A slot naming no lamp, like a script without a
         turn-off list, always runs: nothing tells whether its room is dark.
+        While a dynamic fade into the slot runs, nothing is sent: a second
+        recall would restart the rotation.
         """
+        if self._is_dynamic_fade_still_active(channel_id, slot_id):
+            _LOGGER.debug(
+                "[%s] Dynamic scene fade for channel %s and slot %s still running; "
+                "skipping the edited scene to avoid restarting the rotation",
+                self.coordinator.engine.area_id,
+                channel_id,
+                slot_id,
+            )
+            return False
         scene_info = get_slot_info(
             self.coordinator.engine.scene_map, channel_id, slot_id
         )
@@ -207,7 +308,7 @@ class SlotCoordinator:
             scene_info.extracted_entities or scene_info.configured_entities
         )
         if not names_no_lamp and channel_already_off(self.coordinator, channel_id):
-            return
+            return False
         slot = self.coordinator.engine.config.slot(channel_id, slot_id)
         if (
             scene_info
@@ -217,16 +318,21 @@ class SlotCoordinator:
             self.reapply_deviating_slot(channel_id, slot_id)
         else:
             self.apply_channel_slot(channel_id, slot_id)
+        return True
 
     def _apply_slots(
-        self, slots: dict[str, str], apply: Callable[[str, str], None]
-    ) -> None:
-        """Run `apply` on running channels, unless slots are paused or excluded."""
+        self, slots: dict[str, str], apply: Callable[[str, str], bool]
+    ) -> set[str]:
+        """Run `apply` on running channels, unless slots are paused or excluded.
+
+        Returns the channels that were turned off or that `apply` acted on.
+        """
+        handled: set[str] = set()
         if self.coordinator.run_state.scene_activated_at is None:
-            return
+            return handled
 
         if self.coordinator.pauses_slots:
-            return
+            return handled
 
         for channel_id, slot_id in slots.items():
             if is_slot_excluded_effective(
@@ -237,20 +343,12 @@ class SlotCoordinator:
                 slot_id,
             ):
                 self.turn_off_channel(channel_id)
+                handled.add(channel_id)
                 continue
 
-            if self._is_dynamic_fade_still_active(channel_id, slot_id):
-                _LOGGER.debug(
-                    "[%s] Dynamic scene fade for channel %s and slot %s still "
-                    "transitioning; skipping the redundant slot-change re-call "
-                    "to avoid restarting the Bridge-side rotation",
-                    self.coordinator.engine.area_id,
-                    channel_id,
-                    slot_id,
-                )
-                continue
-
-            apply(channel_id, slot_id)
+            if apply(channel_id, slot_id):
+                handled.add(channel_id)
+        return handled
 
     async def async_start_slot_fade(
         self, channel_id: str, target_slot_id: str, target_slot_start: datetime
@@ -339,7 +437,7 @@ class SlotCoordinator:
         if fade_changed:
             self._fade_changed()
         # Tracked in handler._tasks (not coordinator._tasks): `run` is one of
-        # this handler's own start/fade/reapply methods, so handler.cancel()
+        # this handler's own public methods, so handler.cancel()
         # (cancel_all_handlers(), or _run()'s own self.cancel() prefix on the
         # next call) must be able to reach and cancel this outer task too —
         # otherwise a call stuck in `await hass.services.async_call(...)`
@@ -364,7 +462,9 @@ class SlotCoordinator:
         runs. What must not happen is re-dispatching the activation anyway —
         a Hue dynamic palette keeps rotating colors on its own once
         activated, and a second hue.activate_scene call would restart that
-        rotation from scratch rather than let it continue.
+        rotation from scratch rather than let it continue. Stage 2 therefore
+        only resends the non-rotating lamps (`complete_fade()`), and an edited
+        scene waits until then.
 
         For a static scene or individual lights, re-dispatching at slot
         change stays unconditional — it's a harmless resend, even a bit of

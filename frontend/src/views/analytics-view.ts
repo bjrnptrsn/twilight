@@ -56,7 +56,12 @@ export class AnalyticsView extends TwilightLocalizeMixin(LitElement) {
   }
 
   private async _loadAreas() {
-    if (!this.hass) return
+    if (!this.hass) {
+      // The first update can run before HA assigns `hass`. Leaving `_loading`
+      // true would block the late-hass retry in updated() forever.
+      this._loading = false
+      return
+    }
     this._loadAttempts++
     this._loading = true
     try {

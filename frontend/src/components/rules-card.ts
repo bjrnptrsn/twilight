@@ -174,7 +174,7 @@ export class TwilightRulesCard extends TwilightLocalizeMixin(LitElement) {
                   const found = (this.activitiesConfig || []).find(a => a.id === actId)
                   return found?.name || found?.id || actId
                 }).join(', ')
-              : this.t('rules_card.all')
+              : this.t('common.none')
 
             const statusText = rule.enabled ? this.t('common.enabled') : this.t('common.disabled')
             const detailText = `${this.t('rules_card.target')}: ${targetAct} · ${this.t('rules_card.triggers')}: ${triggerText} · ${this.t('rules_card.status')}: ${statusText}`

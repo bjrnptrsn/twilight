@@ -155,7 +155,7 @@ Twilight notices changes from a wall switch, an app or a voice assistant, but do
 
 - The current slot is calculated fresh, so it is always correct for the time of day. Starting up replays no scene.
 - A running activity comes back with its remaining time. If its timer ran out while Home Assistant was down, it ends right away, and its release action runs, so **Turn Off** switches the lights off.
-- Lights that are on stay as they are. Slot changes only act on them again once something has triggered the activity anew.
+- Lights that are on stay as they are and follow the next slot change. Lights already switched off by hand before the restart stay off if **Respect Manual Off** is on.
 - A running presence simulation resumes on its own and switches lights as usual.
 
 To see what Twilight is doing and why, check the [Live Monitor and the other cards](README.md#reading-the-area-view). For the decisions behind a single event, turn on [debug logging](README.md#debug-logging).

@@ -172,7 +172,7 @@ def _ws_global_import() -> websocket_api.WebSocketCommandHandler:
                 msg["id"], "invalid_payload", "Payload must be a dictionary"
             )
             return
-        if "areas" in payload and not isinstance(payload["areas"], dict):
+        if not isinstance(payload.get("areas"), dict):
             connection.send_error(
                 msg["id"], "invalid_payload", "'areas' must be a dictionary"
             )

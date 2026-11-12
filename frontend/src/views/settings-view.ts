@@ -12,6 +12,7 @@ import '../components/backup-restore-dialog'
 import { type Slot, type SlotConfig, type ChannelConfig, type SensorConfig, type ActivityConfig, type RuleConfig, type CalculatedSlotTime, PRIMARY_CHANNEL_ID, STANDARD_ZONE_IDS, STANDARD_NAMES } from '../lib/types'
 import { slotDisplayName, slotToZone, convertCalculatedTimesToSlots, zoneColor } from '../lib/utils'
 import { newChannelId } from '../lib/channel-helpers'
+import { withActivitiesReplaced, withInputsReplaced, withRulesReplaced } from '../lib/config-references'
 import { DraftController } from '../lib/draft-controller'
 import { DialogController } from '../lib/dialog-controller'
 import { hostResetStyles, viewHeaderStyles, detailFooterStyles } from '../lib/shared-styles'
@@ -257,6 +258,7 @@ export class SettingsView extends TwilightLocalizeMixin(LitElement) {
   ]
 
   private _loadingData = false
+  @state() private _loadError: string | null = null
 
   updated(changedProperties: Map<string | number | symbol, unknown>) {
     if (changedProperties.has('hass') && this.hass && !this._hasLoaded && !this._loadingData) {
@@ -267,6 +269,7 @@ export class SettingsView extends TwilightLocalizeMixin(LitElement) {
   private async _loadData() {
     if (!this.hass || this._loadingData || this._hasLoaded) return
     this._loadingData = true
+    this._loadError = null
     this._draftController.loading = true
     this.requestUpdate()
     try {
@@ -280,6 +283,7 @@ export class SettingsView extends TwilightLocalizeMixin(LitElement) {
       await this._loadCalculatedSlotTimes()
     } catch (err) {
       console.error('Failed to load global config:', err)
+      this._loadError = (err as Error).message || String(err)
     } finally {
       // Set on both success and failure — a persistent backend error must not
       // re-fire the request on every hass tick. A page reload is the retry path.
@@ -349,15 +353,21 @@ export class SettingsView extends TwilightLocalizeMixin(LitElement) {
   private async _onTemplateInputsChanged(e: CustomEvent) {
     this._draftController.update(draft => {
       if (!draft.area_template) draft.area_template = {}
-      draft.area_template.inputs = e.detail.inputs
+      Object.assign(
+        draft.area_template,
+        withInputsReplaced(draft.area_template, e.detail.inputs),
+      )
     })
     await this._draftController.save()
   }
 
-  private async _onTemplateActivitiesChanged(e: CustomEvent) {
+  private async _onTemplateActivitiesChanged(e: CustomEvent<{ activities: ActivityConfig[] }>) {
     this._draftController.update(draft => {
       if (!draft.area_template) draft.area_template = {}
-      draft.area_template.activities = e.detail.activities
+      Object.assign(
+        draft.area_template,
+        withActivitiesReplaced(draft.area_template, e.detail.activities),
+      )
     })
     await this._draftController.save()
   }
@@ -373,7 +383,7 @@ export class SettingsView extends TwilightLocalizeMixin(LitElement) {
   private async _onTemplateRulesChanged(e: CustomEvent<RuleConfig[]>) {
     this._draftController.update(draft => {
       if (!draft.area_template) draft.area_template = {}
-      draft.area_template.rules = e.detail
+      Object.assign(draft.area_template, withRulesReplaced(draft.area_template, e.detail))
     })
     await this._draftController.save()
   }
@@ -573,7 +583,29 @@ export class SettingsView extends TwilightLocalizeMixin(LitElement) {
     })
   }
 
+  private _retryLoadData() {
+    this._hasLoaded = false
+    this._loadError = null
+    this._loadData()
+  }
+
   render() {
+    if (!this._draftController.draft && this._loadError && !this._draftController.loading) {
+      return html`
+        <div class="view-header-container">
+          <div class="settings-header">
+            <div class="header-left"><h2>${this.t('nav.settings')}</h2></div>
+          </div>
+        </div>
+        <div class="view-content-container" style="display:flex;flex-direction:column;gap:12px;max-width:640px;">
+          <h3 style="margin:0;">${this.t('status_card.system_error')}</h3>
+          <p style="margin:0;color:var(--secondary-text-color);">${this._loadError}</p>
+          <div>
+            <button class="btn-retry-settings-load" @click=${this._retryLoadData}>${this.t('areas_view.retry')}</button>
+          </div>
+        </div>
+      `
+    }
     const customChannels = this._draftController.draft?.area_template?.custom_channels || {}
     let channelId = this._selectedChannelId || PRIMARY_CHANNEL_ID
     if (channelId !== PRIMARY_CHANNEL_ID && !customChannels[channelId] && Object.keys(customChannels).length > 0) {

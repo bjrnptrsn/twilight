@@ -26,9 +26,11 @@ from ..engine import TwilightEngine
 from ..engine_registry import area_wants_engine
 from ..helpers import (
     channel_entities,
+    detect_channel_collisions,
     enforced_scene_states,
     is_dynamic_slot,
     is_slot_excluded_effective,
+    simulation_template_issues,
 )
 from ..scene_manager import is_extraction_incomplete
 from ..state import RunState
@@ -500,4 +502,11 @@ def _build_state_dict(
         "inputs": inputs_push,
         "active_rules": dict(state.active_rules),
         "scene_extraction_failed": scene_extraction_failed,
+        # Lamps several enabled channels steer, across all slots: their call
+        # handlers retry against each other. IDs only, the panel resolves names.
+        "channel_collisions": detect_channel_collisions(
+            engine.scene_map,
+            (ch_id for ch_id, ch in engine.config.channels.items() if ch.enabled),
+        ),
+        "sim_template_issues": simulation_template_issues(engine.config),
     }

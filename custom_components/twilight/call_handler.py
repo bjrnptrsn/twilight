@@ -62,10 +62,10 @@ def build_light_service_data(
     transition: int | None = None,
 ) -> dict[str, Any]:
     """Build service_data for light.turn_on based on expected state and supported color modes."""
-    service_data: dict[str, Any] = {"entity_id": entity_id}
-
-    if transition is not None and transition > 0:
-        service_data["transition"] = transition
+    # A hard call says 0: without a duration the Hue Bridge applies its own
+    # default, and a lamp that runs one transition at a time then drops the
+    # brightness when the colour command follows.
+    service_data: dict[str, Any] = {"entity_id": entity_id, "transition": transition or 0}
 
     if entity_id not in color_modes_cache:
         try:
@@ -154,8 +154,9 @@ class BaseCallHandler:
 
     Long-lived: one instance per (channel_id, call-art) is built once by the
     Coordinator and reused for the engine's lifetime (see coordinator.py). Every
-    public entry point (`start`/`fade`/`reapply` on SceneCallHandler,
-    `execute` on TurnOffCallHandler) must therefore begin with the same reset —
+    public entry point (`start`/`fade`/`complete_fade`/`reapply` on
+    SceneCallHandler, `execute` on TurnOffCallHandler) must therefore begin with
+    the same reset —
     see `_run()`.
     """
 
@@ -358,8 +359,8 @@ class BaseCallHandler:
     ) -> None:
         """Shared execution routine: reset, send calls, arm retries/deviation watch.
 
-        Called by each public method (`start`/`fade`/`reapply` on SceneCallHandler,
-        `execute` on TurnOffCallHandler) with values it has
+        Called by each public method (`start`/`fade`/`complete_fade`/`reapply` on
+        SceneCallHandler, `execute` on TurnOffCallHandler) with values it has
         already worked out for itself — this routine never inspects which of
         them called it, it only uses what was handed in. `calls` is the fully
         built list of service calls; `retry_entities` is what the retry loop
@@ -699,7 +700,7 @@ class BaseCallHandler:
 
 
 class SceneCallHandler(BaseCallHandler):
-    """Steers a channel's slot scene through three execution contexts.
+    """Steers a channel's slot scene through four execution contexts.
 
     One instance per channel, built once by the Coordinator and reused for the
     engine's lifetime (see coordinator.py). The public method the caller picks
@@ -711,11 +712,13 @@ class SceneCallHandler(BaseCallHandler):
       Transition/retry-delays/reaction-end all derive from the one remaining-
       time computation against `target_slot_start`. Filters to entities
       currently on.
+    - `complete_fade(slot_id)` — Stage 2 of a fade into a dynamic slot: the
+      lamps that can't rotate, hard, without a second recall.
     - `reapply(slot_id)` — correction while the activity stays active
       (re-trigger sees a deviating light). No transition. Filters to
       currently-deviating entities.
 
-    What's shared across all three (scene-type detection, the dynamic-Hue
+    What's shared across all four (scene-type detection, the dynamic-Hue
     guard, building per-entity calls) lives in private helpers below — none of
     them branch on which public method is running.
     """
@@ -763,8 +766,8 @@ class SceneCallHandler(BaseCallHandler):
     def is_dynamic_slot(self, slot_id: str, scene_info: SlotSceneInfo | None) -> bool:
         """True if the slot runs Bridge-side dynamic playback (see helpers.is_dynamic_slot).
 
-        Also used by SlotCoordinator to skip a Stage-2 slot-change re-call that
-        would restart an already-running Bridge rotation.
+        Also used by SlotCoordinator so that Stage 2 of a dynamic fade does not
+        recall the scene again, which would restart the running rotation.
         """
         return is_dynamic_slot(
             self.engine.config.slot(self.channel_id, slot_id), scene_info
@@ -775,8 +778,8 @@ class SceneCallHandler(BaseCallHandler):
     ) -> dict[str, dict[str, Any]]:
         """Expected states retries/reapply may check and re-drive for this slot.
 
-        Dynamic slots retry too: this leaves the rotating lamps out and limits
-        the others to on/off and brightness.
+        Dynamic slots retry too: this leaves the rotating lamps out and keeps
+        the others in full.
         """
         return enforced_scene_states(
             scene_info, self.is_dynamic_slot(slot_id, scene_info)
@@ -809,8 +812,8 @@ class SceneCallHandler(BaseCallHandler):
         sdata: dict[str, Any] = {"entity_id": scene_id, "dynamic": True}
         if slot.hue_dynamic_speed is not None:
             sdata["speed"] = slot.hue_dynamic_speed
-        if transition is not None and transition > 0:
-            sdata["transition"] = transition
+        # 0 for a hard recall, for the same reason as build_light_service_data().
+        sdata["transition"] = transition or 0
         return CallSpec("hue", "activate_scene", sdata)
 
     @staticmethod
@@ -872,8 +875,7 @@ class SceneCallHandler(BaseCallHandler):
 
         Lamps without dynamics (GLEDOPTO, IKEA) take only a static value from the
         recall, and often miss its group message. They get their full static
-        state per light first, as lead calls the recall waits for: a color
-        landing after it would end the dynamic playback on the Bridge.
+        state per light first, as lead calls the recall waits for.
         """
         static = self._select_states(
             scene_info.expected_states,
@@ -998,7 +1000,7 @@ class SceneCallHandler(BaseCallHandler):
                 # that are off right now — the "a fade never wakes an off lamp"
                 # rule cannot hold for a dynamic slot. So the non-rotating lamps
                 # follow the scene too: otherwise one that was off and misses the
-                # group message would stay dark (Stage 2 skips dynamic slots).
+                # group message would stay dark until Stage 2.
                 target_entities = list(scene_info.extracted_entities)
                 calls = self._build_dynamic_enter_calls(
                     dynamic_call, scene_info, target_entities, transition
@@ -1027,6 +1029,36 @@ class SceneCallHandler(BaseCallHandler):
         # wiped before the retry loop it drives ever gets scheduled.
         self._fade_target_slot_start = target_slot_start
 
+    async def complete_fade(self, slot_id: str) -> None:
+        """Stage 2 of a fade into a dynamic slot: resend the non-rotating lamps hard.
+
+        No recall — the fade's recall already runs the rotation, and a second
+        one would restart it. The lamps that can't rotate get their full target
+        without transition: one that runs a single transition at a time keeps
+        its old brightness when brightness and colour fade together, and one
+        that missed the recall's group message is still off. Same lamps as the
+        dynamic fade (its recall switched the whole scene on), minus those
+        marked manual-off while Respect Manual Off holds.
+        """
+        scene_info = self._scene_info(slot_id)
+        targets: dict[str, dict[str, Any]] = {}
+        if scene_info:
+            coordinator = self.engine.coordinator
+            skip = (
+                coordinator.run_state.manual_off_entities
+                if coordinator.is_respect_manual_off_active()
+                else frozenset()
+            )
+            targets = self._select_states(
+                self._enforced_states(slot_id, scene_info),
+                (e for e in scene_info.extracted_entities if e not in skip),
+            )
+        await self._run(
+            self._build_scene_calls(targets, None),
+            context_suffix=f"{slot_id}_complete",
+            deviation_targets=targets or None,
+        )
+
     async def reapply(self, slot_id: str, grace_elapsed: float = 0.0) -> None:
         """Correct only the currently-deviating entities of an active slot's scene.
 
@@ -1052,8 +1084,7 @@ class SceneCallHandler(BaseCallHandler):
         # extractable.
         if scene_info and scene_info.extracted_entities and scene_info.expected_states:
             # In a dynamic slot this leaves the rotating lamps to the Bridge
-            # and corrects only on/off and brightness of the others — a static
-            # color would end the Bridge's dynamic playback.
+            # and corrects the others in full.
             enforced = self._enforced_states(slot_id, scene_info)
             coordinator = self.engine.coordinator
             respect_manual_off = coordinator.is_respect_manual_off_active()

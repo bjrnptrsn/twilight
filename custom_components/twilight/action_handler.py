@@ -60,8 +60,8 @@ def _channel_matches_slot(
     if not scene_info or not scene_info.expected_states:
         return False
     # In a dynamic slot the Bridge rotates the palette on its own, so only the
-    # non-rotating lamps' on/off and brightness are compared — a full
-    # comparison would always deviate and dispatch a reapply on every re-trigger.
+    # non-rotating lamps are compared — the rotating ones would always deviate
+    # and dispatch a reapply on every re-trigger.
     slot = coordinator.engine.config.slot(channel_id, slot_id)
     enforced = enforced_scene_states(scene_info, is_dynamic_slot(slot, scene_info))
     hass = coordinator.engine.hass
@@ -131,20 +131,40 @@ def apply_slot_action_over_channels(
         slot_id = active_slots.get(channel_id)
         if not slot_id:
             continue
-        if slot_id in excluded_slots.get(channel_id, ()):
-            if not channel_already_off(coordinator, channel_id):
-                coordinator.turn_off_channel(channel_id, transition_off=transition_off)
-        elif not was_activated or channel_already_off(coordinator, channel_id):
-            # A channel that is fully off (e.g. turned off by a previous
-            # activity's excluded_slots, while scene_activated_at stayed set
-            # for the area as a whole) is a fresh entry, not a correction —
-            # route it through the same direct start as the never-activated
-            # case. Otherwise it falls into reapply_deviating_slot() below,
-            # whose dynamic-Hue "always matches" guard (_channel_matches_slot)
-            # then silently no-ops instead of turning the channel back on.
-            coordinator.apply_channel_slot(channel_id, slot_id, direct=True)
-        elif not _channel_matches_slot(coordinator, channel_id, slot_id):
-            coordinator.reapply_deviating_slot(channel_id, slot_id)
+        apply_slot_action_to_channel(
+            coordinator,
+            channel_id,
+            slot_id,
+            excluded_slots,
+            was_activated=was_activated,
+            transition_off=transition_off,
+        )
+
+
+def apply_slot_action_to_channel(
+    coordinator: Coordinator,
+    channel_id: str,
+    slot_id: str,
+    excluded_slots: dict[str, tuple[str, ...]],
+    *,
+    was_activated: bool,
+    transition_off: int | None = None,
+) -> None:
+    """Bring one channel into its slot under a slot action's effective exclusions."""
+    if slot_id in excluded_slots.get(channel_id, ()):
+        if not channel_already_off(coordinator, channel_id):
+            coordinator.turn_off_channel(channel_id, transition_off=transition_off)
+    elif not was_activated or channel_already_off(coordinator, channel_id):
+        # A channel that is fully off (e.g. turned off by a previous
+        # activity's excluded_slots, while scene_activated_at stayed set
+        # for the area as a whole) is a fresh entry, not a correction —
+        # route it through the same direct start as the never-activated
+        # case. Otherwise it falls into reapply_deviating_slot() below,
+        # whose dynamic-Hue "always matches" guard (_channel_matches_slot)
+        # then silently no-ops instead of turning the channel back on.
+        coordinator.apply_channel_slot(channel_id, slot_id, direct=True)
+    elif not _channel_matches_slot(coordinator, channel_id, slot_id):
+        coordinator.reapply_deviating_slot(channel_id, slot_id)
 
 
 def channel_already_off(coordinator: Coordinator, channel_id: str) -> bool:
@@ -311,47 +331,55 @@ class EntityActionHandler(BaseActionHandler):
         active_slots: dict[str, str],
         transition_off: int | None = None,
     ) -> None:
-        """Apply a scene or script.
+        """Apply a scene or script."""
+        self._apply_entity_action(action, reapply=False)
 
-        A re-trigger while the Entity-Action is already active goes through
-        `reapply()` instead of `start()` — same
-        was_activated pattern as SlotActionHandler.start()/
-        apply_slot_action_over_channels().
+    def reapply(self, action: ActionConfig) -> None:
+        """Correct an already active Entity-Action instead of starting it.
+
+        A re-trigger of the same activity reuses the running handler; a takeover
+        from another activity goes through start().
         """
+        self._apply_entity_action(action, reapply=True)
+
+    def _apply_entity_action(
+        self, action: ActionConfig, *, reapply: bool
+    ) -> None:
         if not isinstance(action, EntityActionConfig):
             raise TypeError(
-                f"EntityActionHandler.start() requires an EntityActionConfig, got {type(action).__name__}"
+                f"EntityActionHandler requires an EntityActionConfig, got {type(action).__name__}"
             )
         c = self._coordinator
         entity_id = action.entity_id
-        if entity_id:
-            was_activated = c.run_state.scene_activated_at is not None
-            c.update_state(
-                scene_activated_at=c.run_state.scene_activated_at or datetime.now(UTC)
+        if not entity_id:
+            return
+
+        c.update_state(
+            scene_activated_at=c.run_state.scene_activated_at or datetime.now(UTC)
+        )
+        c.lux_manager.update_lux_state()
+        handler = c.scene_handler(PRIMARY_CHANNEL_ID)
+        if handler is None:
+            _LOGGER.error(
+                "[%s] No SceneCallHandler for primary channel — cannot apply "
+                "Entity-Action",
+                c.engine.area_id,
             )
-            c.lux_manager.update_lux_state()
-            handler = c.scene_handler(PRIMARY_CHANNEL_ID)
-            if handler is None:
-                _LOGGER.error(
-                    "[%s] No SceneCallHandler for primary channel — cannot apply "
-                    "Entity-Action",
-                    c.engine.area_id,
-                )
-                return
-            if was_activated:
-                c.swap_channel_handler(
-                    PRIMARY_CHANNEL_ID,
-                    handler,
-                    lambda grace_elapsed: handler.reapply(
-                        entity_id, grace_elapsed=grace_elapsed
-                    ),
-                )
-            else:
-                c.swap_channel_handler(
-                    PRIMARY_CHANNEL_ID,
-                    handler,
-                    lambda grace_elapsed: handler.start(entity_id),
-                )
+            return
+        if reapply:
+            c.swap_channel_handler(
+                PRIMARY_CHANNEL_ID,
+                handler,
+                lambda grace_elapsed: handler.reapply(
+                    entity_id, grace_elapsed=grace_elapsed
+                ),
+            )
+        else:
+            c.swap_channel_handler(
+                PRIMARY_CHANNEL_ID,
+                handler,
+                lambda grace_elapsed: handler.start(entity_id),
+            )
 
 
 class BlockActionHandler(BaseActionHandler):
@@ -695,7 +723,9 @@ class PresenceSimulationActionHandler(BaseActionHandler):
         """Apply the template activity's start action over the slot-primitives."""
         c = self._coordinator
         action = c.resolve_action(cast(str, self._template))
-        c.update_state(scene_activated_at=datetime.now(UTC))
+        c.update_state(
+            scene_activated_at=c.run_state.scene_activated_at or datetime.now(UTC)
+        )
         c.lux_manager.update_lux_state()
         t = action.type
         _LOGGER.info(
